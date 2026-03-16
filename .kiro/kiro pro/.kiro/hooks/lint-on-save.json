@@ -1,0 +1,13 @@
+{
+  "name": "Lint on Save",
+  "version": "1.0.0",
+  "description": "JavaScript/TypeScript fayllarni saqlaganida avtomatik lint tekshiruvi",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["*.js", "*.ts", "*.jsx", "*.tsx"]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "npm run lint"
+  }
+}

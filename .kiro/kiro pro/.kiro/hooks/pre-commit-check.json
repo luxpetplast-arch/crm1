@@ -1,0 +1,12 @@
+{
+  "name": "Pre-Commit Check",
+  "version": "1.0.0",
+  "description": "Review changes before committing",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Review staged changes using @git-commit-helper. Generate commit message, check for debugging code, sensitive data, and suggest commit organization."
+  }
+}

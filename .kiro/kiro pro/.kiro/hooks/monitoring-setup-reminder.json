@@ -1,0 +1,13 @@
+{
+  "name": "Monitoring Setup Reminder",
+  "version": "1.0.0",
+  "description": "Yangi feature qo'shilganda monitoring setup ni eslatadi",
+  "when": {
+    "type": "postTaskExecution"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "@monitoring-setup-specialist Yangi feature uchun monitoring setup qilish kerakmi? Metrics, logs va alerts ni sozlash."
+  },
+  "disabled": false
+}

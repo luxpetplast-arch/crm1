@@ -1,0 +1,12 @@
+{
+  "name": "Full Project Audit",
+  "version": "1.0.0",
+  "description": "Loyihaning to'liq audit - barcha agentlar ishga tushadi",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "To'liq loyiha audit qil: 1) @code-reviewer kod sifati, 2) @security-auditor xavfsizlik, 3) @performance-optimizer performance, 4) @test-coverage-analyzer test coverage, 5) @database-optimizer database (agar mavjud bo'lsa), 6) @documentation-writer docs to'liqligi. Har biridan qisqacha hisobot ber."
+  }
+}

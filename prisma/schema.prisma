@@ -1,0 +1,843 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// SQLite doesn't support enums, using String instead
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("SELLER") // ADMIN, SELLER, WAREHOUSE_MANAGER, ACCOUNTANT, DRIVER
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sales         Sale[]
+  driverSales   Sale[]         @relation("DriverSales")
+  expenses      Expense[]
+  auditLogs     AuditLog[]
+  drivers       Driver[]
+  driverChats   DriverChat[]
+  customerChats CustomerChat[] @relation("CustomerChatAdmin")
+}
+
+model Product {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  bagType         String
+  unitsPerBag     Int
+  minStockLimit   Int
+  optimalStock    Int
+  maxCapacity     Int
+  currentStock    Int      @default(0)
+  currentUnits    Int      @default(0) // Jami dona soni
+  pricePerBag     Float
+  productionCost  Float    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  batches       Batch[]
+  sales         Sale[]
+  saleItems     SaleItem[]
+  orderItems    OrderItem[]
+  stockAlerts   StockAlert[]
+  stockMovements StockMovement[]
+}
+
+model Batch {
+  id              String   @id @default(uuid())
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id])
+  quantity        Int
+  productionDate  DateTime
+  shift           String
+  responsiblePerson String
+  createdAt       DateTime @default(now())
+
+  @@index([productId])
+}
+
+model Customer {
+  id              String            @id @default(uuid())
+  name            String
+  email           String?           @unique
+  phone           String
+  address         String?           // Mijoz manzili
+  telegramChatId  String?           @unique // Telegram bot uchun
+  telegramUsername String?          // Telegram username
+  notificationsEnabled Boolean      @default(true) // Eslatmalarni yoqish/o'chirish
+  debtReminderDays Int              @default(7) // Necha kundan keyin eslatma
+  category        String            @default("NORMAL") // VIP, NORMAL, RISK
+  balance         Float             @default(0)
+  debt            Float             @default(0)
+  creditLimit     Float             @default(0)
+  paymentTermDays Int               @default(30)
+  discountPercent Float             @default(0)
+  pricePerBag     Float?            // Har bir mijoz uchun alohida narx
+  productPrices   String?           // JSON: {productId: price, ...} - har bir mahsulot uchun alohida narx
+  lastPurchase    DateTime?
+  lastPayment     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  sales           Sale[]
+  payments        Payment[]
+  invoices        Invoice[]
+  contracts       Contract[]
+  orders          Order[]
+  chatMessages    CustomerChat[]
+}
+
+model Sale {
+  id             String   @id @default(uuid())
+  customerId     String
+  customer       Customer @relation(fields: [customerId], references: [id])
+  productId      String?
+  product        Product? @relation(fields: [productId], references: [id])
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  driverId       String?
+  driver         User?    @relation("DriverSales", fields: [driverId], references: [id])
+  quantity       Int      @default(1)
+  pricePerBag    Float    @default(0)
+  bagType        String   @default("SMALL")
+  totalAmount    Float
+  paidAmount     Float    @default(0)
+  currency       String   @default("USD") // USD asosiy valyuta
+  paymentStatus  String   @default("UNPAID") // PAID, PARTIAL, UNPAID
+  paymentDetails String?  // JSON: {uzs, usd, eur}
+  driverPaymentStatus String @default("PENDING") // PENDING, COLLECTED, DELIVERED
+  driverCollectedAmount Float @default(0) // Haydovchi tomonidan yig'ilgan pul
+  createdAt      DateTime @default(now())
+
+  items       SaleItem[]
+  invoice     Invoice?
+
+  @@index([customerId])
+  @@index([productId])
+  @@index([userId])
+  @@index([driverId])
+  @@index([createdAt])
+}
+
+model SaleItem {
+  id          String  @id @default(uuid())
+  saleId      String
+  sale        Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product @relation(fields: [productId], references: [id])
+  quantity    Int
+  pricePerBag Float
+  subtotal    Float
+
+  @@index([saleId])
+  @@index([productId])
+}
+
+model Invoice {
+  id          String   @id @default(uuid())
+  saleId      String   @unique
+  sale        Sale     @relation(fields: [saleId], references: [id])
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id])
+  invoiceNumber String @unique
+  totalAmount Float
+  currency    String // UZS, USD, CLICK
+  sentToTelegram Boolean @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([customerId])
+}
+
+model Payment {
+  id             String   @id @default(uuid())
+  customerId     String
+  customer       Customer @relation(fields: [customerId], references: [id])
+  amount         Float
+  currency       String // USD asosiy valyuta
+  description    String?
+  paymentDetails String? // JSON: {uzs, usd, eur}
+  createdAt      DateTime @default(now())
+
+  @@index([customerId])
+}
+
+model Expense {
+  id          String          @id @default(uuid())
+  category    String // SALARY, ELECTRICITY, RAW_MATERIALS, TRANSPORT, TAX, OTHER
+  amount      Float
+  currency    String // UZS, USD, CLICK
+  description String
+  userId      String
+  user        User            @relation(fields: [userId], references: [id])
+  createdAt   DateTime        @default(now())
+
+  @@index([category])
+  @@index([createdAt])
+}
+
+model StockAlert {
+  id          String   @id @default(uuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  alertType   String
+  message     String
+  resolved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([productId])
+  @@index([resolved])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  action      String
+  entity      String
+  entityId    String
+  changes     String? // JSON as string for SQLite
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
+}
+
+model SalesForecast {
+  id              String   @id @default(uuid())
+  productId       String
+  forecastDate    DateTime
+  predictedDemand Int
+  confidence      Float
+  createdAt       DateTime @default(now())
+
+  @@index([productId])
+  @@index([forecastDate])
+}
+
+model Contract {
+  id              String   @id @default(uuid())
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id])
+  contractNumber  String   @unique
+  startDate       DateTime
+  endDate         DateTime
+  terms           String
+  creditLimit     Float
+  paymentTermDays Int
+  status          String   @default("ACTIVE")
+  createdAt       DateTime @default(now())
+
+  @@index([customerId])
+}
+
+model PriceLevel {
+  id              String   @id @default(uuid())
+  productId       String
+  name            String
+  minQuantity     Int
+  price           Float
+  discountPercent Float    @default(0)
+  createdAt       DateTime @default(now())
+
+  @@index([productId])
+}
+
+model CashierShift {
+  id              String   @id @default(uuid())
+  userId          String
+  openingBalance  Float
+  closingBalance  Float?
+  cashSales       Float    @default(0)
+  cardSales       Float    @default(0)
+  clickSales      Float    @default(0)
+  totalSales      Float    @default(0)
+  shortage        Float    @default(0)
+  overage         Float    @default(0)
+  startTime       DateTime @default(now())
+  endTime         DateTime?
+  status          String   @default("OPEN")
+
+  @@index([userId])
+  @@index([startTime])
+}
+
+model Delivery {
+  id              String   @id @default(uuid())
+  saleId          String   @unique
+  driverId        String?
+  address         String
+  scheduledDate   DateTime
+  deliveredDate   DateTime?
+  status          String   @default("PENDING")
+  cost            Float    @default(0)
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  @@index([driverId])
+  @@index([status])
+}
+
+model Driver {
+  id              String   @id @default(uuid())
+  userId          String?  // Sayt user ID'si
+  name            String
+  phone           String   @unique
+  licenseNumber   String   @unique
+  vehicleNumber   String
+  telegramChatId  String?  @unique // Telegram bot uchun
+  telegramUsername String? // Telegram username
+  status          String   @default("AVAILABLE") // AVAILABLE, BUSY, OFFLINE
+  active          Boolean  @default(true)
+  rating          Float    @default(5.0)
+  totalDeliveries Int      @default(0)
+  currentLocation String?  // Joriy joylashuv
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  user            User?    @relation(fields: [userId], references: [id])
+  assignments     DeliveryAssignment[]
+  chats           DriverChat[]
+}
+// Haydovchiga buyurtma tayinlash
+model DeliveryAssignment {
+  id              String   @id @default(uuid())
+  orderId         String
+  driverId        String
+  assignedBy      String   // Admin user ID
+  status          String   @default("PENDING") // PENDING, ACCEPTED, REJECTED, IN_PROGRESS, COMPLETED
+  assignedAt      DateTime @default(now())
+  acceptedAt      DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  rejectionReason String?
+  notes           String?
+  customerPhone   String?
+  deliveryAddress String
+  estimatedTime   Int?     // Daqiqalarda
+  actualTime      Int?     // Haqiqiy vaqt
+  
+  driver          Driver   @relation(fields: [driverId], references: [id])
+  order           Order    @relation(fields: [orderId], references: [id])
+
+  @@index([driverId])
+  @@index([orderId])
+  @@index([status])
+}
+
+// Admin va haydovchi o'rtasida chat
+model DriverChat {
+  id              String   @id @default(uuid())
+  driverId        String
+  adminId         String
+  message         String
+  senderType      String   // ADMIN, DRIVER
+  messageType     String   @default("TEXT") // TEXT, IMAGE, LOCATION
+  isRead          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  driver          Driver   @relation(fields: [driverId], references: [id])
+  admin           User     @relation(fields: [adminId], references: [id])
+
+  @@index([driverId])
+  @@index([adminId])
+  @@index([createdAt])
+}
+
+// Haydovchi lokatsiyasi
+model DriverLocation {
+  id              String   @id @default(uuid())
+  driverId        String
+  latitude        Float
+  longitude       Float
+  address         String?
+  speed           Float?   // km/h
+  heading         Float?   // Yo'nalish (0-360)
+  accuracy        Float?   // GPS aniqlik (metr)
+  timestamp       DateTime @default(now())
+
+  @@index([driverId])
+  @@index([timestamp])
+}
+
+model Supplier {
+  id              String   @id @default(uuid())
+  name            String
+  contactPerson   String
+  email           String?
+  phone           String
+  address         String?
+  paymentTerms    String   @default("30 days")
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  purchaseOrders  PurchaseOrder[]
+  rawMaterials    RawMaterial[]
+}
+
+model RawMaterial {
+  id              String   @id @default(uuid())
+  name            String
+  unit            String   // kg, ton, litr
+  currentStock    Float    @default(0)
+  minStockLimit   Float
+  unitPrice       Float
+  supplierId      String
+  supplier        Supplier @relation(fields: [supplierId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  purchaseOrderItems PurchaseOrderItem[]
+  productionUsage    ProductionUsage[]
+
+  @@index([supplierId])
+}
+
+model PurchaseOrder {
+  id              String   @id @default(uuid())
+  orderNumber     String   @unique
+  supplierId      String
+  supplier        Supplier @relation(fields: [supplierId], references: [id])
+  totalAmount     Float
+  status          String   @default("PENDING") // PENDING, APPROVED, RECEIVED, CANCELLED
+  orderDate       DateTime @default(now())
+  expectedDate    DateTime?
+  receivedDate    DateTime?
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  items           PurchaseOrderItem[]
+
+  @@index([supplierId])
+  @@index([status])
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(uuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  rawMaterialId   String
+  rawMaterial     RawMaterial   @relation(fields: [rawMaterialId], references: [id])
+  quantity        Float
+  unitPrice       Float
+  subtotal        Float
+
+  @@index([purchaseOrderId])
+  @@index([rawMaterialId])
+}
+
+model ProductionOrder {
+  id              String   @id @default(uuid())
+  orderNumber     String   @unique
+  productId       String
+  targetQuantity  Int
+  actualQuantity  Int      @default(0)
+  status          String   @default("PLANNED") // PLANNED, IN_PROGRESS, COMPLETED, CANCELLED
+  plannedDate     DateTime
+  startedDate     DateTime?
+  completedDate   DateTime?
+  shift           String
+  supervisorId    String
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  usage           ProductionUsage[]
+
+  @@index([productId])
+  @@index([status])
+  @@index([supervisorId])
+}
+
+model ProductionUsage {
+  id                String          @id @default(uuid())
+  productionOrderId String
+  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  rawMaterialId     String
+  rawMaterial       RawMaterial     @relation(fields: [rawMaterialId], references: [id])
+  quantityUsed      Float
+  createdAt         DateTime        @default(now())
+
+  @@index([productionOrderId])
+  @@index([rawMaterialId])
+}
+
+model QualityCheck {
+  id              String   @id @default(uuid())
+  productId       String
+  batchId         String?
+  checkType       String   // INCOMING, PRODUCTION, OUTGOING
+  status          String   // PASSED, FAILED, PENDING
+  checkedBy       String
+  checkDate       DateTime @default(now())
+  defects         String? // JSON as string for SQLite
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  @@index([productId])
+  @@index([status])
+  @@index([checkDate])
+}
+
+model Promotion {
+  id              String   @id @default(uuid())
+  name            String
+  description     String
+  type            String   // PERCENTAGE, FIXED_AMOUNT, BUY_X_GET_Y
+  value           Float
+  minQuantity     Int?
+  maxQuantity     Int?
+  startDate       DateTime
+  endDate         DateTime
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  @@index([active])
+  @@index([startDate])
+  @@index([endDate])
+}
+
+model LoyaltyProgram {
+  id              String   @id @default(uuid())
+  customerId      String
+  points          Int      @default(0)
+  totalSpent      Float    @default(0)
+  tier            String   @default("BRONZE") // BRONZE, SILVER, GOLD, PLATINUM
+  joinDate        DateTime @default(now())
+  lastActivity    DateTime @default(now())
+
+  transactions    LoyaltyTransaction[]
+
+  @@index([customerId])
+  @@index([tier])
+}
+
+model LoyaltyTransaction {
+  id              String         @id @default(uuid())
+  loyaltyId       String
+  loyalty         LoyaltyProgram @relation(fields: [loyaltyId], references: [id])
+  type            String         // EARNED, REDEEMED
+  points          Int
+  description     String
+  saleId          String?
+  createdAt       DateTime       @default(now())
+
+  @@index([loyaltyId])
+  @@index([type])
+}
+
+model Maintenance {
+  id              String   @id @default(uuid())
+  equipmentName   String
+  maintenanceType String   // PREVENTIVE, CORRECTIVE, EMERGENCY
+  description     String
+  scheduledDate   DateTime
+  completedDate   DateTime?
+  cost            Float    @default(0)
+  technician      String
+  status          String   @default("SCHEDULED") // SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  @@index([status])
+  @@index([scheduledDate])
+}
+
+model Task {
+  id              String   @id @default(uuid())
+  title           String
+  description     String?
+  assignedTo      String
+  priority        String   @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  status          String   @default("TODO") // TODO, IN_PROGRESS, COMPLETED, CANCELLED
+  dueDate         DateTime?
+  completedDate   DateTime?
+  createdBy       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([assignedTo])
+  @@index([status])
+  @@index([priority])
+  @@index([dueDate])
+}
+
+model Notification {
+  id              String   @id @default(uuid())
+  userId          String
+  title           String
+  message         String
+  type            String   // INFO, WARNING, ERROR, SUCCESS
+  read            Boolean  @default(false)
+  actionUrl       String?
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+model SystemSettings {
+  id              String   @id @default(uuid())
+  key             String   @unique
+  value           String
+  description     String?
+  updatedBy       String
+  updatedAt       DateTime @updatedAt
+}
+
+model StockMovement {
+  id              String   @id @default(uuid())
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id])
+  type            String   // ADD, REMOVE, ADJUST, PRODUCTION, SALE
+  quantity        Int      // Qop soni
+  units           Int      // Dona soni
+  reason          String
+  userId          String
+  userName        String
+  previousStock   Int      // Oldingi qop soni
+  previousUnits   Int      // Oldingi dona soni
+  newStock        Int      // Yangi qop soni
+  newUnits        Int      // Yangi dona soni
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  @@index([productId])
+  @@index([type])
+  @@index([createdAt])
+}
+// Buyurtmalar tizimi - Mijozlardan kelgan buyurtmalar
+model Order {
+  id              String   @id @default(uuid())
+  orderNumber     String   @unique
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id])
+  status          String   @default("PENDING") // PENDING, CONFIRMED, IN_PRODUCTION, READY, SOLD, DELIVERED, CANCELLED
+  priority        String   @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  requestedDate   DateTime // Mijoz qachon kerak deb so'ragan
+  promisedDate    DateTime? // Biz qachon berishni va'da qildik
+  deliveredDate   DateTime?
+  confirmedAt     DateTime? // Tasdiqlangan vaqt
+  soldAt          DateTime? // Sotilgan vaqt
+  totalAmount     Float    @default(0)
+  paidAmount      Float    @default(0) // To'langan summa
+  paymentDetails  String? // To'lov tafsilotlari JSON (uzs, usd, click)
+  saleId          String? // Bog'langan sotuv ID
+  notes           String?
+  aiRecommendation String? // AI tavsiyasi JSON
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  items           OrderItem[]
+  productionPlan  ProductionPlan?
+  deliveryAssignments DeliveryAssignment[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([requestedDate])
+}
+
+model OrderItem {
+  id              String   @id @default(uuid())
+  orderId         String
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id])
+  quantityBags    Int      // Qop soni
+  quantityUnits   Int      // Dona soni
+  pricePerBag     Float
+  subtotal        Float
+  notes           String?
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+// AI Ishlab chiqarish rejasi
+model ProductionPlan {
+  id              String   @id @default(uuid())
+  orderId         String   @unique
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  planType        String   // IMMEDIATE, TOMORROW, WEEK, MONTH
+  startDate       DateTime
+  endDate         DateTime
+  totalBags       Int
+  totalUnits      Int
+  status          String   @default("DRAFT") // DRAFT, APPROVED, IN_PROGRESS, COMPLETED
+  aiConfidence    Float    @default(0) // AI ishonch darajasi (0-100)
+  inventoryCheck  String?  // Ombor tekshiruvi JSON
+  recommendations String?  // AI tavsiyalari JSON
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tasks           ProductionTask[]
+
+  @@index([orderId])
+  @@index([status])
+  @@index([startDate])
+}
+
+model ProductionTask {
+  id              String         @id @default(uuid())
+  planId          String
+  plan            ProductionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  productId       String
+  productName     String
+  quantityBags    Int
+  quantityUnits   Int
+  priority        Int            @default(1)
+  status          String         @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED
+  assignedTo      String?
+  startTime       DateTime?
+  endTime         DateTime?
+  notes           String?
+
+  @@index([planId])
+  @@index([status])
+}
+
+// ============ LOGISTIKA TIZIMI ============
+
+// Mashina (Transport)
+model Vehicle {
+  id              String   @id @default(uuid())
+  plateNumber     String   @unique // Davlat raqami
+  type            String   // TRUCK, VAN, CAR
+  model           String   // Mashina modeli
+  capacity        Float    // Yuk sig'imi (kg)
+  status          String   @default("AVAILABLE") // AVAILABLE, IN_USE, MAINTENANCE, OUT_OF_SERVICE
+  fuelType        String   // PETROL, DIESEL, GAS, ELECTRIC
+  lastMaintenance DateTime?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  deliveriesNew   DeliveryNew[]
+  expenses        VehicleExpense[]
+}
+
+// Haydovchi (yangi)
+model DriverNew {
+  id              String   @id @default(uuid())
+  name            String
+  phone           String   @unique
+  licenseNumber   String   @unique
+  licenseExpiry   DateTime
+  telegramChatId  String?  // Telegram bot uchun
+  status          String   @default("AVAILABLE") // AVAILABLE, ON_DUTY, OFF_DUTY
+  rating          Float    @default(5.0)
+  totalDeliveries Int      @default(0)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  deliveriesNew   DeliveryNew[]
+}
+
+// Yetkazib berish (yangi)
+model DeliveryNew {
+  id              String   @id @default(uuid())
+  saleId          String   @unique
+  vehicleId       String?
+  driverId        String?
+  
+  // Manzil ma'lumotlari
+  fromAddress     String   @default("Zavod")
+  toAddress       String
+  distance        Float?   // km
+  
+  // Vaqt
+  scheduledDate   DateTime
+  departureTime   DateTime?
+  arrivalTime     DateTime?
+  
+  // Status
+  status          String   @default("PENDING") // PENDING, ASSIGNED, IN_TRANSIT, DELIVERED, CANCELLED, FAILED
+  
+  // Qo'shimcha
+  notes           String?
+  customerPhone   String?
+  deliveryProof   String?  // Rasm yoki imzo
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  vehicle         Vehicle? @relation(fields: [vehicleId], references: [id])
+  driver          DriverNew? @relation(fields: [driverId], references: [id])
+  statusHistory   DeliveryStatusHistory[]
+}
+
+// Yetkazib berish status tarixi
+model DeliveryStatusHistory {
+  id          String   @id @default(uuid())
+  deliveryId  String
+  status      String
+  notes       String?
+  location    String?
+  createdAt   DateTime @default(now())
+
+  delivery    DeliveryNew @relation(fields: [deliveryId], references: [id])
+}
+
+// Mashina xarajatlari
+model VehicleExpense {
+  id          String   @id @default(uuid())
+  vehicleId   String
+  type        String   // FUEL, MAINTENANCE, REPAIR, INSURANCE, OTHER
+  amount      Float
+  description String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id])
+}
+
+// Kassa tranzaksiyalari
+model CashboxTransaction {
+  id          String   @id @default(uuid())
+  type        String   // INCOME, EXPENSE
+  amount      Float
+  category    String   // SALE, PAYMENT, EXPENSE, ADJUSTMENT, OTHER
+  description String?
+  userId      String
+  userName    String
+  reference   String?  // Sale ID, Payment ID, etc.
+  createdAt   DateTime @default(now())
+
+  @@index([type])
+  @@index([category])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Mijoz bilan chat
+model CustomerChat {
+  id              String   @id @default(uuid())
+  customerId      String
+  adminId         String?
+  message         String
+  senderType      String   // CUSTOMER, ADMIN
+  messageType     String   @default("TEXT") // TEXT, IMAGE, LOCATION, FILE
+  isRead          Boolean  @default(false)
+  readAt          DateTime?
+  createdAt       DateTime @default(now())
+
+  customer        Customer @relation(fields: [customerId], references: [id])
+  admin           User?    @relation(fields: [adminId], references: [id], name: "CustomerChatAdmin")
+
+  @@index([customerId])
+  @@index([adminId])
+  @@index([createdAt])
+  @@index([isRead])
+}

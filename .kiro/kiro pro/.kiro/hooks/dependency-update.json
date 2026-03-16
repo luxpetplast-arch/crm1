@@ -1,0 +1,12 @@
+{
+  "name": "Check Dependency Updates",
+  "version": "1.0.0",
+  "description": "Dependencies yangilanishlarini tekshirish",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "npm outdated"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "Quality Gate Check",
+  "version": "1.0.0",
+  "description": "Har bir commit oldidan code quality ni tekshiradi",
+  "when": {
+    "type": "preToolUse",
+    "toolTypes": ["write"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "@code-quality-enforcer Kod yozishdan oldin quality standardlarni tekshir. Complexity, duplication va code smells ni aniqlash."
+  },
+  "disabled": true
+}

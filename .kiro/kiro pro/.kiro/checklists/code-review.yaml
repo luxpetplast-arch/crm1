@@ -1,0 +1,126 @@
+name: "Code Review Checklist"
+version: "1.0.0"
+description: "Comprehensive code review checklist"
+
+categories:
+  functionality:
+    title: "Functionality"
+    items:
+      - id: F1
+        check: "Code does what it's supposed to do"
+        critical: true
+      
+      - id: F2
+        check: "Edge cases are handled"
+        critical: true
+      
+      - id: F3
+        check: "Error handling is proper"
+        critical: true
+      
+      - id: F4
+        check: "No obvious bugs"
+        critical: true
+  
+  code_quality:
+    title: "Code Quality"
+    items:
+      - id: Q1
+        check: "Code is readable and maintainable"
+        critical: true
+      
+      - id: Q2
+        check: "Functions are small and focused"
+        critical: false
+      
+      - id: Q3
+        check: "No code duplication"
+        critical: false
+      
+      - id: Q4
+        check: "Naming is clear and consistent"
+        critical: false
+      
+      - id: Q5
+        check: "Complexity is acceptable (< 10)"
+        critical: false
+  
+  testing:
+    title: "Testing"
+    items:
+      - id: T1
+        check: "Unit tests are included"
+        critical: true
+      
+      - id: T2
+        check: "Tests cover edge cases"
+        critical: true
+      
+      - id: T3
+        check: "All tests pass"
+        critical: true
+      
+      - id: T4
+        check: "Test coverage is adequate (>80%)"
+        critical: false
+  
+  security:
+    title: "Security"
+    items:
+      - id: S1
+        check: "No SQL injection vulnerabilities"
+        critical: true
+      
+      - id: S2
+        check: "Input validation is present"
+        critical: true
+      
+      - id: S3
+        check: "No hardcoded secrets"
+        critical: true
+      
+      - id: S4
+        check: "Authentication/authorization checked"
+        critical: true
+  
+  performance:
+    title: "Performance"
+    items:
+      - id: P1
+        check: "No N+1 queries"
+        critical: false
+      
+      - id: P2
+        check: "Appropriate indexes used"
+        critical: false
+      
+      - id: P3
+        check: "No memory leaks"
+        critical: true
+      
+      - id: P4
+        check: "Efficient algorithms used"
+        critical: false
+  
+  documentation:
+    title: "Documentation"
+    items:
+      - id: D1
+        check: "Code is commented where needed"
+        critical: false
+      
+      - id: D2
+        check: "API documentation updated"
+        critical: true
+      
+      - id: D3
+        check: "README updated if needed"
+        critical: false
+      
+      - id: D4
+        check: "Changelog updated"
+        critical: false
+
+approval_criteria:
+  all_critical_passed: true
+  min_non_critical_passed: 80%

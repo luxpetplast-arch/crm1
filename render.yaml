@@ -1,0 +1,53 @@
+services:
+  # PostgreSQL Database
+  - type: pserv
+    name: aziztrades-db
+    env: docker
+    plan: free
+    region: frankfurt
+    databases:
+      - name: aziztrades_erp
+        user: aziztrades_user
+
+  # Backend API
+  - type: web
+    name: aziztrades-api
+    env: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm install && npm run build && npm run db:generate && npm run db:push
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: aziztrades-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PORT
+        value: 5000
+      - key: USD_TO_UZS_RATE
+        value: 12500
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_ADMIN_CHAT_ID
+        sync: false
+    healthCheckPath: /api/health
+
+  # Frontend (Static Site)
+  - type: web
+    name: aziztrades-frontend
+    env: static
+    region: frankfurt
+    plan: free
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: https://aziztrades-api.onrender.com

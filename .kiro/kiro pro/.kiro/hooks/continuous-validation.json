@@ -1,0 +1,14 @@
+{
+  "name": "Continuous Validation",
+  "version": "1.0.0",
+  "description": "Har qanday kod o'zgarishida validatsiya",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["src/**/*.ts", "src/**/*.js", "src/**/*.py"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Kod o'zgardi. Quyidagilarni tekshir: 1) Yangi kod men aytgan talablarga mos kelishini tekshir. 2) Eski funksiyalar buzilmaganini tekshir. 3) Agar muammo bo'lsa, batafsil hisobot ber."
+  },
+  "disabled": true
+}

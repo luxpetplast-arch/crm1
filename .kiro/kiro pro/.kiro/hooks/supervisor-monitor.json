@@ -1,0 +1,14 @@
+{
+  "name": "Supervisor Monitor",
+  "version": "1.0.0",
+  "description": "Project Supervisor doimiy monitoring",
+  "when": {
+    "type": "preToolUse",
+    "toolTypes": ["write"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "@project-supervisor Bu o'zgarishni tekshir: 1) Foydalanuvchi talablariga mos keladimi? 2) Scope ichidami? 3) Backward compatible mi? 4) Ruxsat berilganmi? Agar muammo bo'lsa TO'XTAT va xabar ber."
+  },
+  "disabled": true
+}

@@ -1,0 +1,128 @@
+name: "Performance Audit Checklist"
+version: "1.0.0"
+description: "Performance optimization checklist"
+
+categories:
+  frontend:
+    title: "Frontend Performance"
+    items:
+      - id: FE1
+        check: "Bundle size < 200KB"
+        target: "< 200KB"
+        critical: true
+      
+      - id: FE2
+        check: "Code splitting implemented"
+        critical: false
+      
+      - id: FE3
+        check: "Lazy loading for routes"
+        critical: false
+      
+      - id: FE4
+        check: "Images optimized (WebP)"
+        critical: false
+      
+      - id: FE5
+        check: "Lazy loading for images"
+        critical: false
+      
+      - id: FE6
+        check: "Critical CSS inlined"
+        critical: false
+      
+      - id: FE7
+        check: "Fonts preloaded"
+        critical: false
+  
+  backend:
+    title: "Backend Performance"
+    items:
+      - id: BE1
+        check: "API response time < 500ms"
+        target: "< 500ms"
+        critical: true
+      
+      - id: BE2
+        check: "No N+1 queries"
+        critical: true
+      
+      - id: BE3
+        check: "Database indexes optimized"
+        critical: true
+      
+      - id: BE4
+        check: "Caching implemented"
+        critical: false
+      
+      - id: BE5
+        check: "Connection pooling used"
+        critical: false
+  
+  core_web_vitals:
+    title: "Core Web Vitals"
+    items:
+      - id: CWV1
+        check: "LCP < 2.5s"
+        target: "< 2.5s"
+        critical: true
+      
+      - id: CWV2
+        check: "FID < 100ms"
+        target: "< 100ms"
+        critical: true
+      
+      - id: CWV3
+        check: "CLS < 0.1"
+        target: "< 0.1"
+        critical: true
+      
+      - id: CWV4
+        check: "TTFB < 600ms"
+        target: "< 600ms"
+        critical: false
+  
+  caching:
+    title: "Caching Strategy"
+    items:
+      - id: CACHE1
+        check: "Static assets cached (1 year)"
+        critical: false
+      
+      - id: CACHE2
+        check: "API responses cached"
+        critical: false
+      
+      - id: CACHE3
+        check: "CDN configured"
+        critical: false
+      
+      - id: CACHE4
+        check: "Service worker implemented"
+        critical: false
+  
+  database:
+    title: "Database Performance"
+    items:
+      - id: DB1
+        check: "Query time < 100ms"
+        target: "< 100ms"
+        critical: true
+      
+      - id: DB2
+        check: "Proper indexes on foreign keys"
+        critical: true
+      
+      - id: DB3
+        check: "No full table scans"
+        critical: true
+      
+      - id: DB4
+        check: "Connection pool optimized"
+        critical: false
+
+targets:
+  page_load: "< 3s"
+  api_response: "< 500ms"
+  database_query: "< 100ms"
+  bundle_size: "< 200KB"

@@ -1,0 +1,12 @@
+{
+  "name": "Git Commit Helper",
+  "version": "1.0.0",
+  "description": "Commit qilish uchun qo'lda ishga tushiriladigan hook - testlar va formatlash",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "npm run lint && npm test && git add -A"
+  }
+}

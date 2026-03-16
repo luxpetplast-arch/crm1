@@ -1,0 +1,14 @@
+{
+  "name": "Accessibility Check",
+  "version": "1.0.0",
+  "description": "Check accessibility compliance (WCAG)",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["*.jsx", "*.tsx", "*.html", "*.vue"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Review accessibility using @accessibility-checker. Check WCAG compliance, ARIA attributes, keyboard navigation, and screen reader support."
+  },
+  "disabled": true
+}

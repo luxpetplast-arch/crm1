@@ -1,0 +1,13 @@
+{
+  "name": "Auto Code Review",
+  "version": "1.0.0",
+  "description": "Agent ish tugatganidan keyin avtomatik code review",
+  "when": {
+    "type": "postToolUse",
+    "toolTypes": ["write"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Code reviewer agentni ishga tushir va oxirgi o'zgarishlarni ko'rib chiq. Best practices, bugs, va yaxshilash takliflarini ber."
+  }
+}

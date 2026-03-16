@@ -1,0 +1,14 @@
+{
+  "name": "Auto Migration Check",
+  "version": "1.0.0",
+  "description": "Database migration fayllarini avtomatik tekshiradi",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["**/migrations/*.sql", "**/migrations/*.ts", "**/migrations/*.js"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "@database-migration-manager Bu migration faylni tekshir va xavfsizligini ta'minla. Rollback script borligini va backward compatibility ni tekshir."
+  },
+  "disabled": false
+}

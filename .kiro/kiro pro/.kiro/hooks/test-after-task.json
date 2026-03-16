@@ -1,0 +1,12 @@
+{
+  "name": "Run Tests After Task",
+  "version": "1.0.0",
+  "description": "Spec task tugaganidan keyin avtomatik testlarni ishga tushirish",
+  "when": {
+    "type": "postTaskExecution"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "npm test"
+  }
+}

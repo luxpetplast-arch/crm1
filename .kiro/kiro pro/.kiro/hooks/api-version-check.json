@@ -1,0 +1,14 @@
+{
+  "name": "API Version Check",
+  "version": "1.0.0",
+  "description": "API endpoint o'zgarishlarini versioning uchun tekshiradi",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["**/routes/*.ts", "**/routes/*.js", "**/api/*.ts", "**/api/*.js"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "@api-versioning-manager API endpoint o'zgarishlarini tekshir. Breaking change bo'lsa versioning kerakligini ayt va backward compatibility ni ta'minla."
+  },
+  "disabled": false
+}

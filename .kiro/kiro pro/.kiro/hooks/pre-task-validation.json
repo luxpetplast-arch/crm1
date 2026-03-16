@@ -1,0 +1,12 @@
+{
+  "name": "Pre-Task Validation",
+  "version": "1.0.0",
+  "description": "Har qanday vazifa boshlanishidan oldin validatsiya",
+  "when": {
+    "type": "preTaskExecution"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "@project-supervisor Vazifa boshlanmoqda. Quyidagilarni tekshir: 1) Talablar aniq va tushunarli mi? 2) Scope belgilangan mi? 3) To'g'ri agent tanlanganmi? 4) Ruxsat bormi? Agar hammasi to'g'ri bo'lsa, APPROVE. Aks holda, TO'XTAT va tushuntir."
+  }
+}

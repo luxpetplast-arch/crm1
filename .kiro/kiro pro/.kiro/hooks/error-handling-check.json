@@ -1,0 +1,14 @@
+{
+  "name": "Error Handling Check",
+  "version": "1.0.0",
+  "description": "Review error handling patterns",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["*.js", "*.ts", "*.py", "*.java"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Review error handling using @error-handler. Check try-catch blocks, error messages, logging, and recovery strategies."
+  },
+  "disabled": true
+}

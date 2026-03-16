@@ -1,0 +1,13 @@
+{
+  "name": "Auto Security Scan",
+  "version": "1.0.0",
+  "description": "Automatically scan code for security vulnerabilities after editing",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["*.js", "*.ts", "*.py", "*.java", "*.php", "*.rb"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Run security audit on the edited file using @security-auditor. Focus on SQL injection, XSS, CSRF, authentication issues, and hardcoded secrets."
+  }
+}

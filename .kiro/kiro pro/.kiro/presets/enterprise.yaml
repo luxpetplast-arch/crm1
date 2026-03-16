@@ -1,0 +1,100 @@
+name: "Enterprise Preset"
+description: "Full agent set for enterprise-grade applications"
+version: "1.0.0"
+
+# All agents enabled
+agents:
+  development:
+    - code-generator
+    - code-reviewer
+    - refactoring-assistant
+    - react-specialist
+    - vue-specialist
+    - nodejs-backend-specialist
+    - python-backend-specialist
+    - code-quality-enforcer
+  
+  testing:
+    - unit-test-generator
+    - integration-tester
+    - regression-tester
+    - e2e-tester
+    - test-coverage-analyzer
+  
+  quality:
+    - security-auditor
+    - performance-optimizer
+    - accessibility-checker
+    - seo-optimizer
+    - code-quality-enforcer
+  
+  database:
+    - database-optimizer
+    - database-migration-manager
+  
+  api:
+    - api-designer
+    - api-versioning-manager
+    - graphql-specialist
+  
+  infrastructure:
+    - ci-cd-specialist
+    - kubernetes-expert
+    - docker-specialist
+    - monitoring-setup-specialist
+    - backup-manager
+    - secrets-manager
+  
+  management:
+    - project-supervisor
+    - feature-manager
+    - progress-tracker
+    - release-manager
+    - sprint-planner
+  
+  monitoring:
+    - log-analyzer
+    - metrics-collector
+    - alert-manager
+  
+  collaboration:
+    - code-review-coordinator
+    - documentation-writer
+    - git-commit-helper
+
+# All critical hooks active
+hooks:
+  - auto-code-review
+  - auto-security-scan
+  - performance-check
+  - test-coverage-check
+  - database-review
+  - dependency-check
+  - pre-deployment-check
+  - continuous-validation
+  - auto-migration-check
+  - api-version-check
+  - monitoring-setup-reminder
+
+# Strict quality gates
+quality_gates:
+  test_coverage: 90%
+  complexity: 8
+  security: zero-tolerance
+  performance: strict
+  documentation: required
+
+# All workflows
+workflows:
+  - feature-development
+  - bug-fix
+  - hotfix
+  - release
+
+notes: |
+  Enterprise preset includes all agents and strict quality gates.
+  - Comprehensive testing and security
+  - Full monitoring and observability
+  - Strict quality standards
+  - Complete documentation
+  - Advanced deployment strategies

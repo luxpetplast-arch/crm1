@@ -1,0 +1,13 @@
+{
+  "name": "Auto Format on Save",
+  "version": "1.0.0",
+  "description": "Kod saqlanganida avtomatik formatlash (Prettier yoki boshqa formatter kerak)",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["*.js", "*.ts", "*.jsx", "*.tsx", "*.css", "*.json", "*.html"]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "npx prettier --write"
+  }
+}

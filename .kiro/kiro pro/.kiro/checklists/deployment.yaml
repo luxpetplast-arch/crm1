@@ -1,0 +1,196 @@
+name: "Deployment Checklist"
+version: "1.0.0"
+description: "Pre-deployment and post-deployment checklist"
+
+pre_deployment:
+  title: "Pre-Deployment Checks"
+  
+  code_quality:
+    - id: PRE1
+      check: "All tests passing"
+      critical: true
+    
+    - id: PRE2
+      check: "Test coverage > 80%"
+      critical: true
+    
+    - id: PRE3
+      check: "No linting errors"
+      critical: true
+    
+    - id: PRE4
+      check: "Type checking passed"
+      critical: true
+  
+  security:
+    - id: PRE5
+      check: "Security scan passed"
+      critical: true
+    
+    - id: PRE6
+      check: "No known vulnerabilities"
+      critical: true
+    
+    - id: PRE7
+      check: "Secrets properly configured"
+      critical: true
+  
+  documentation:
+    - id: PRE8
+      check: "Changelog updated"
+      critical: true
+    
+    - id: PRE9
+      check: "API docs updated"
+      critical: false
+    
+    - id: PRE10
+      check: "Release notes prepared"
+      critical: true
+  
+  database:
+    - id: PRE11
+      check: "Migration scripts tested"
+      critical: true
+    
+    - id: PRE12
+      check: "Rollback scripts ready"
+      critical: true
+    
+    - id: PRE13
+      check: "Backup created"
+      critical: true
+  
+  infrastructure:
+    - id: PRE14
+      check: "Staging deployment successful"
+      critical: true
+    
+    - id: PRE15
+      check: "Monitoring configured"
+      critical: true
+    
+    - id: PRE16
+      check: "Alerts configured"
+      critical: true
+
+deployment:
+  title: "Deployment Steps"
+  
+  steps:
+    - id: DEP1
+      step: "Put app in maintenance mode (if needed)"
+      critical: false
+    
+    - id: DEP2
+      step: "Deploy code"
+      critical: true
+    
+    - id: DEP3
+      step: "Run database migrations"
+      critical: true
+    
+    - id: DEP4
+      step: "Clear caches"
+      critical: false
+    
+    - id: DEP5
+      step: "Restart services"
+      critical: true
+    
+    - id: DEP6
+      step: "Remove maintenance mode"
+      critical: false
+
+post_deployment:
+  title: "Post-Deployment Checks"
+  
+  health_checks:
+    - id: POST1
+      check: "All services up"
+      critical: true
+    
+    - id: POST2
+      check: "Health endpoints responding"
+      critical: true
+    
+    - id: POST3
+      check: "No error spikes in logs"
+      critical: true
+  
+  functionality:
+    - id: POST4
+      check: "Smoke tests passed"
+      critical: true
+    
+    - id: POST5
+      check: "Critical paths working"
+      critical: true
+    
+    - id: POST6
+      check: "Authentication working"
+      critical: true
+  
+  performance:
+    - id: POST7
+      check: "Response times normal"
+      critical: true
+    
+    - id: POST8
+      check: "Database performance normal"
+      critical: true
+    
+    - id: POST9
+      check: "No memory leaks"
+      critical: true
+  
+  monitoring:
+    - id: POST10
+      check: "Metrics being collected"
+      critical: true
+    
+    - id: POST11
+      check: "Logs being collected"
+      critical: true
+    
+    - id: POST12
+      check: "Alerts working"
+      critical: true
+  
+  communication:
+    - id: POST13
+      check: "Team notified"
+      critical: false
+    
+    - id: POST14
+      check: "Users notified (if needed)"
+      critical: false
+    
+    - id: POST15
+      check: "Documentation updated"
+      critical: false
+
+rollback_plan:
+  title: "Rollback Plan"
+  
+  triggers:
+    - "Critical errors in production"
+    - "Performance degradation > 50%"
+    - "Data corruption detected"
+    - "Security breach detected"
+  
+  steps:
+    - id: RB1
+      step: "Stop deployment"
+    
+    - id: RB2
+      step: "Rollback code"
+    
+    - id: RB3
+      step: "Rollback database"
+    
+    - id: RB4
+      step: "Verify rollback"
+    
+    - id: RB5
+      step: "Notify team"

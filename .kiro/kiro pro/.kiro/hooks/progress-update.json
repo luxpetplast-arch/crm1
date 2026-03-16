@@ -1,0 +1,14 @@
+{
+  "name": "Progress Update",
+  "version": "1.0.0",
+  "description": "Har qanday o'zgarishdan keyin progress yangilash",
+  "when": {
+    "type": "postToolUse",
+    "toolTypes": ["write"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "@progress-tracker O'zgarish amalga oshirildi. Checklist'ni yangilash va progress hisobotini yaratish kerak. Qaysi item complete bo'ldi? Validatsiya qil va hisobot ber."
+  },
+  "disabled": true
+}

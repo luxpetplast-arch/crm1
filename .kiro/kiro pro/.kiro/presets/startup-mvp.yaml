@@ -1,0 +1,47 @@
+name: "Startup MVP Preset"
+description: "Minimal agent set for rapid MVP development"
+version: "1.0.0"
+
+# Essential agents for MVP
+agents:
+  development:
+    - code-generator
+    - code-reviewer
+    - react-specialist
+    - nodejs-backend-specialist
+  
+  testing:
+    - integration-tester
+    - unit-test-generator
+  
+  quality:
+    - security-auditor
+    - performance-optimizer
+  
+  deployment:
+    - ci-cd-specialist
+    - docker-specialist
+
+# Active hooks
+hooks:
+  - auto-code-review
+  - auto-security-scan
+  - pre-deployment-check
+
+# Quality gates (relaxed for MVP)
+quality_gates:
+  test_coverage: 60%
+  complexity: 15
+  security: required
+
+# Recommended workflow
+workflow:
+  - feature-development
+  - bug-fix
+
+notes: |
+  Startup MVP preset focuses on speed and essential quality.
+  - Minimal agents for fast development
+  - Basic testing and security
+  - Quick deployment pipeline
+  - Can scale up later

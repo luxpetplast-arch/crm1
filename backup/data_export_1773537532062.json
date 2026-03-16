@@ -1,0 +1,43 @@
+{
+  "timestamp": "2026-03-15T01:18:52.056Z",
+  "location": "C:\\Users\\tilav\\Desktop\\zavod tizimi",
+  "database": "dev.db",
+  "data": [
+    {
+      "table": "USERS",
+      "value": 2
+    },
+    {
+      "table": "PRODUCTS",
+      "value": 2
+    },
+    {
+      "table": "CUSTOMERS",
+      "value": 23
+    },
+    {
+      "table": "SALES",
+      "value": 5
+    },
+    {
+      "table": "ORDERS",
+      "value": 0
+    },
+    {
+      "table": "TOTAL_STOCK_VALUE",
+      "value": 17600
+    },
+    {
+      "table": "TOTAL_CUSTOMER_DEBT",
+      "value": 53621.03
+    },
+    {
+      "table": "TOTAL_SALES_AMOUNT",
+      "value": 70900
+    },
+    {
+      "table": "TOTAL_PAID_AMOUNT",
+      "value": 21880
+    }
+  ]
+}

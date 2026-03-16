@@ -1,0 +1,12 @@
+{
+  "name": "Review Code Changes",
+  "version": "1.0.0",
+  "description": "Agent ish tugatganidan keyin o'zgarishlarni ko'rib chiqish",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Qilingan o'zgarishlarni qisqacha ko'rib chiq va agar qo'shimcha yaxshilash kerak bo'lsa, taklif qil."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Security Check Before Write",
+  "version": "1.0.0",
+  "description": "Faylga yozishdan oldin xavfsizlik va standartlarni tekshirish",
+  "when": {
+    "type": "preToolUse",
+    "toolTypes": ["write"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Bu o'zgarish xavfsizlik standartlariga, best practice'larga va loyiha qoidalariga mos ekanligini tekshir. Agar muammo bo'lsa, ogohlantir."
+  }
+}

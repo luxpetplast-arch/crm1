@@ -1,0 +1,14 @@
+{
+  "name": "API Review",
+  "version": "1.0.0",
+  "description": "Review API endpoints and routes",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["*routes*.js", "*routes*.ts", "*controller*.js", "*controller*.ts", "*api*.py", "*endpoints*.py"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Review API design using @api-designer. Check RESTful principles, status codes, request/response formats, and API consistency."
+  },
+  "disabled": true
+}

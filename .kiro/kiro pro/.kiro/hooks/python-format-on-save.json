@@ -1,0 +1,13 @@
+{
+  "name": "Python Format on Save",
+  "version": "1.0.0",
+  "description": "Python fayllarni saqlaganida avtomatik formatlash (black kerak)",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["*.py"]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "black"
+  }
+}

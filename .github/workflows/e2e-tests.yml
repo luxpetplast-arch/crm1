@@ -1,0 +1,121 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    - cron: '0 0 * * *' # Daily at midnight
+
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        browser: [chromium, firefox, webkit]
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      
+      - name: Setup Database
+        run: |
+          npm run db:generate
+          npm run db:push
+      
+      - name: Run E2E tests
+        run: npx playwright test --project=${{ matrix.browser }}
+        env:
+          CI: true
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: playwright-report/
+          retention-days: 30
+      
+      - name: Upload test videos
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: test-videos-${{ matrix.browser }}
+          path: test-results/
+          retention-days: 7
+
+  mobile-test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+      
+      - name: Setup Database
+        run: |
+          npm run db:generate
+          npm run db:push
+      
+      - name: Run Mobile E2E tests
+        run: npx playwright test --project='Mobile Chrome'
+        env:
+          CI: true
+      
+      - name: Upload mobile test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: playwright-report-mobile
+          path: playwright-report/
+          retention-days: 30
+
+  report:
+    needs: [test, mobile-test]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+      
+      - name: Merge reports
+        run: |
+          echo "Test reports available in artifacts"
+      
+      - name: Comment PR
+        uses: actions/github-script@v6
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ E2E tests completed! Check artifacts for detailed reports.'
+            })

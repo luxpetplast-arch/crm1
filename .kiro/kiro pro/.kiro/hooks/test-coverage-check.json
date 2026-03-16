@@ -1,0 +1,13 @@
+{
+  "name": "Test Coverage Check",
+  "version": "1.0.0",
+  "description": "Check test coverage after editing test files",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["*.test.js", "*.spec.ts", "*_test.py", "*.test.tsx", "*.spec.jsx"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Analyze test coverage using @test-coverage-analyzer. Identify untested code paths, suggest edge cases, and review test quality."
+  }
+}

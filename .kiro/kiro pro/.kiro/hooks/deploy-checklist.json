@@ -1,0 +1,12 @@
+{
+  "name": "Pre-Deploy Checklist",
+  "version": "1.0.0",
+  "description": "Deploy qilishdan oldin barcha tekshiruvlar",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Deploy checklist: 1) Barcha testlar o'tayaptimi? 2) Security vulnerabilities yo'qmi? 3) Performance optimized mi? 4) Environment variables to'g'rimi? 5) Database migrations tayyormi? 6) Documentation yangilanganmi? Har birini tekshir va hisobot ber."
+  }
+}

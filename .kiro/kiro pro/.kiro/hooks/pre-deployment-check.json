@@ -1,0 +1,12 @@
+{
+  "name": "Pre-Deployment Check",
+  "version": "1.0.0",
+  "description": "Deploy qilishdan oldin to'liq tekshiruv",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Deploy qilishdan oldin to'liq tekshiruv: 1) @regression-tester - Barcha regression testlarni ishga tushir. 2) @integration-tester - Integration testlarni ishga tushir. 3) @feature-manager - Feature registry va compatibility tekshir. 4) @performance-optimizer - Performance regression tekshir. 5) @security-auditor - Security tekshir. To'liq deploy readiness hisoboti ber."
+  }
+}

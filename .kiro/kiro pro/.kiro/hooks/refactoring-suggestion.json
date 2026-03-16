@@ -1,0 +1,12 @@
+{
+  "name": "Refactoring Suggestion",
+  "version": "1.0.0",
+  "description": "Suggest refactoring opportunities",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Analyze code for refactoring opportunities using @refactoring-assistant. Identify code smells, suggest design patterns, and improve code structure."
+  }
+}

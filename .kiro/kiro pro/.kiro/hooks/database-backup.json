@@ -1,0 +1,12 @@
+{
+  "name": "Database Backup",
+  "version": "1.0.0",
+  "description": "Qo'lda ishga tushiriladigan database backup hook",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "PostgreSQL MCP yoki boshqa database tool ishlatib database backup ol. Backup faylni timestamped nom bilan saqlash kerak."
+  }
+}

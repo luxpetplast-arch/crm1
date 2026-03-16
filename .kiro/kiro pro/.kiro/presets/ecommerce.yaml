@@ -1,0 +1,81 @@
+name: "E-commerce Preset"
+description: "Optimized for e-commerce applications"
+version: "1.0.0"
+
+agents:
+  development:
+    - code-generator
+    - code-reviewer
+    - react-specialist
+    - nodejs-backend-specialist
+    - frontend-optimizer
+  
+  testing:
+    - unit-test-generator
+    - integration-tester
+    - e2e-tester
+    - regression-tester
+  
+  quality:
+    - security-auditor  # Critical for payments
+    - performance-optimizer  # Critical for conversions
+    - accessibility-checker  # Legal requirement
+    - seo-optimizer  # Critical for traffic
+  
+  database:
+    - database-optimizer
+    - database-migration-manager
+  
+  api:
+    - api-designer
+    - api-versioning-manager
+  
+  infrastructure:
+    - ci-cd-specialist
+    - docker-specialist
+    - monitoring-setup-specialist
+    - backup-manager  # Critical for transactions
+    - secrets-manager  # Critical for payment keys
+  
+  monitoring:
+    - log-analyzer
+    - metrics-collector
+    - alert-manager
+    - sla-monitor  # Uptime critical
+  
+  specialized:
+    - ab-test-manager  # For conversion optimization
+    - notification-manager  # Order notifications
+    - email-template-builder  # Marketing emails
+
+hooks:
+  - auto-code-review
+  - auto-security-scan  # Critical
+  - performance-check  # Critical
+  - test-coverage-check
+  - database-review
+  - pre-deployment-check
+  - monitoring-setup-reminder
+
+quality_gates:
+  test_coverage: 85%
+  complexity: 10
+  security: zero-tolerance  # Payment security
+  performance: strict  # Page speed affects conversions
+  accessibility: required  # Legal compliance
+
+key_metrics:
+  - Conversion rate
+  - Page load time
+  - Cart abandonment rate
+  - Payment success rate
+  - Uptime (99.9%)
+  - API response time
+
+notes: |
+  E-commerce preset focuses on:
+  - Security (payment processing)
+  - Performance (conversion optimization)
+  - Uptime (revenue impact)
+  - SEO (traffic generation)
+  - A/B testing (optimization)

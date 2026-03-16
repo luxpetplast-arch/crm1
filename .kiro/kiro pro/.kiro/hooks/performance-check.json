@@ -1,0 +1,12 @@
+{
+  "name": "Performance Check",
+  "version": "1.0.0",
+  "description": "Check performance on demand before committing",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Analyze code performance using @performance-optimizer. Check for N+1 queries, inefficient algorithms, caching opportunities, and bundle size issues."
+  }
+}

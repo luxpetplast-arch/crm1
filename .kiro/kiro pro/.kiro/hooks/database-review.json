@@ -1,0 +1,14 @@
+{
+  "name": "Database Review",
+  "version": "1.0.0",
+  "description": "Review database queries and schema changes",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["*migration*", "*schema*", "*model*.js", "*model*.py", "*repository*.ts"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Review database changes using @database-optimizer. Check for missing indexes, N+1 queries, and SQL injection vulnerabilities."
+  },
+  "disabled": false
+}

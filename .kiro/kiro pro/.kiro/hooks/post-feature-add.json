@@ -1,0 +1,13 @@
+{
+  "name": "Post Feature Add Test",
+  "version": "1.0.0",
+  "description": "Yangi funksiya qo'shilgandan keyin avtomatik test",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [".kiro/features/registry.yaml"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Feature registry o'zgardi. Quyidagilarni tekshir: 1) @integration-tester - Yangi funksiya to'g'ri qo'shilganini va eski funksiyalar ishlashini tekshir. 2) @regression-tester - Barcha eski testlar o'tishini tekshir. 3) @feature-manager - Conflict va dependency tekshir. To'liq hisobot ber."
+  }
+}

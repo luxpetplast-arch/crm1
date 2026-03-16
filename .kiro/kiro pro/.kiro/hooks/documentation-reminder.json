@@ -1,0 +1,14 @@
+{
+  "name": "Documentation Reminder",
+  "version": "1.0.0",
+  "description": "Remind to update documentation when code changes",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["*.js", "*.ts", "*.py", "*.java"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Check if documentation needs updating using @documentation-writer. Review code comments, function documentation, and README files."
+  },
+  "disabled": false
+}

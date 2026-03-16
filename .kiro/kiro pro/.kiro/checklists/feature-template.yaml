@@ -1,0 +1,311 @@
+version: "1.0"
+template_name: "New Feature Checklist"
+description: "Yangi funksiya qo'shish uchun to'liq checklist"
+
+# Bu template har bir yangi funksiya uchun ishlatiladi
+
+checklist_items:
+  planning:
+    category: "Planning"
+    items:
+      - id: P1
+        task: "Requirements clearly documented"
+        description: "Barcha talablar yozilgan va tushunarli"
+        requires_validation: true
+        validation_criteria:
+          - Requirements document exists
+          - All acceptance criteria defined
+          - User stories written
+        assigned_to: user
+      
+      - id: P2
+        task: "Feature design approved"
+        description: "Dizayn tasdiqlangan"
+        requires_validation: true
+        validation_criteria:
+          - Design mockups created
+          - User flow documented
+          - Technical design reviewed
+        assigned_to: user
+      
+      - id: P3
+        task: "Technical approach defined"
+        description: "Texnik yondashuv belgilangan"
+        requires_validation: true
+        validation_criteria:
+          - Architecture decided
+          - Technology stack chosen
+          - Dependencies identified
+        assigned_to: project-supervisor
+  
+  implementation:
+    category: "Implementation"
+    items:
+      - id: I1
+        task: "Database schema updated"
+        description: "Database o'zgarishlari amalga oshirilgan"
+        requires_validation: true
+        validation_criteria:
+          - Schema changes documented
+          - Migration created
+          - Backward compatible
+        assigned_to: database-optimizer
+        deliverable: "database/migrations/*.sql"
+      
+      - id: I2
+        task: "API endpoints created"
+        description: "API endpointlar yaratilgan"
+        requires_validation: true
+        validation_criteria:
+          - Endpoints implemented
+          - Request/response validated
+          - Error handling added
+        assigned_to: code-generator
+        deliverable: "src/routes/*.ts"
+      
+      - id: I3
+        task: "Frontend components created"
+        description: "Frontend komponentlar yaratilgan"
+        requires_validation: true
+        validation_criteria:
+          - Components implemented
+          - Props validated
+          - Styling complete
+        assigned_to: react-specialist
+        deliverable: "src/components/*.tsx"
+      
+      - id: I4
+        task: "Error handling implemented"
+        description: "Xatoliklarni boshqarish qo'shilgan"
+        requires_validation: true
+        validation_criteria:
+          - Try-catch blocks added
+          - Error messages clear
+          - Logging implemented
+        assigned_to: error-handler
+        blocked_by: [I2, I3]
+  
+  testing:
+    category: "Testing"
+    items:
+      - id: T1
+        task: "Unit tests written"
+        description: "Unit testlar yozilgan"
+        requires_validation: true
+        validation_criteria:
+          - All functions tested
+          - Edge cases covered
+          - Tests pass
+        assigned_to: unit-test-generator
+        deliverable: "tests/unit/*.test.ts"
+        blocked_by: [I2, I3, I4]
+      
+      - id: T2
+        task: "Integration tests written"
+        description: "Integration testlar yozilgan"
+        requires_validation: true
+        validation_criteria:
+          - API integration tested
+          - Database integration tested
+          - Tests pass
+        assigned_to: integration-tester
+        deliverable: "tests/integration/*.test.ts"
+        blocked_by: [T1]
+      
+      - id: T3
+        task: "Regression tests passed"
+        description: "Regression testlar o'tdi"
+        requires_validation: true
+        validation_criteria:
+          - All existing tests pass
+          - No performance regression
+          - No breaking changes
+        assigned_to: regression-tester
+        blocked_by: [T2]
+  
+  quality:
+    category: "Quality Assurance"
+    items:
+      - id: Q1
+        task: "Code review completed"
+        description: "Kod review qilindi"
+        requires_validation: true
+        validation_criteria:
+          - Code reviewed by peer
+          - All comments addressed
+          - Best practices followed
+        assigned_to: code-reviewer
+        blocked_by: [I2, I3, I4]
+      
+      - id: Q2
+        task: "Security audit passed"
+        description: "Xavfsizlik audit o'tdi"
+        requires_validation: true
+        validation_criteria:
+          - No security vulnerabilities
+          - Input validation added
+          - Authentication checked
+        assigned_to: security-auditor
+        blocked_by: [Q1]
+      
+      - id: Q3
+        task: "Performance validated"
+        description: "Performance tekshirildi"
+        requires_validation: true
+        validation_criteria:
+          - Response time acceptable
+          - No N+1 queries
+          - Memory usage normal
+        assigned_to: performance-optimizer
+        blocked_by: [T3]
+  
+  documentation:
+    category: "Documentation"
+    items:
+      - id: D1
+        task: "API documentation updated"
+        description: "API dokumentatsiya yangilandi"
+        requires_validation: true
+        validation_criteria:
+          - All endpoints documented
+          - Examples provided
+          - OpenAPI spec updated
+        assigned_to: documentation-writer
+        deliverable: "docs/api/*.md"
+        blocked_by: [I2]
+      
+      - id: D2
+        task: "User guide created"
+        description: "Foydalanuvchi qo'llanmasi yaratildi"
+        requires_validation: true
+        validation_criteria:
+          - Feature explained clearly
+          - Screenshots added
+          - Examples provided
+        assigned_to: documentation-writer
+        deliverable: "docs/user-guide/*.md"
+        blocked_by: [I3]
+      
+      - id: D3
+        task: "Changelog updated"
+        description: "Changelog yangilandi"
+        requires_validation: true
+        validation_criteria:
+          - Changes documented
+          - Version updated
+          - Breaking changes noted
+        assigned_to: documentation-writer
+        deliverable: "CHANGELOG.md"
+        blocked_by: [Q3]
+  
+  deployment:
+    category: "Deployment"
+    items:
+      - id: DEP1
+        task: "Feature registry updated"
+        description: "Feature registry yangilandi"
+        requires_validation: true
+        validation_criteria:
+          - Feature added to registry
+          - Dependencies listed
+          - Conflicts checked
+        assigned_to: feature-manager
+        deliverable: ".kiro/features/registry.yaml"
+        blocked_by: [Q3]
+      
+      - id: DEP2
+        task: "Pre-deployment check passed"
+        description: "Deploy oldi tekshiruv o'tdi"
+        requires_validation: true
+        validation_criteria:
+          - All tests pass
+          - Quality gates met
+          - Documentation complete
+        assigned_to: project-supervisor
+        blocked_by: [DEP1, D3]
+      
+      - id: DEP3
+        task: "Deployed to staging"
+        description: "Staging'ga deploy qilindi"
+        requires_validation: true
+        validation_criteria:
+          - Deployment successful
+          - Smoke tests pass
+          - No errors in logs
+        assigned_to: ci-cd-specialist
+        blocked_by: [DEP2]
+      
+      - id: DEP4
+        task: "User acceptance testing"
+        description: "Foydalanuvchi qabul qilish testi"
+        requires_validation: true
+        validation_criteria:
+          - User tested feature
+          - All requirements met
+          - User approved
+        assigned_to: user
+        blocked_by: [DEP3]
+      
+      - id: DEP5
+        task: "Deployed to production"
+        description: "Production'ga deploy qilindi"
+        requires_validation: true
+        validation_criteria:
+          - Deployment successful
+          - Monitoring active
+          - Rollback plan ready
+        assigned_to: ci-cd-specialist
+        blocked_by: [DEP4]
+
+# Quality Gates
+quality_gates:
+  test_coverage:
+    minimum: 80
+    current: 0
+    status: pending
+  
+  code_quality:
+    minimum_score: 8.0
+    current: 0
+    status: pending
+  
+  security:
+    vulnerabilities_allowed: 0
+    current: 0
+    status: pending
+  
+  performance:
+    max_response_time_ms: 500
+    current: 0
+    status: pending
+  
+  documentation:
+    completeness: 100
+    current: 0
+    status: pending
+
+# Milestones
+milestones:
+  - name: "Planning Complete"
+    items: [P1, P2, P3]
+    status: pending
+  
+  - name: "Implementation Complete"
+    items: [I1, I2, I3, I4]
+    status: pending
+  
+  - name: "Testing Complete"
+    items: [T1, T2, T3]
+    status: pending
+  
+  - name: "Quality Assured"
+    items: [Q1, Q2, Q3]
+    status: pending
+  
+  - name: "Documentation Complete"
+    items: [D1, D2, D3]
+    status: pending
+  
+  - name: "Deployed"
+    items: [DEP1, DEP2, DEP3, DEP4, DEP5]
+    status: pending

@@ -1,0 +1,13 @@
+{
+  "name": "Bundle Size Check",
+  "version": "1.0.0",
+  "description": "Build qilinganda bundle size ni tekshiradi",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "@frontend-optimizer Bundle size ni tahlil qil va optimizatsiya takliflari ber. Bundle analyzer ishga tushir va katta dependencylarni aniqlash."
+  },
+  "disabled": false
+}

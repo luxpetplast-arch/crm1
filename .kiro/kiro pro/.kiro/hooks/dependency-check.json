@@ -1,0 +1,13 @@
+{
+  "name": "Dependency Check",
+  "version": "1.0.0",
+  "description": "Check dependencies when package files are modified",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["package.json", "requirements.txt", "pom.xml", "composer.json", "Gemfile", "go.mod"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Review dependency changes using @dependency-manager. Check for security vulnerabilities, outdated packages, and suggest optimizations."
+  }
+}

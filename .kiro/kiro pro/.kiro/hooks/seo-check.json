@@ -1,0 +1,14 @@
+{
+  "name": "SEO Check",
+  "version": "1.0.0",
+  "description": "Check SEO optimization for HTML/React files",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["*.html", "*.jsx", "*.tsx", "*page*.js", "*page*.ts"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Review SEO optimization using @seo-optimizer. Check meta tags, structured data, performance, and mobile-friendliness."
+  },
+  "disabled": true
+}

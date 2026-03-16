@@ -1,0 +1,12 @@
+{
+  "name": "Post-Task Validation",
+  "version": "1.0.0",
+  "description": "Vazifa tugagandan keyin validatsiya",
+  "when": {
+    "type": "postTaskExecution"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "@project-supervisor Vazifa tugadi. Quyidagilarni tekshir: 1) Barcha talablar bajarilganmi? 2) Ortiqcha narsa qo'shilmaganmi? 3) Eski funksiyalar buzilmaganmi? 4) Sifat standartlariga mos keladimi? To'liq hisobot ber."
+  }
+}

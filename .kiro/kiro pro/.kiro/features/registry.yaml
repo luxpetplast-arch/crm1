@@ -1,0 +1,156 @@
+version: "1.0"
+project: "Kiro AI Agents Project"
+last_updated: "2024-01-15"
+
+# Feature Registry
+# Bu fayl loyihadagi barcha funksiyalarni kuzatadi
+
+features:
+  # Aktiv Funksiyalar
+  ai-agents:
+    status: active
+    version: "1.0.0"
+    added: "2024-01-15"
+    description: "22 ta professional AI agent"
+    components:
+      - code-reviewer
+      - security-auditor
+      - performance-optimizer
+      - test-coverage-analyzer
+      - documentation-writer
+      - database-optimizer
+      - dependency-manager
+      - git-commit-helper
+      - api-designer
+      - error-handler
+      - seo-optimizer
+      - accessibility-checker
+      - refactoring-assistant
+      - code-generator
+      - ci-cd-specialist
+      - kubernetes-expert
+      - graphql-specialist
+      - mobile-app-specialist
+      - react-specialist
+      - vue-specialist
+      - nodejs-backend-specialist
+      - python-backend-specialist
+    dependencies: []
+    conflicts: []
+  
+  agent-hooks:
+    status: active
+    version: "1.0.0"
+    added: "2024-01-15"
+    description: "13 ta avtomatik hook"
+    components:
+      - auto-code-review
+      - auto-security-scan
+      - performance-check
+      - test-coverage-check
+      - documentation-reminder
+      - database-review
+      - dependency-check
+      - pre-commit-check
+      - api-review
+      - error-handling-check
+      - seo-check
+      - accessibility-check
+      - refactoring-suggestion
+    dependencies:
+      - ai-agents
+    conflicts: []
+  
+  mcp-servers:
+    status: active
+    version: "1.0.0"
+    added: "2024-01-15"
+    description: "MCP server integratsiyalari"
+    dependencies: []
+    conflicts: []
+    notes: "Ba'zi serverlar o'chirilgan (premium xizmatlar)"
+  
+  feature-management:
+    status: active
+    version: "1.0.0"
+    added: "2024-01-15"
+    description: "Funksiyalarni boshqarish tizimi"
+    components:
+      - feature-manager agent
+      - registry.yaml
+      - compatibility tracking
+    dependencies: []
+    conflicts: []
+
+# Rejalashtirilgan Funksiyalar
+planned_features:
+  custom-agent-builder:
+    status: planned
+    version: "1.0.0"
+    planned_date: "2024-02-01"
+    description: "Foydalanuvchi o'z agentini yaratishi mumkin"
+    dependencies:
+      - ai-agents
+    conflicts: []
+  
+  agent-marketplace:
+    status: planned
+    version: "1.0.0"
+    planned_date: "2024-03-01"
+    description: "Agent do'koni - agentlarni ulashish"
+    dependencies:
+      - ai-agents
+      - custom-agent-builder
+    conflicts: []
+
+# Deprecated Funksiyalar
+deprecated_features: {}
+
+# Feature Flags
+feature_flags:
+  experimental-agents:
+    enabled: false
+    description: "Eksperimental agentlar"
+    environments:
+      - development
+  
+  auto-update-agents:
+    enabled: true
+    description: "Agentlarni avtomatik yangilash"
+    environments:
+      - development
+      - staging
+      - production
+
+# Compatibility Matrix
+compatibility:
+  ai-agents:
+    v1.0.0:
+      - agent-hooks v1.0.0
+      - feature-management v1.0.0
+  
+  agent-hooks:
+    v1.0.0:
+      - ai-agents v1.0.0
+
+# Conflict Rules
+conflict_rules:
+  # Agar bitta hook bir xil eventda ishlasa
+  - rule: "same-event-hooks"
+    description: "Bir xil eventda bir nechta hook ishlamasligi kerak"
+    severity: warning
+  
+  # Agar agent bir xil vazifani bajarsa
+  - rule: "duplicate-functionality"
+    description: "Bir xil vazifani bajaradigan agentlar"
+    severity: warning
+
+# Change Log
+changelog:
+  - version: "1.0.0"
+    date: "2024-01-15"
+    changes:
+      - "22 ta AI agent qo'shildi"
+      - "13 ta hook yaratildi"
+      - "Feature management tizimi qo'shildi"
+    breaking_changes: []

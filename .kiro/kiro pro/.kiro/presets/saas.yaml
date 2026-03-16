@@ -1,0 +1,101 @@
+name: "SaaS Preset"
+description: "Optimized for SaaS applications"
+version: "1.0.0"
+
+agents:
+  development:
+    - code-generator
+    - code-reviewer
+    - react-specialist
+    - nodejs-backend-specialist
+    - code-quality-enforcer
+  
+  testing:
+    - unit-test-generator
+    - integration-tester
+    - e2e-tester
+    - regression-tester
+  
+  quality:
+    - security-auditor
+    - performance-optimizer
+    - accessibility-checker
+  
+  database:
+    - database-optimizer
+    - database-migration-manager  # Multi-tenant migrations
+  
+  api:
+    - api-designer
+    - api-versioning-manager  # API-first approach
+    - graphql-specialist
+  
+  infrastructure:
+    - ci-cd-specialist
+    - kubernetes-expert  # Scalability
+    - docker-specialist
+    - monitoring-setup-specialist
+    - backup-manager
+    - secrets-manager
+    - load-balancer-optimizer  # Multi-tenant load
+  
+  monitoring:
+    - log-analyzer
+    - metrics-collector
+    - alert-manager
+    - sla-monitor  # SLA critical for SaaS
+  
+  management:
+    - project-supervisor
+    - feature-manager  # Feature flags for tenants
+    - release-manager
+  
+  specialized:
+    - ab-test-manager  # Feature testing
+    - notification-manager  # User notifications
+    - email-template-builder  # Onboarding emails
+    - websocket-manager  # Real-time features
+
+hooks:
+  - auto-code-review
+  - auto-security-scan
+  - performance-check
+  - test-coverage-check
+  - database-review
+  - pre-deployment-check
+  - continuous-validation
+  - auto-migration-check
+  - api-version-check
+  - monitoring-setup-reminder
+
+quality_gates:
+  test_coverage: 85%
+  complexity: 10
+  security: zero-tolerance
+  performance: strict
+  api_compatibility: required
+
+key_metrics:
+  - Monthly Recurring Revenue (MRR)
+  - Churn rate
+  - Customer Acquisition Cost (CAC)
+  - Lifetime Value (LTV)
+  - API uptime (99.9%)
+  - Response time
+  - Feature adoption rate
+
+saas_specific:
+  multi_tenancy: true
+  feature_flags: true
+  api_rate_limiting: true
+  usage_tracking: true
+  billing_integration: true
+
+notes: |
+  SaaS preset focuses on:
+  - Multi-tenancy support
+  - API-first architecture
+  - Feature flags for gradual rollout
+  - High availability (99.9%+)
+  - Usage tracking and billing
+  - Customer success metrics

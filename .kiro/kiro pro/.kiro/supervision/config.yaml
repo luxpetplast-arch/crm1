@@ -1,0 +1,204 @@
+version: "1.0"
+supervision_mode: strict  # strict | moderate | permissive
+
+# Supervision Settings
+settings:
+  # Avtomatik tasdiqlash
+  auto_approve:
+    - minor_bug_fixes
+    - typo_corrections
+    - documentation_updates
+    - test_additions
+    - code_formatting
+  
+  # Tasdiq talab qilinadi
+  require_approval:
+    - api_endpoint_changes
+    - database_schema_changes
+    - breaking_changes
+    - new_feature_additions
+    - dependency_updates
+    - configuration_changes
+  
+  # Himoyalangan fayllar (o'zgartirish uchun maxsus ruxsat kerak)
+  protected_files:
+    - .kiro/features/registry.yaml
+    - .kiro/supervision/config.yaml
+    - package.json
+    - package-lock.json
+    - database/schema.prisma
+    - .env
+    - .env.production
+    - docker-compose.yml
+    - kubernetes/*.yaml
+  
+  # Agent cheklovlari
+  agent_limits:
+    max_changes_per_session: 10
+    max_files_modified: 20
+    max_lines_changed: 500
+    require_confirmation_after: 5
+    timeout_minutes: 30
+  
+  # Sifat darvozalari
+  quality_gates:
+    min_test_coverage: 80
+    max_response_time_ms: 500
+    max_bundle_size_kb: 500
+    max_memory_usage_mb: 512
+    security_scan: required
+    code_review: required
+
+# Agent Nazorati
+agent_control:
+  # Har bir agent uchun ruxsatlar
+  permissions:
+    code-reviewer:
+      can_modify_code: false
+      can_suggest_changes: true
+      requires_approval: false
+    
+    code-generator:
+      can_modify_code: true
+      can_create_files: true
+      requires_approval: true
+    
+    database-optimizer:
+      can_modify_schema: true
+      can_run_migrations: false  # Faqat taklif qiladi
+      requires_approval: true
+    
+    security-auditor:
+      can_modify_code: false
+      can_flag_issues: true
+      requires_approval: false
+    
+    feature-manager:
+      can_modify_registry: true
+      can_add_features: true
+      requires_approval: true
+    
+    project-supervisor:
+      can_override: true
+      can_stop_agents: true
+      requires_approval: false  # Supervisor o'zi qaror qabul qiladi
+
+# Intervention Rules
+intervention_rules:
+  # Qachon to'xtatish kerak
+  stop_conditions:
+    - unauthorized_file_modification
+    - scope_creep_detected
+    - breaking_change_without_approval
+    - security_vulnerability_introduced
+    - test_coverage_dropped
+    - performance_degradation
+  
+  # Ogohlantirish shartlari
+  warning_conditions:
+    - approaching_change_limit
+    - modifying_protected_file
+    - large_change_detected
+    - dependency_conflict_possible
+  
+  # Avtomatik rollback shartlari
+  auto_rollback:
+    - tests_failing
+    - build_broken
+    - critical_error_detected
+    - user_rejected_changes
+
+# Monitoring
+monitoring:
+  # Nima kuzatiladi
+  track:
+    - agent_activities
+    - file_modifications
+    - test_results
+    - performance_metrics
+    - security_scans
+    - user_feedback
+  
+  # Hisobot chastotasi
+  reporting:
+    real_time_alerts: true
+    summary_after_session: true
+    daily_digest: false
+    weekly_report: false
+  
+  # Log darajasi
+  log_level: detailed  # minimal | normal | detailed | verbose
+
+# Validation Rules
+validation:
+  # Har bir o'zgarishdan oldin
+  pre_change:
+    - check_requirements_match
+    - verify_scope
+    - check_dependencies
+    - analyze_impact
+    - review_security
+  
+  # Har bir o'zgarishdan keyin
+  post_change:
+    - run_tests
+    - check_backward_compatibility
+    - verify_performance
+    - validate_documentation
+    - confirm_requirements_met
+  
+  # Deploy qilishdan oldin
+  pre_deployment:
+    - all_tests_pass
+    - security_scan_clean
+    - performance_acceptable
+    - documentation_complete
+    - user_approved
+
+# Escalation
+escalation:
+  # Qachon foydalanuvchiga murojaat qilish
+  notify_user:
+    - breaking_change_detected
+    - scope_deviation
+    - quality_gate_failed
+    - agent_stuck
+    - critical_decision_needed
+  
+  # Qachon to'xtatish va kutish
+  wait_for_user:
+    - breaking_change_approval
+    - major_feature_addition
+    - protected_file_modification
+    - deployment_decision
+
+# Learning
+learning:
+  # Xatolardan o'rganish
+  track_incidents:
+    - agent_deviations
+    - scope_creep_attempts
+    - quality_failures
+    - user_corrections
+  
+  # Yaxshilash
+  improve:
+    - update_rules_based_on_incidents
+    - refine_agent_permissions
+    - adjust_quality_gates
+    - optimize_workflows
+
+# Emergency
+emergency:
+  # Favqulodda to'xtatish
+  emergency_stop:
+    enabled: true
+    trigger_phrase: "STOP ALL AGENTS"
+    rollback_on_stop: true
+  
+  # Tiklash
+  recovery:
+    auto_backup: true
+    backup_frequency: "before_each_change"
+    max_backups: 10
+    rollback_timeout_minutes: 5

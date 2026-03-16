@@ -1,0 +1,20 @@
+node_modules
+dist
+.env
+.DS_Store
+*.log
+.vscode
+.idea
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
+/playwright/.auth/
+
+# Test artifacts
+*.png
+*.jpg
+*.mp4
+*.webm
+test-results.json

@@ -1,0 +1,8 @@
+{
+  "specType": "feature",
+  "workflowType": "requirements-first",
+  "featureName": "ai-business-operating-system",
+  "designArtifacts": ["high-level", "low-level"],
+  "createdAt": "2026-03-12",
+  "status": "in-progress"
+}

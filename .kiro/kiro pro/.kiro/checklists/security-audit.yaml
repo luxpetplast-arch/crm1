@@ -1,0 +1,129 @@
+name: "Security Audit Checklist"
+version: "1.0.0"
+description: "Comprehensive security audit checklist"
+
+categories:
+  authentication:
+    title: "Authentication & Authorization"
+    items:
+      - id: AUTH1
+        check: "Strong password policy enforced"
+        severity: high
+      
+      - id: AUTH2
+        check: "Multi-factor authentication available"
+        severity: medium
+      
+      - id: AUTH3
+        check: "Session management secure"
+        severity: high
+      
+      - id: AUTH4
+        check: "JWT tokens properly validated"
+        severity: high
+      
+      - id: AUTH5
+        check: "Authorization checks on all endpoints"
+        severity: critical
+  
+  input_validation:
+    title: "Input Validation"
+    items:
+      - id: INPUT1
+        check: "All user input validated"
+        severity: critical
+      
+      - id: INPUT2
+        check: "SQL injection prevention"
+        severity: critical
+      
+      - id: INPUT3
+        check: "XSS prevention"
+        severity: critical
+      
+      - id: INPUT4
+        check: "CSRF protection enabled"
+        severity: high
+  
+  data_protection:
+    title: "Data Protection"
+    items:
+      - id: DATA1
+        check: "Sensitive data encrypted at rest"
+        severity: high
+      
+      - id: DATA2
+        check: "Sensitive data encrypted in transit (HTTPS)"
+        severity: critical
+      
+      - id: DATA3
+        check: "No sensitive data in logs"
+        severity: high
+      
+      - id: DATA4
+        check: "PII properly handled"
+        severity: high
+  
+  secrets_management:
+    title: "Secrets Management"
+    items:
+      - id: SECRET1
+        check: "No hardcoded secrets"
+        severity: critical
+      
+      - id: SECRET2
+        check: "Environment variables used"
+        severity: high
+      
+      - id: SECRET3
+        check: "Secrets rotation policy"
+        severity: medium
+      
+      - id: SECRET4
+        check: "API keys properly secured"
+        severity: high
+  
+  dependencies:
+    title: "Dependencies"
+    items:
+      - id: DEP1
+        check: "No known vulnerabilities"
+        severity: critical
+      
+      - id: DEP2
+        check: "Dependencies up to date"
+        severity: medium
+      
+      - id: DEP3
+        check: "Dependency scanning enabled"
+        severity: high
+  
+  infrastructure:
+    title: "Infrastructure"
+    items:
+      - id: INFRA1
+        check: "Firewall properly configured"
+        severity: high
+      
+      - id: INFRA2
+        check: "Rate limiting enabled"
+        severity: medium
+      
+      - id: INFRA3
+        check: "DDoS protection enabled"
+        severity: medium
+      
+      - id: INFRA4
+        check: "Security headers configured"
+        severity: high
+
+severity_levels:
+  critical: "Must fix immediately"
+  high: "Fix before deployment"
+  medium: "Fix in next sprint"
+  low: "Fix when possible"
+
+pass_criteria:
+  critical_issues: 0
+  high_issues: 0
+  medium_issues: "< 5"

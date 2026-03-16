@@ -1,0 +1,12 @@
+{
+  "name": "Create GitHub PR",
+  "version": "1.0.0",
+  "description": "GitHub pull request yaratish",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "GitHub MCP ishlatib joriy branch uchun pull request yaratib ber. PR title va description yaxshi yozilgan bo'lishi kerak."
+  }
+}
