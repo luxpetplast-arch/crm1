@@ -175,6 +175,36 @@ export default function Cashbox() {
     setShowCategoryModal(false);
   };
 
+  // Byudjet state
+  const [budgets, setBudgets] = useState<any[]>([]);
+  const [budgetLoading, setBudgetLoading] = useState(false);
+  const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const [budgetForm, setBudgetForm] = useState({
+    category: '',
+    amount: '',
+    currency: 'UZS',
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear(),
+    alertThreshold: '80'
+  });
+
+  // Qarzlar state
+  const [loans, setLoans] = useState<any[]>([]);
+  const [loansLoading, setLoansLoading] = useState(false);
+  const [showLoanModal, setShowLoanModal] = useState(false);
+  const [loanForm, setLoanForm] = useState({
+    employeeName: '',
+    employeeId: '',
+    amount: '',
+    currency: 'UZS',
+    purpose: '',
+    loanDate: new Date().toISOString().split('T')[0],
+    dueDate: '',
+    repaymentType: 'SALARY_DEDUCTION',
+    monthlyDeduction: '',
+    notes: ''
+  });
+
   const [limits, setLimits] = useState({
     cashLimit: 50000,
     cardLimit: 100000,
@@ -186,6 +216,20 @@ export default function Cashbox() {
   useEffect(() => {
     loadCashbox();
   }, []);
+
+  // Byudjet tab ochilganda yuklash
+  useEffect(() => {
+    if (activeTab === 'budget') {
+      loadBudgets();
+    }
+  }, [activeTab]);
+
+  // Qarzlar tab ochilganda yuklash
+  useEffect(() => {
+    if (activeTab === 'loans') {
+      loadLoans();
+    }
+  }, [activeTab]);
 
   const saveExchangeRate = () => {
     const rate = parseInt(exchangeRateInput) || 12500;
@@ -222,6 +266,36 @@ export default function Cashbox() {
       console.error('Kassa ma\'lumotlarini yuklashda xatolik', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Byudjetlarni yuklash
+  const loadBudgets = async () => {
+    setBudgetLoading(true);
+    try {
+      const currentMonth = new Date().getMonth() + 1;
+      const currentYear = new Date().getFullYear();
+      const { data } = await api.get(`/budgets?month=${currentMonth}&year=${currentYear}`);
+      setBudgets(data || []);
+    } catch (error) {
+      console.error('Byudjetlarni yuklashda xatolik:', error);
+      setBudgets([]);
+    } finally {
+      setBudgetLoading(false);
+    }
+  };
+
+  // Qarzlarni yuklash
+  const loadLoans = async () => {
+    setLoansLoading(true);
+    try {
+      const { data } = await api.get('/loans');
+      setLoans(data || []);
+    } catch (error) {
+      console.error('Qarzlarni yuklashda xatolik:', error);
+      setLoans([]);
+    } finally {
+      setLoansLoading(false);
     }
   };
 
@@ -413,6 +487,70 @@ export default function Cashbox() {
       type: 'ALL',
       paymentMethod: 'ALL'
     });
+  };
+
+  // Byudjet yaratish
+  const handleCreateBudget = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.post('/budgets', {
+        category: budgetForm.category,
+        amount: parseFloat(budgetForm.amount),
+        currency: budgetForm.currency,
+        month: budgetForm.month,
+        year: budgetForm.year,
+        alertThreshold: parseFloat(budgetForm.alertThreshold)
+      });
+      setShowBudgetModal(false);
+      setBudgetForm({
+        category: '',
+        amount: '',
+        currency: 'UZS',
+        month: new Date().getMonth() + 1,
+        year: new Date().getFullYear(),
+        alertThreshold: '80'
+      });
+      loadBudgets();
+      alert('Byudjet muvaffaqiyatli yaratildi!');
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Byudjet yaratishda xatolik');
+    }
+  };
+
+  // Qarz yaratish
+  const handleCreateLoan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.post('/loans', {
+        employeeName: loanForm.employeeName,
+        employeeId: loanForm.employeeId || null,
+        amount: parseFloat(loanForm.amount),
+        currency: loanForm.currency,
+        purpose: loanForm.purpose,
+        loanDate: loanForm.loanDate,
+        dueDate: loanForm.dueDate || null,
+        repaymentType: loanForm.repaymentType,
+        monthlyDeduction: loanForm.monthlyDeduction ? parseFloat(loanForm.monthlyDeduction) : null,
+        notes: loanForm.notes
+      });
+      setShowLoanModal(false);
+      setLoanForm({
+        employeeName: '',
+        employeeId: '',
+        amount: '',
+        currency: 'UZS',
+        purpose: '',
+        loanDate: new Date().toISOString().split('T')[0],
+        dueDate: '',
+        repaymentType: 'SALARY_DEDUCTION',
+        monthlyDeduction: '',
+        notes: ''
+      });
+      loadLoans();
+      alert('Qarz muvaffaqiyatli yaratildi!');
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Qarz yaratishda xatolik');
+    }
   };
 
   if (loading) {
@@ -760,7 +898,7 @@ export default function Cashbox() {
               </p>
             </div>
             <button 
-              onClick={() => {}}
+              onClick={() => setShowBudgetModal(true)}
               className="flex items-center justify-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs shadow-xl shadow-blue-500/20 transition-all active:scale-95"
             >
               <Wallet className="w-4 h-4" />
@@ -795,7 +933,7 @@ export default function Cashbox() {
               </p>
             </div>
             <button 
-              onClick={() => {}}
+              onClick={() => setShowLoanModal(true)}
               className="flex items-center justify-center gap-3 px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-black text-xs shadow-xl shadow-purple-500/20 transition-all active:scale-95"
             >
               <Users className="w-4 h-4" />
@@ -1871,6 +2009,258 @@ export default function Cashbox() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Byudjet Modal */}
+      {showBudgetModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xl flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-gray-900 w-full max-w-xl rounded-[3rem] overflow-hidden shadow-2xl border border-white/20 animate-in zoom-in-95 duration-300">
+            <div className="p-10 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center bg-blue-50/30 dark:bg-blue-900/10">
+              <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600">
+                  <Wallet className="w-6 h-6" />
+                </div>
+                {t("YANGI")} <span className="text-blue-600">{t("BYUDJET")}</span>
+              </h3>
+              <button onClick={() => setShowBudgetModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400">
+                <MoreHorizontal className="w-5 h-5 rotate-45" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateBudget} className="p-10 space-y-8">
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("KATEGORIYA")}</label>
+                <select
+                  value={budgetForm.category}
+                  onChange={(e) => setBudgetForm({ ...budgetForm, category: e.target.value })}
+                  className="w-full h-16 rounded-2xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-6 font-black text-sm focus:border-blue-500 outline-none transition-all appearance-none"
+                  required
+                >
+                  <option value="">{t("Kategoriya tanlang...")}</option>
+                  {expenseCategories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("SUMMA")}</label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={budgetForm.amount}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(',', '.');
+                      if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                      setBudgetForm({ ...budgetForm, amount: raw });
+                    }}
+                    className="h-16 rounded-2xl border-2 border-gray-100 dark:border-gray-800 focus:border-blue-500 transition-all font-black text-lg"
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("VALYUTA")}</label>
+                  <select
+                    value={budgetForm.currency}
+                    onChange={(e) => setBudgetForm({ ...budgetForm, currency: e.target.value })}
+                    className="w-full h-16 rounded-2xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-6 font-black text-lg focus:border-blue-500 outline-none transition-all appearance-none"
+                  >
+                    <option value="UZS">UZS (so'm)</option>
+                    <option value="USD">USD ($)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("OY")}</label>
+                  <select
+                    value={budgetForm.month}
+                    onChange={(e) => setBudgetForm({ ...budgetForm, month: parseInt(e.target.value) })}
+                    className="w-full h-14 rounded-xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-4 font-black text-sm focus:border-blue-500 outline-none transition-all appearance-none"
+                  >
+                    {Array.from({ length: 12 }, (_, i) => (
+                      <option key={i + 1} value={i + 1}>{i + 1}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("YIL")}</label>
+                  <select
+                    value={budgetForm.year}
+                    onChange={(e) => setBudgetForm({ ...budgetForm, year: parseInt(e.target.value) })}
+                    className="w-full h-14 rounded-xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-4 font-black text-sm focus:border-blue-500 outline-none transition-all appearance-none"
+                  >
+                    {[2024, 2025, 2026, 2027].map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("OGohlantirish %")}</label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={budgetForm.alertThreshold}
+                    onChange={(e) => setBudgetForm({ ...budgetForm, alertThreshold: e.target.value })}
+                    className="h-14 rounded-xl border-2 border-gray-100 dark:border-gray-800 focus:border-blue-500 transition-all font-black text-sm"
+                    placeholder="80"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-3xl font-black text-sm tracking-[0.2em] shadow-2xl shadow-blue-500/30 transition-all active:scale-95"
+                disabled={!budgetForm.category || !budgetForm.amount}
+              >
+                {t("BYUDJETNI SAQLASH")}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Qarz Modal */}
+      {showLoanModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xl flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-gray-900 w-full max-w-xl rounded-[3rem] overflow-hidden shadow-2xl border border-white/20 animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
+            <div className="p-10 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center bg-purple-50/30 dark:bg-purple-900/10 shrink-0">
+              <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-4">
+                <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center text-purple-600">
+                  <Users className="w-6 h-6" />
+                </div>
+                {t("YANGI")} <span className="text-purple-600">{t("QARZ")}</span>
+              </h3>
+              <button onClick={() => setShowLoanModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400">
+                <MoreHorizontal className="w-5 h-5 rotate-45" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateLoan} className="p-10 space-y-6 overflow-y-auto">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("XODIM ISMI")}</label>
+                <Input
+                  type="text"
+                  value={loanForm.employeeName}
+                  onChange={(e) => setLoanForm({ ...loanForm, employeeName: e.target.value })}
+                  className="h-14 rounded-xl border-2 border-gray-100 dark:border-gray-800 focus:border-purple-500 transition-all font-black"
+                  placeholder={t("FIO kiriting...")}
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("SUMMA")}</label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={loanForm.amount}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(',', '.');
+                      if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                      setLoanForm({ ...loanForm, amount: raw });
+                    }}
+                    className="h-14 rounded-xl border-2 border-gray-100 dark:border-gray-800 focus:border-purple-500 transition-all font-black"
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("VALYUTA")}</label>
+                  <select
+                    value={loanForm.currency}
+                    onChange={(e) => setLoanForm({ ...loanForm, currency: e.target.value })}
+                    className="w-full h-14 rounded-xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-4 font-black text-sm focus:border-purple-500 outline-none transition-all appearance-none"
+                  >
+                    <option value="UZS">UZS (so'm)</option>
+                    <option value="USD">USD ($)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("MAQSAD")}</label>
+                <Input
+                  type="text"
+                  value={loanForm.purpose}
+                  onChange={(e) => setLoanForm({ ...loanForm, purpose: e.target.value })}
+                  className="h-14 rounded-xl border-2 border-gray-100 dark:border-gray-800 focus:border-purple-500 transition-all font-black"
+                  placeholder={t("Qarz maqsadi...")}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("BERILGAN SANA")}</label>
+                  <input
+                    type="date"
+                    value={loanForm.loanDate}
+                    onChange={(e) => setLoanForm({ ...loanForm, loanDate: e.target.value })}
+                    className="w-full h-14 rounded-xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-4 font-black text-sm outline-none"
+                    required
+                  />
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("QAYTARISH SANASI")}</label>
+                  <input
+                    type="date"
+                    value={loanForm.dueDate}
+                    onChange={(e) => setLoanForm({ ...loanForm, dueDate: e.target.value })}
+                    className="w-full h-14 rounded-xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-4 font-black text-sm outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("QAYTARISH TURI")}</label>
+                  <select
+                    value={loanForm.repaymentType}
+                    onChange={(e) => setLoanForm({ ...loanForm, repaymentType: e.target.value })}
+                    className="w-full h-14 rounded-xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-4 font-black text-sm focus:border-purple-500 outline-none transition-all appearance-none"
+                  >
+                    <option value="SALARY_DEDUCTION">{t("Ish haqidan ushlab qolish")}</option>
+                    <option value="MANUAL">{t("Qo'lda to'lash")}</option>
+                  </select>
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("OYLIK USHLAB QOLISH")}</label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    value={loanForm.monthlyDeduction}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(',', '.');
+                      if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                      setLoanForm({ ...loanForm, monthlyDeduction: raw });
+                    }}
+                    className="h-14 rounded-xl border-2 border-gray-100 dark:border-gray-800 focus:border-purple-500 transition-all font-black"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("IZOH")}</label>
+                <textarea
+                  value={loanForm.notes}
+                  onChange={(e) => setLoanForm({ ...loanForm, notes: e.target.value })}
+                  className="w-full p-4 rounded-xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 focus:border-purple-500 outline-none transition-all font-bold text-sm min-h-[80px] resize-none"
+                  placeholder={t("Qo'shimcha ma'lumot...")}
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full h-16 bg-purple-600 hover:bg-purple-700 text-white rounded-3xl font-black text-sm tracking-[0.2em] shadow-2xl shadow-purple-500/30 transition-all active:scale-95"
+                disabled={!loanForm.employeeName || !loanForm.amount}
+              >
+                {t("QARZNI SAQLASH")}
+              </button>
+            </form>
           </div>
         </div>
       )}
