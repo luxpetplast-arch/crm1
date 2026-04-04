@@ -12,15 +12,15 @@ datasource db {
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
+  login     String?  @unique  // Yangi: Login username
   password  String
   name      String
-  role      String   @default("SELLER") // ADMIN, SELLER, WAREHOUSE_MANAGER, ACCOUNTANT, DRIVER
+  role      String   @default("SELLER") // ADMIN, SELLER, WAREHOUSE_MANAGER, ACCOUNTANT, DRIVER, CASHIER
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   sales         Sale[]
-  driverSales   Sale[]         @relation("DriverSales")
   expenses      Expense[]
   auditLogs     AuditLog[]
   drivers       Driver[]
@@ -32,23 +32,42 @@ model Product {
   id              String   @id @default(uuid())
   name            String   @unique
   bagType         String
-  unitsPerBag     Int
+  unitsPerBag     Float    @default(1000)
   minStockLimit   Int
   optimalStock    Int
   maxCapacity     Int
-  currentStock    Int      @default(0)
-  currentUnits    Int      @default(0) // Jami dona soni
+  currentStock    Float    @default(0)
+  currentUnits    Float    @default(0) // Jami dona soni
   pricePerBag     Float
+  pricePerPiece   Float    @default(0) // Yangi: Dona narxi
   productionCost  Float    @default(0)
+  isParent        Boolean  @default(false) // Parent product flag
+  parentProductId String?  // Reference to parent (for legacy products)
+  variantName     String?  // Variant name (e.g., "Oq", "Qora")
+  productTypeId   String?  // Mahsulot turi (eski tizim uchun)
+  warehouse       String   @default("preform") // Yangi: Omborni ajratish (preform, krishka, ruchka)
+  categoryId      String?  // Yangi: Mahsulot kategoriyasi
+  sizeId          String?  // Yangi: Mahsulot o'lchami
+  subType         String?  // Yangi: Sub-turi (gidro, karbonat, h.k.)
+  active          Boolean  @default(true) // Active status
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  batches       Batch[]
-  sales         Sale[]
-  saleItems     SaleItem[]
-  orderItems    OrderItem[]
-  stockAlerts   StockAlert[]
-  stockMovements StockMovement[]
+  // Relations
+  batches         Batch[]
+  sales           Sale[]
+  saleItems       SaleItem[]
+  orderItems      OrderItem[]
+  stockAlerts     StockAlert[]
+  stockMovements  StockMovement[]
+  variants        ProductVariant[] // Child variants
+  parent          Product?  @relation("ProductVariants", fields: [parentProductId], references: [id])
+  children        Product[] @relation("ProductVariants")
+  productType     ProductType? @relation(fields: [productTypeId], references: [id])
+  category        ProductCategory? @relation(fields: [categoryId], references: [id])
+  size            ProductSize? @relation(fields: [sizeId], references: [id])
+  cardProducts    CardProduct[]
+  bagLabels       BagLabel[]  // Qop yorliqlari
 }
 
 model Batch {
@@ -76,7 +95,11 @@ model Customer {
   debtReminderDays Int              @default(7) // Necha kundan keyin eslatma
   category        String            @default("NORMAL") // VIP, NORMAL, RISK
   balance         Float             @default(0)
+  balanceUZS      Float             @default(0)
+  balanceUSD       Float             @default(0)
   debt            Float             @default(0)
+  debtUZS         Float             @default(0)
+  debtUSD         Float             @default(0)
   creditLimit     Float             @default(0)
   paymentTermDays Int               @default(30)
   discountPercent Float             @default(0)
@@ -97,15 +120,15 @@ model Customer {
 
 model Sale {
   id             String   @id @default(uuid())
-  customerId     String
-  customer       Customer @relation(fields: [customerId], references: [id])
+  customerId     String?
+  customer       Customer? @relation(fields: [customerId], references: [id])
   productId      String?
   product        Product? @relation(fields: [productId], references: [id])
   userId         String
   user           User     @relation(fields: [userId], references: [id])
   driverId       String?
-  driver         User?    @relation("DriverSales", fields: [driverId], references: [id])
-  quantity       Int      @default(1)
+  driver         Driver?  @relation(fields: [driverId], references: [id])
+  quantity       Float    @default(1)
   pricePerBag    Float    @default(0)
   bagType        String   @default("SMALL")
   totalAmount    Float
@@ -115,6 +138,11 @@ model Sale {
   paymentDetails String?  // JSON: {uzs, usd, eur}
   driverPaymentStatus String @default("PENDING") // PENDING, COLLECTED, DELIVERED
   driverCollectedAmount Float @default(0) // Haydovchi tomonidan yig'ilgan pul
+  factoryShare    Float    @default(0) // Zavod to'laydigan summa
+  customerShare   Float    @default(0) // Mijoz to'laydigan summa
+  isKocha        Boolean  @default(false)
+  manualCustomerName  String?
+  manualCustomerPhone String?
   createdAt      DateTime @default(now())
 
   items       SaleItem[]
@@ -128,17 +156,20 @@ model Sale {
 }
 
 model SaleItem {
-  id          String  @id @default(uuid())
+  id          String          @id @default(uuid())
   saleId      String
-  sale        Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  productId   String
-  product     Product @relation(fields: [productId], references: [id])
-  quantity    Int
+  sale        Sale            @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId   String?         // Optional: for backward compatibility
+  product     Product?        @relation(fields: [productId], references: [id])
+  variantId   String?         // New: reference to variant
+  variant     ProductVariant? @relation(fields: [variantId], references: [id])
+  quantity    Float
   pricePerBag Float
   subtotal    Float
 
   @@index([saleId])
   @@index([productId])
+  @@index([variantId])
 }
 
 model Invoice {
@@ -291,7 +322,7 @@ model Driver {
   userId          String?  // Sayt user ID'si
   name            String
   phone           String   @unique
-  licenseNumber   String   @unique
+  licenseNumber   String?
   vehicleNumber   String
   telegramChatId  String?  @unique // Telegram bot uchun
   telegramUsername String? // Telegram username
@@ -306,6 +337,7 @@ model Driver {
 
   // Relations
   user            User?    @relation(fields: [userId], references: [id])
+  sales           Sale[]
   assignments     DeliveryAssignment[]
   chats           DriverChat[]
 }
@@ -596,6 +628,90 @@ model SystemSettings {
   updatedAt       DateTime @updatedAt
 }
 
+// Card System Models
+model Card {
+  id          String   @id @default(uuid())
+  name        String   // "Standart", "Premium", "Ekologik", "Luxury"
+  description String?  // Kart tavsifi
+  price       Float    // Kart narxi (agar kerak bo'lsa)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  cardProducts CardProduct[]
+  
+  @@unique([name])
+}
+
+model ProductType {
+  id          String   @id @default(uuid())
+  name        String   // "Preform", "Qop", "Qopqoq", "Stiker"
+  description String?  // Tur tavsifi
+  defaultCard String?  // Standart kart turi
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  products    Product[]
+  categories  ProductCategory[]
+  
+  @@unique([name])
+}
+
+// Yangi: Mahsulot kategoriyasi (turlari)
+model ProductCategory {
+  id          String   @id @default(uuid())
+  name        String   // "Preform", "Qopqoq", "Qop"
+  description String?  // Kategoriya tavsifi
+  icon        String?  // Emoji icon
+  color       String?  // Rang kodi
+  active      Boolean  @default(true)
+  productTypeId String  // Qaysi ProductType ga tegishli
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  productType ProductType @relation(fields: [productTypeId], references: [id])
+  sizes       ProductSize[]
+  products    Product[]
+  
+  @@unique([name, productTypeId])
+}
+
+// Yangi: Mahsulot o'lchamlari
+model ProductSize {
+  id          String   @id @default(uuid())
+  name        String   // "15gr", "25gr", "50gr", "5kg", "10kg", "25kg"
+  description String?  // O'lcham tavsifi
+  unit        String   // "gr", "kg"
+  value       Float    // 15, 25, 50, 5, 10, 25
+  active      Boolean  @default(true)
+  categoryId  String   // Qaysi kategoriyaga tegishli
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  category    ProductCategory @relation(fields: [categoryId], references: [id])
+  products    Product[]
+  
+  @@unique([name, categoryId])
+}
+
+model CardProduct {
+  id       String @id @default(uuid())
+  cardId   String
+  card     Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  productId String
+  product  Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity Int    @default(1) // Kartdagi mahsulot miqdori
+  active   Boolean @default(true)
+  createdAt DateTime @default(now())
+  
+  @@unique([cardId, productId])
+}
+
 model StockMovement {
   id              String   @id @default(uuid())
   productId       String
@@ -649,19 +765,22 @@ model Order {
 }
 
 model OrderItem {
-  id              String   @id @default(uuid())
+  id              String          @id @default(uuid())
   orderId         String
-  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId       String
-  product         Product  @relation(fields: [productId], references: [id])
-  quantityBags    Int      // Qop soni
-  quantityUnits   Int      // Dona soni
+  order           Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId       String?         // Optional: for backward compatibility
+  product         Product?        @relation(fields: [productId], references: [id])
+  variantId       String?         // New: reference to variant
+  variant         ProductVariant? @relation(fields: [variantId], references: [id])
+  quantityBags    Int             // Qop soni
+  quantityUnits   Int             // Dona soni
   pricePerBag     Float
   subtotal        Float
   notes           String?
 
   @@index([orderId])
   @@index([productId])
+  @@index([variantId])
 }
 
 // AI Ishlab chiqarish rejasi
@@ -840,4 +959,473 @@ model CustomerChat {
   @@index([adminId])
   @@index([createdAt])
   @@index([isRead])
+}
+
+// Product Variant Models
+model ProductVariant {
+  id              String   @id @default(uuid())
+  parentId        String
+  parent          Product  @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  variantName     String   // Color/variant name (e.g., "Oq", "Qora", "Sariq")
+  cardType        String?  // Card type for 15g preforms (e.g., "STANDART", "PREMIUM", "ECO", "LUXURY")
+  currentStock    Int      @default(0)
+  currentUnits    Int      @default(0)
+  pricePerBag     Float
+  sku             String?  @unique // Optional SKU for variant
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  saleItems       SaleItem[]
+  orderItems      OrderItem[]
+  stockMovements  VariantStockMovement[]
+  priceHistory    VariantPriceHistory[]
+
+  @@unique([parentId, variantName])
+  @@index([parentId])
+  @@index([variantName])
+  @@index([active])
+}
+
+model VariantStockMovement {
+  id              String          @id @default(uuid())
+  variantId       String
+  variant         ProductVariant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  type            String          // ADD, REMOVE, ADJUST, PRODUCTION, SALE
+  quantity        Int             // Bag count
+  units           Int             // Unit count
+  reason          String
+  userId          String
+  userName        String
+  previousStock   Int
+  previousUnits   Int
+  newStock        Int
+  newUnits        Int
+  notes           String?
+  createdAt       DateTime        @default(now())
+
+  @@index([variantId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model VariantPriceHistory {
+  id              String          @id @default(uuid())
+  variantId       String
+  variant         ProductVariant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  oldPrice        Float
+  newPrice        Float
+  reason          String?
+  userId          String
+  userName        String
+  createdAt       DateTime        @default(now())
+
+  @@index([variantId])
+  @@index([createdAt])
+}
+
+// Qop yorliqlari tizimi
+model BagLabel {
+  id              String   @id @default(uuid())
+  barcode         String   @unique // 12 ta raqamli barkod
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id])
+  productName     String   // Masalan: "15gr"
+  productType     String   // Masalan: "QORA"
+  unitsPerBag     Int      // Masalan: 4000
+  bagNumber       Int      // Qop raqami
+  workerId        String   // Ishchi raqami
+  productionDate  DateTime
+  status          String   @default("IN_STOCK") // IN_STOCK, SOLD, RESERVED, DAMAGED
+  printedAt       DateTime @default(now())
+  printedBy       String   // User ID
+  soldAt          DateTime?
+  saleId          String?  // Sotuv ID (agar sotilgan bo'lsa)
+  notes           String?
+  
+  @@index([barcode])
+  @@index([productId])
+  @@index([status])
+  @@index([productionDate])
+}
+
+// ============ HR / KADRLAR TIZIMI ============
+
+// Bo'limlar (Departamentlar)
+model Department {
+  id              String   @id @default(uuid())
+  name            String   // Bo'lim nomi
+  code            String   @unique // Bo'lim kodi (masalan: HR, PROD, SALES)
+  description     String?  // Tavsif
+  parentId        String?  // Ota bo'lim (agar ierarxiya bo'lsa)
+  parent          Department? @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+  children        Department[] @relation("DepartmentHierarchy")
+  managerId       String?  // Bo'lim muddiri
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  employees       Employee[]
+  positions       Position[]
+
+  @@index([code])
+  @@index([active])
+}
+
+// Lavozimlar (Pozitsiyalar)
+model Position {
+  id              String   @id @default(uuid())
+  name            String   // Lavozim nomi
+  code            String   @unique // Lavozim kodi
+  departmentId    String
+  department      Department @relation(fields: [departmentId], references: [id])
+  description     String?  // Tavsif
+  responsibilities String? // Vazifalar ro'yxati (JSON)
+  requirements    String? // Talablar (JSON)
+  salaryRangeMin  Float?   // Oylik daromad oralig'i (min)
+  salaryRangeMax  Float?   // Oylik daromad oralig'i (max)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  employees       Employee[]
+
+  @@index([departmentId])
+  @@index([code])
+  @@index([active])
+}
+
+// Hodimlar
+model Employee {
+  id              String   @id @default(uuid())
+  employeeCode    String   @unique // Hodim kodi (masalan: EMP001)
+  firstName       String   // Ism
+  lastName        String   // Familiya
+  middleName      String?  // Otasining ismi
+  fullName        String   // To'liq FIO
+  
+  // Kontaktlar
+  phone           String?  // Telefon
+  email           String?  // Email
+  address         String?  // Manzil
+  emergencyContact String? // Favqulodda bog'lanish
+  
+  // Pasport ma'lumotlari
+  passportSeries  String?  // Pasport seriyasi
+  passportNumber  String?  // Pasport raqami
+  passportIssueDate DateTime? // Berilgan sana
+  passportIssueBy String?  // Kim tomondan berilgan
+  birthDate       DateTime? // Tug'ilgan sana
+  birthPlace      String?  // Tug'ilgan joy
+  nationality     String?  // Millati
+  
+  // Ish ma'lumotlari
+  departmentId    String
+  department      Department @relation(fields: [departmentId], references: [id])
+  positionId      String
+  position        Position @relation(fields: [positionId], references: [id])
+  hireDate        DateTime // Ishga qabul qilingan sana
+  fireDate        DateTime? // Ishdan bo'shatilgan sana
+  employmentType  String   @default("FULL_TIME") // FULL_TIME, PART_TIME, CONTRACT, INTERN
+  workSchedule    String   @default("STANDARD") // STANDARD, SHIFT, FLEXIBLE, REMOTE
+  probationEnd    DateTime? // Sinov muddati tugashi
+  
+  // Moliyaviy ma'lumotlar
+  salary          Float    @default(0) // Oylik maosh
+  hourlyRate      Float?   // Soatlik stavka
+  bankAccount     String?  // Bank hisob raqami
+  bankName        String?  // Bank nomi
+  
+  // Telegram va notification
+  telegramChatId  String?  // Telegram chat ID
+  telegramUsername String? // Telegram username
+  notificationsEnabled Boolean @default(true)
+  
+  // Status
+  status          String   @default("ACTIVE") // ACTIVE, ON_LEAVE, SUSPENDED, FIRED, PROBATION
+  
+  // Qo'shimcha ma'lumotlar
+  education       String?  // Ma'lumoti (JSON)
+  skills          String?  // Ko'nikmalar (JSON)
+  certificates    String?  // Sertifikatlar (JSON)
+  photoUrl        String?  // Rasm URL
+  notes           String?  // Izohlar
+  
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  attendances     Attendance[]
+  leaveRequests   LeaveRequest[]
+  applications    EmployeeApplication[]
+  messages        EmployeeMessage[]
+  attestations    Attestation[]
+
+  @@index([employeeCode])
+  @@index([departmentId])
+  @@index([positionId])
+  @@index([status])
+  @@index([active])
+  @@index([fullName])
+}
+
+// Keldi-ketti / Tabel
+model Attendance {
+  id              String   @id @default(uuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id])
+  date            DateTime // Sana
+  
+  // Ish vaqti
+  checkIn         DateTime? // Kelish vaqti
+  checkOut        DateTime? // Ketish vaqti
+  scheduledCheckIn  DateTime? // Rejalashtirilgan kelish vaqti
+  scheduledCheckOut DateTime? // Rejalashtirilgan ketish vaqti
+  
+  // Hisoblangan vaqt
+  workHours       Float    @default(0) // Ishlangan soat
+  overtime        Float    @default(0) // Ortiqcha ish soati
+  lateMinutes     Int      @default(0) // Kech qolgan daqiqalar
+  earlyLeaveMinutes Int    @default(0) // Erta ketgan daqiqalar
+  
+  // Status
+  status          String   @default("PRESENT") // PRESENT, ABSENT, LATE, EARLY_LEAVE, ON_LEAVE, HOLIDAY, WEEKEND
+  
+  // Turi
+  type            String   @default("WORK") // WORK, OVERTIME, BUSINESS_TRIP, REMOTE
+  
+  // Tasdiqlash
+  approvedBy      String?  // Tasdiqlagan shaxs ID
+  approvedAt      DateTime? // Tasdiqlangan vaqt
+  
+  // Izoh
+  notes           String?  // Izoh
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([date])
+  @@index([status])
+  @@unique([employeeId, date])
+}
+
+// Dam olish / Mehnat ta'tillari
+model LeaveRequest {
+  id              String   @id @default(uuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id])
+  
+  leaveType       String   // ANNUAL, SICK, UNPAID, MATERNITY, PATERNITY, EMERGENCY, STUDY
+  startDate       DateTime // Boshlanish sanasi
+  endDate         DateTime // Tugash sanasi
+  days            Int      // Kunlar soni
+  
+  // Sabab
+  reason          String   // Sabab
+  description     String?  // Batafsil
+  
+  // Hujjatlar
+  attachmentUrl   String?  // Ilova hujjat URL
+  
+  // Status
+  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED, CANCELLED
+  
+  // Tasdiqlash
+  requestedAt     DateTime @default(now())
+  reviewedBy      String?  // Ko'rib chiqqan shaxs ID
+  reviewedAt      DateTime? // Ko'rib chiqilgan vaqt
+  reviewNotes     String?  // Ko'rib chiqish izohlari
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([startDate])
+}
+
+// Hodim arizalari
+model EmployeeApplication {
+  id              String   @id @default(uuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id])
+  
+  applicationType String   // LEAVE, EQUIPMENT, COMPLAINT, SUGGESTION, OTHER
+  title           String   // Sarlavha
+  description     String   // Tavsif
+  
+  // Status
+  status          String   @default("PENDING") // PENDING, IN_PROGRESS, RESOLVED, REJECTED
+  priority        String   @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  
+  // Javob
+  response        String?  // Javob matni
+  respondedBy     String?  // Javob bergan shaxs ID
+  respondedAt     DateTime? // Javob berilgan vaqt
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([applicationType])
+}
+
+// Xabarlar (Hodimga yuborilgan)
+model EmployeeMessage {
+  id              String   @id @default(uuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id])
+  
+  senderId        String   // Yuboruvchi ID (User)
+  senderName      String   // Yuboruvchi ismi
+  
+  type            String   @default("EMAIL") // EMAIL, SMS, TELEGRAM, APP
+  subject         String   // Mavzu
+  content         String   // Matn
+  
+  // Status
+  sentAt          DateTime @default(now())
+  deliveredAt     DateTime? // Yetkazilgan vaqt
+  readAt          DateTime? // O'qilgan vaqt
+  
+  // Qo'shimcha
+  telegramMessageId String? // Telegram message ID
+  
+  createdAt       DateTime @default(now())
+
+  @@index([employeeId])
+  @@index([sentAt])
+}
+
+// Attestatsiya (Baholash)
+model Attestation {
+  id              String   @id @default(uuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id])
+  
+  attestationDate DateTime // Attestatsiya sanasi
+  periodStart     DateTime // Davr boshlanishi
+  periodEnd       DateTime // Davr tugashi
+  
+  // Baholar (1-5 yoki 1-100)
+  performance     Int?     // Ish unumi
+  discipline      Int?     // Intizom
+  punctuality     Int?     // Vaqtni qadrlash
+  teamwork        Int?     // Jamoa bilan ishlash
+  initiative      Int?     // Tashabbuskorlik
+  
+  // Umumiy baho
+  overallScore    Float?   // Umumiy ball
+  grade           String?  // Baholash darajasi (A, B, C, D, E)
+  
+  // Izohlar
+  strengths       String?  // Kuchli tomonlar
+  weaknesses      String?  // Zaif tomonlar
+  recommendations String?  // Tavsiyalar
+  
+  // Tasdiqlash
+  assessedBy      String   // Baholagan shaxs ID
+  assessedByName  String   // Baholagan shaxs ismi
+  approvedBy      String?  // Tasdiqlagan shaxs ID
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([attestationDate])
+}
+
+// So'rovnomalar (Surveys)
+model Survey {
+  id              String   @id @default(uuid())
+  title           String   // So'rovnoma nomi
+  description     String?  // Tavsif
+  
+  // Target
+  targetType      String   @default("ALL") // ALL, DEPARTMENT, POSITION, SPECIFIC
+  targetDepartments String? // Agar DEPARTMENT bo'lsa (JSON array)
+  targetPositions   String? // Agar POSITION bo'lsa (JSON array)
+  targetEmployees   String? // Agar SPECIFIC bo'lsa (JSON array)
+  
+  // Davomiylik
+  startDate       DateTime // Boshlanish sanasi
+  endDate         DateTime // Tugash sanasi
+  
+  // Savollar (JSON)
+  questions       String   // [{id, type, question, options, required}]
+  
+  // Status
+  status          String   @default("DRAFT") // DRAFT, ACTIVE, COMPLETED, CANCELLED
+  
+  createdBy       String   // Yaratuvchi ID
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  responses       SurveyResponse[]
+
+  @@index([status])
+  @@index([startDate])
+}
+
+// So'rovnoma javoblari
+model SurveyResponse {
+  id              String   @id @default(uuid())
+  surveyId        String
+  survey          Survey   @relation(fields: [surveyId], references: [id])
+  
+  employeeId      String   // Javob bergan hodim ID
+  
+  answers         String   // JSON: {questionId: answer}
+  
+  submittedAt     DateTime @default(now())
+  
+  @@index([surveyId])
+  @@index([employeeId])
+}
+
+// Ish grafiklari (Work Schedules)
+model WorkSchedule {
+  id              String   @id @default(uuid())
+  name            String   // Grafik nomi
+  scheduleType    String   // STANDARD, SHIFT_12, SHIFT_24, CUSTOM
+  
+  // Ish vaqti
+  workDays        String   // JSON: [1,2,3,4,5] (dushanba-juma)
+  workStartTime   String   // "09:00"
+  workEndTime     String   // "18:00"
+  breakDuration   Int      @default(60) // Dam olish daqiqalari
+  
+  // Smenali ishlash uchun
+  shiftDays       Int?     // Smena kunlari
+  offDays         Int?     // Dam olish kunlari
+  
+  // Target
+  departmentId    String?  // Bo'lim (null bo'lsa barcha uchun)
+  positionId      String?  // Lavozim (null bo'lsa barcha uchun)
+  
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([active])
+}
+
+// Hodim telegram bot uchun registratsiya
+model EmployeeTelegram {
+  id              String   @id @default(uuid())
+  employeeId      String
+  telegramChatId  String   @unique
+  telegramUsername String?
+  isActive        Boolean  @default(true)
+  registeredAt    DateTime @default(now())
+  lastActivityAt DateTime @default(now())
+
+  @@index([telegramChatId])
+  @@index([employeeId])
 }

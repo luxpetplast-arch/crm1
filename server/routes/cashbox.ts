@@ -20,24 +20,31 @@ router.get('/summary', async (req, res) => {
     const payments = await prisma.payment.findMany();
 
     const totalIncome = sales.reduce((sum, s) => sum + s.paidAmount, 0) + payments.reduce((sum, p) => sum + p.amount, 0);
-    // Faqat musbat xarajatlarni hisoblaymiz (manfiy xarajatlar - kassa kirimlari)
-    const totalExpense = expenses.reduce((sum, e) => sum + (e.amount > 0 ? e.amount : 0), 0);
-    // Jami balans o'rniga bugungi balansni qaytaramiz
-    const totalBalance = todayIncome - todayExpense;
+    // Kassa kirimlari (manfiy expense) va chiqimlari (musbat expense)
+    const cashboxIncome = expenses.reduce((sum, e) => sum + (e.amount < 0 ? Math.abs(e.amount) : 0), 0);
+    const cashboxExpense = expenses.reduce((sum, e) => sum + (e.amount > 0 ? e.amount : 0), 0);
+    // Jami balans
+    const totalBalance = totalIncome + cashboxIncome - cashboxExpense;
 
     const todaySales = sales.filter(s => s.createdAt >= today);
     const todayExpenses = expenses.filter(e => e.createdAt >= today);
     const todayPayments = payments.filter(p => p.createdAt >= today);
     const todayIncome = todaySales.reduce((sum, s) => sum + s.paidAmount, 0) + todayPayments.reduce((sum, p) => sum + p.amount, 0);
-    // Faqat musbat bugungi xarajatlarni hisoblaymiz
-    const todayExpense = todayExpenses.reduce((sum, e) => sum + (e.amount > 0 ? e.amount : 0), 0);
+    // Bugungi kassa kirimlari va chiqimlari
+    const todayCashboxIncome = todayExpenses.reduce((sum, e) => sum + (e.amount < 0 ? Math.abs(e.amount) : 0), 0);
+    const todayCashboxExpense = todayExpenses.reduce((sum, e) => sum + (e.amount > 0 ? e.amount : 0), 0);
+    const todayExpense = todayCashboxExpense;
+    const totalTodayIncome = todayIncome + todayCashboxIncome;
 
     const monthlySales = sales.filter(s => s.createdAt >= monthStart);
     const monthlyExpenses = expenses.filter(e => e.createdAt >= monthStart);
     const monthlyPayments = payments.filter(p => p.createdAt >= monthStart);
     const monthlyIncome = monthlySales.reduce((sum, s) => sum + s.paidAmount, 0) + monthlyPayments.reduce((sum, p) => sum + p.amount, 0);
-    // Faqat musbat oylik xarajatlarni hisoblaymiz
-    const monthlyExpense = monthlyExpenses.reduce((sum, e) => sum + (e.amount > 0 ? e.amount : 0), 0);
+    // Oylik kassa kirimlari va chiqimlari
+    const monthlyCashboxIncome = monthlyExpenses.reduce((sum, e) => sum + (e.amount < 0 ? Math.abs(e.amount) : 0), 0);
+    const monthlyCashboxExpense = monthlyExpenses.reduce((sum, e) => sum + (e.amount > 0 ? e.amount : 0), 0);
+    const monthlyExpense = monthlyCashboxExpense;
+    const totalMonthlyIncome = monthlyIncome + monthlyCashboxIncome;
 
     // Valyuta bo'yicha hisoblash - ALOHIDA
     let cashUZS = 0, cashUSD = 0, cardUSD = 0, clickUZS = 0;
@@ -66,6 +73,22 @@ router.get('/summary', async (req, res) => {
       }
     });
 
+    // Kassa kirimlaridan (manfiy expense)
+    expenses.forEach(expense => {
+      if (expense.amount < 0) { // Faqat kassa kirimlari
+        const amount = Math.abs(expense.amount);
+        if (expense.currency === 'UZS') {
+          if (expense.category === 'KASSA_KIRIM') {
+            cashUZS += amount;
+          } else if (expense.category === 'TRANSFER_IN') {
+            cashUZS += amount;
+          }
+        } else if (expense.currency === 'USD') {
+          cashUSD += amount;
+        }
+      }
+    });
+
     const dailyFlow = [];
     for (let i = 6; i >= 0; i--) {
       const date = new Date(today);
@@ -86,9 +109,9 @@ router.get('/summary', async (req, res) => {
 
     res.json({ 
       totalBalance, 
-      todayIncome, 
+      todayIncome: totalTodayIncome, 
       todayExpense, 
-      monthlyIncome, 
+      monthlyIncome: totalMonthlyIncome, 
       monthlyExpense, 
       byCurrency: { 
         cashUZS,
@@ -179,8 +202,47 @@ router.post('/withdraw', async (req: AuthRequest, res) => {
 router.post('/transfer', async (req: AuthRequest, res) => {
   try {
     const { from, to, amount, description } = req.body;
+    
     if (from === to) return res.status(400).json({ error: 'Bir xil tolov usullariga transfer qilib bolmaydi' });
-    await prisma.expense.create({ data: { category: 'TRANSFER', amount: 0, currency: 'USD', description: description || `Transfer: ${from} to ${to} (${amount} USD)`, userId: req.user!.id } });
+    
+    if (!amount || amount <= 0) return res.status(400).json({ error: 'Transfer miqdori musbat bolishi kerak' });
+    
+    // Convert amount based on payment methods
+    let fromAmount = amount;
+    let toAmount = amount;
+    let fromCurrency = 'USD';
+    let toCurrency = 'USD';
+    
+    // Handle currency conversion
+    if (from === 'CASH' || to === 'CASH' || from === 'CLICK' || to === 'CLICK') {
+      fromCurrency = 'UZS';
+      toCurrency = 'UZS';
+      fromAmount = amount * 12600; // USD to UZS conversion
+      toAmount = amount * 12600;
+    }
+    
+    // Create withdrawal record (from)
+    await prisma.expense.create({
+      data: {
+        category: 'TRANSFER_OUT',
+        amount: fromAmount,
+        currency: fromCurrency,
+        description: description || `Transfer: ${from} to ${to} (${amount} USD)`,
+        userId: req.user!.id
+      }
+    });
+    
+    // Create deposit record (to) - manfiy expense sifatida
+    await prisma.expense.create({
+      data: {
+        category: 'TRANSFER_IN',
+        amount: -toAmount, // Manfiy qiymat - kassa kirim
+        currency: toCurrency,
+        description: description || `Transfer: ${from} to ${to} (${amount} USD)`,
+        userId: req.user!.id
+      }
+    });
+    
     res.json({ success: true, message: 'Transfer muvaffaqiyatli amalga oshirildi' });
   } catch (error) {
     console.error('Transfer error:', error);

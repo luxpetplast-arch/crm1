@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card } from './Card';
 import Button from './Button';
 import { formatDateTime } from '../lib/dateUtils';
+import api from '../lib/api';
 
 interface SalesHistoryLog {
   id: string;
@@ -117,21 +118,16 @@ export default function SalesHistory() {
       if (filters.action) params.append('action', filters.action);
 
       try {
-        const historyRes = await fetch(`/api/sales/audit/history?${params}`);
-        if (!historyRes.ok) {
-          if (historyRes.status === 401) {
-            console.warn('Unauthorized access to audit history');
-            setHistory([]);
-          } else {
-            throw new Error(`HTTP error! status: ${historyRes.status}`);
-          }
+        const historyData = await api.get(`/audit-logs?${params}`);
+        setHistory(Array.isArray(historyData.data) ? historyData.data : []);
+      } catch (error: any) {
+        if (error.response?.status === 401) {
+          console.warn('Unauthorized access to audit history');
+          setHistory([]);
         } else {
-          const historyData = await historyRes.json();
-          setHistory(Array.isArray(historyData) ? historyData : []);
+          console.warn('Failed to load history:', error);
+          setHistory([]);
         }
-      } catch (error) {
-        console.warn('Failed to load history:', error);
-        setHistory([]);
       }
 
       try {

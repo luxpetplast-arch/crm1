@@ -6,9 +6,12 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import ProductSelector from '../components/ProductSelector';
 import api from '../lib/api';
 import { formatDate } from '../lib/utils';
-import { Factory, Play, CheckCircle, XCircle, Clock, Plus, Package } from 'lucide-react';
+import { Factory, Play, CheckCircle, XCircle, Clock, Plus, Package, FileText, MoreHorizontal } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { exportToExcel } from '../lib/excelUtils';
 
 export default function Production() {
+  const { t } = useTranslation();
   const [orders, setOrders] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -21,6 +24,7 @@ export default function Production() {
     shift: 'Kunduzgi',
     supervisorId: '',
     notes: '',
+    accessories: [] as any[],
   });
 
   useEffect(() => {
@@ -37,6 +41,19 @@ export default function Production() {
     }
   };
 
+  const handleExport = () => {
+    const dataToExport = orders.map(o => ({
+      'Buyurtma #': o.orderNumber,
+      'Mahsulot': o.product?.name || 'N/A',
+      'Target Miqdor': o.targetQuantity,
+      'Amaldagi Miqdor': o.actualQuantity || 0,
+      'Sana': formatDate(o.plannedDate),
+      'Smena': o.shift,
+      'Status': getStatusLabel(o.status)
+    }));
+    exportToExcel(dataToExport, 'Ishlab_chiqarish', 'Ishlab chiqarish');
+  };
+
   const loadProducts = async () => {
     try {
       const { data } = await api.get('/products');
@@ -49,10 +66,15 @@ export default function Production() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const notesWithAccessories = form.accessories.length > 0 
+        ? `${form.notes}\n\nAksessuarlar:\n${form.accessories.map(a => `- ${a.name}: ${a.quantity} dona (Narxi: ${a.price || 0})`).join('\n')}`
+        : form.notes;
+
       await api.post('/production/orders', {
         ...form,
-        targetQuantity: parseInt(form.targetQuantity),
+        targetQuantity: parseInt(form.targetQuantity) || 0,
         plannedDate: new Date(form.plannedDate),
+        notes: notesWithAccessories,
       });
       setShowForm(false);
       setForm({
@@ -63,6 +85,7 @@ export default function Production() {
         shift: 'Kunduzgi',
         supervisorId: '',
         notes: '',
+        accessories: [],
       });
       setProductSearch('');
       loadOrders();
@@ -116,265 +139,487 @@ export default function Production() {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-            <Factory className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
-            Ishlab Chiqarish
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Ishlab chiqarish jarayonini boshqarish
-          </p>
-        </div>
-        <Button onClick={() => setShowForm(!showForm)} size="lg" className="w-full sm:w-auto">
-          {showForm ? 'Bekor qilish' : (
-            <>
-              <Plus className="w-5 h-5 mr-2" />
-              Yangi Buyurtma
-            </>
-          )}
-        </Button>
-      </div>
+    <div className="space-y-12 pb-20 animate-in fade-in duration-1000">
+      {/* Premium Header Section */}
+      <div className="relative overflow-hidden bg-white dark:bg-gray-900 rounded-xl p-10 sm:p-16 shadow-[0_10px_40px_rgba(0,0,0,0.02)] border border-gray-100 dark:border-gray-800">
+        <div className="absolute top-0 -left-10 w-64 h-64 bg-purple-100 dark:bg-purple-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob pointer-events-none"></div>
+        <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-emerald-100 dark:bg-emerald-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000 pointer-events-none"></div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-        <Card>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Rejalashtirilgan</p>
-                <p className="text-xl sm:text-2xl font-bold text-blue-500">
-                  {orders.filter(o => o.status === 'PLANNED').length}
-                </p>
+        <div className="relative z-10">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-10">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-purple-50 dark:bg-purple-900/30 rounded-lg border border-purple-100 dark:border-purple-800 text-[10px] font-black uppercase tracking-[0.2em] text-purple-600 dark:text-purple-400">
+                <Factory className="w-3 h-3 animate-pulse" />
+                {t("Production Management")}
               </div>
-              <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500" />
+              <h1 className="text-5xl sm:text-7xl font-black text-gray-900 dark:text-white tracking-tighter leading-[0.9]">
+                {t("Ishlab")}<br />
+                <span className="text-purple-600">{t("Chiqarish")}</span>
+              </h1>
+              <p className="text-gray-500 dark:text-gray-400 font-bold max-w-md text-sm sm:text-base">
+                {t("Ishlab chiqarish jarayonini nazorat qilish va yangi buyurtmalar yaratish")}
+              </p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Jarayonda</p>
-                <p className="text-xl sm:text-2xl font-bold text-yellow-500">
-                  {orders.filter(o => o.status === 'IN_PROGRESS').length}
-                </p>
-              </div>
-              <Play className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500" />
+            
+            <div className="flex flex-wrap gap-4 w-full lg:w-auto">
+              <button 
+                onClick={handleExport}
+                className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-8 py-5 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl font-black text-xs transition-all active:scale-95 border border-emerald-100 dark:border-emerald-800"
+              >
+                <FileText className="w-5 h-5" />
+                {t("EXCEL")}
+              </button>
+              <button 
+                onClick={() => setShowForm(true)} 
+                className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-10 py-5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-black text-xs shadow-2xl shadow-purple-500/30 transition-all hover:scale-105 active:scale-95"
+              >
+                <Plus className="w-5 h-5" />
+                {t("YANGI BUYURTMA")}
+              </button>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Tugallangan</p>
-                <p className="text-xl sm:text-2xl font-bold text-green-500">
-                  {orders.filter(o => o.status === 'COMPLETED').length}
-                </p>
-              </div>
-              <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Samaradorlik</p>
-                <p className="text-xl sm:text-2xl font-bold text-primary">
-                  {orders.length > 0 ? Math.round((orders.filter(o => o.status === 'COMPLETED').length / orders.length) * 100) : 0}%
-                </p>
-              </div>
-              <Factory className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">Ishlab Chiqarish Buyurtmalari</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs sm:text-sm">Buyurtma #</TableHead>
-                  <TableHead className="text-xs sm:text-sm">Mahsulot</TableHead>
-                  <TableHead className="text-xs sm:text-sm">Miqdor</TableHead>
-                  <TableHead className="text-xs sm:text-sm">Sana</TableHead>
-                  <TableHead className="text-xs sm:text-sm">Smena</TableHead>
-                  <TableHead className="text-xs sm:text-sm">Status</TableHead>
-                  <TableHead className="text-xs sm:text-sm">Harakatlar</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-mono text-xs sm:text-sm">{order.orderNumber}</TableCell>
-                    <TableCell className="text-xs sm:text-sm">{order.product?.name || 'N/A'}</TableCell>
-                    <TableCell className="text-xs sm:text-sm">
-                      {order.actualQuantity}/{order.targetQuantity} qop
-                    </TableCell>
-                    <TableCell className="text-xs sm:text-sm">{formatDate(order.plannedDate)}</TableCell>
-                    <TableCell className="text-xs sm:text-sm">{order.shift}</TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusBadge(order.status)}>
-                        <div className="flex items-center gap-1 text-xs">
-                          {getStatusIcon(order.status)}
-                          <span className="hidden sm:inline">{getStatusLabel(order.status)}</span>
-                        </div>
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        {order.status === 'PLANNED' && (
-                          <Button
-                            size="sm"
-                            onClick={() => updateOrderStatus(order.id, 'IN_PROGRESS')}
-                          >
-                            <Play className="w-3 h-3" />
-                          </Button>
-                        )}
-                        {order.status === 'IN_PROGRESS' && (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => updateOrderStatus(order.id, 'COMPLETED')}
-                          >
-                            <CheckCircle className="w-3 h-3" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Yangi Buyurtma Formasi */}
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 px-4">
+        {[
+          { label: t("Rejalashtirilgan"), value: orders.filter(o => o.status === 'PLANNED').length, icon: Clock, color: 'blue' },
+          { label: t("Jarayonda"), value: orders.filter(o => o.status === 'IN_PROGRESS').length, icon: Play, color: 'amber' },
+          { label: t("Tugallangan"), value: orders.filter(o => o.status === 'COMPLETED').length, icon: CheckCircle, color: 'emerald' },
+          { 
+            label: t("Samaradorlik"), 
+            value: orders.length > 0 ? Math.round((orders.filter(o => o.status === 'COMPLETED').length / orders.length) * 100) : 0, 
+            icon: Factory, 
+            color: 'purple',
+            suffix: '%'
+          }
+        ].map((stat, i) => (
+          <div key={i} className="group bg-white dark:bg-gray-900 p-8 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm transition-all duration-500 hover:shadow-2xl hover:-translate-y-2">
+            <div className={`w-14 h-14 rounded-lg flex items-center justify-center mb-8 transition-transform group-hover:rotate-12 ${ 
+              stat.color === 'blue' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600' : 
+              stat.color === 'amber' ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600' : 
+              stat.color === 'emerald' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 
+              'bg-purple-50 dark:bg-purple-900/20 text-purple-600' 
+            }`}>
+              <stat.icon className="w-7 h-7" />
+            </div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">{stat.label}</p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-4xl font-black tracking-tight text-gray-900 dark:text-white">
+                {stat.value}
+              </p>
+              {stat.suffix && <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{stat.suffix}</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Orders Table */}
+      <div className="px-4">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+          <div className="p-10 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center bg-gray-50/30 dark:bg-gray-800/30">
+            <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{t("Ishlab Chiqarish Buyurtmalari")}</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50/50 dark:bg-gray-800/50">
+                  <th className="text-left py-6 px-10 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t("BUYURTMA #")}</th>
+                  <th className="text-left py-6 px-10 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t("MAHSULOT")}</th>
+                  <th className="text-left py-6 px-10 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t("MIQDOR")}</th>
+                  <th className="text-left py-6 px-10 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t("SANA / SMENA")}</th>
+                  <th className="text-left py-6 px-10 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t("STATUS")}</th>
+                  <th className="text-right py-6 px-10 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t("AMALLAR")}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                {orders.map((order) => {
+                  const statusLabel = getStatusLabel(order.status);
+                  const statusBadge = getStatusBadge(order.status);
+                  return (
+                    <tr key={order.id} className="group hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-all duration-300">
+                      <td className="py-6 px-10">
+                        <div className="inline-flex bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-1.5 rounded-sm shadow-sm">
+                          <span className="font-black text-xs text-gray-500 font-mono tracking-tighter">#{order.orderNumber}</span>
+                        </div>
+                      </td>
+                      <td className="py-6 px-10">
+                        <div className="inline-flex flex-col bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800/50 px-3 py-2 rounded-sm shadow-sm">
+                          <p className="font-black text-purple-700 dark:text-purple-400 uppercase tracking-tight text-xs">{order.product?.name || 'N/A'}</p>
+                          <p className="text-[9px] font-bold text-purple-400 dark:text-purple-500 uppercase tracking-widest mt-0.5">{order.product?.bagType || '-'}</p>
+                        </div>
+                      </td>
+                      <td className="py-6 px-10">
+                        <div className="inline-flex items-center gap-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 px-3 py-2 rounded-sm shadow-sm">
+                          <span className="font-black text-blue-600 dark:text-blue-400">{order.actualQuantity || 0}</span>
+                          <div className="w-1 h-1 bg-blue-200 dark:bg-blue-800 rounded-sm"></div>
+                          <span className="font-black text-gray-400">{order.targetQuantity} {t("QOP")}</span>
+                        </div>
+                      </td>
+                      <td className="py-6 px-10">
+                        <div className="inline-flex flex-col bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-2 rounded-sm shadow-sm">
+                          <p className="font-bold text-gray-900 dark:text-white text-[10px]">{formatDate(order.plannedDate)}</p>
+                          <p className="text-[9px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-widest mt-0.5">{order.shift}</p>
+                        </div>
+                      </td>
+                      <td className="py-6 px-10">
+                        <span className={`inline-flex px-4 py-1.5 rounded-sm text-[9px] font-black uppercase tracking-widest shadow-sm border ${
+                          order.status === 'COMPLETED' ? 'bg-emerald-100 border-emerald-200 text-emerald-800 dark:bg-emerald-900/40 dark:border-emerald-800 dark:text-emerald-400' :
+                          order.status === 'IN_PROGRESS' ? 'bg-amber-100 border-amber-200 text-amber-800 dark:bg-amber-900/40 dark:border-amber-800 dark:text-amber-400' :
+                          order.status === 'PLANNED' ? 'bg-blue-100 border-blue-200 text-blue-800 dark:bg-blue-900/40 dark:border-blue-800 dark:text-blue-400' :
+                          'bg-gray-100 border-gray-200 text-gray-800 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400'
+                        }`}>
+                          {statusLabel}
+                        </span>
+                      </td>
+                      <td className="py-6 px-10 text-right">
+                        <div className="flex justify-end gap-2">
+                          {order.status === 'PLANNED' && (
+                            <button
+                              onClick={() => updateOrderStatus(order.id, 'IN_PROGRESS')}
+                              className="w-10 h-10 bg-amber-50 dark:bg-amber-900/30 text-amber-600 rounded-xl flex items-center justify-center hover:bg-amber-600 hover:text-white transition-all active:scale-90"
+                            >
+                              <Play className="w-4 h-4" />
+                            </button>
+                          )}
+                          {order.status === 'IN_PROGRESS' && (
+                            <button
+                              onClick={() => updateOrderStatus(order.id, 'COMPLETED')}
+                              className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 rounded-xl flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all active:scale-90"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* New Order Form Modal */}
       {showForm && (
-        <div className="max-h-[85vh] overflow-y-auto">
-        <Card className="border-2 border-primary shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 sticky top-0 z-10">
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <Factory className="w-6 h-6 text-primary" />
-              Yangi Ishlab Chiqarish Buyurtmasi
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Mahsulot */}
-              <div>
-                <label className="block text-base font-semibold mb-3 flex items-center gap-2 text-purple-600">
-                  <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
-                    <Package className="w-4 h-4" />
-                  </div>
-                  1. Mahsulotni Tanlang
-                </label>
-                <ProductSelector
-                  products={products}
-                  selectedId={form.productId}
-                  searchValue={productSearch}
-                  onSearchChange={setProductSearch}
-                  onSelect={(id, name) => {
-                    setForm(prev => ({ ...prev, productId: id, productName: name }));
-                  }}
-                />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xl flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-gray-900 w-full max-w-2xl rounded-[3rem] overflow-hidden shadow-2xl border border-white/20 animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
+            <div className="p-10 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center bg-purple-50/30 dark:bg-purple-900/10 shrink-0">
+              <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-4">
+                <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center text-purple-600">
+                  <Plus className="w-6 h-6" />
+                </div>
+                {t("YANGI")} <span className="text-purple-600">{t("BUYURTMA")}</span>
+              </h3>
+              <button onClick={() => setShowForm(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors">
+                <MoreHorizontal className="w-5 h-5 rotate-45" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-10 sm:p-16 space-y-10 overflow-y-auto custom-scrollbar">
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("production.product")}</label>
+                <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800">
+                  <ProductSelector
+                    products={products}
+                    selectedId={form.productId}
+                    searchValue={productSearch}
+                    onSearchChange={setProductSearch}
+                    onSelect={(id, name) => {
+                      const selectedProductData = products.find(p => p.id === id);
+                      const lowerName = name.toLowerCase();
+                      const isPreform = selectedProductData?.warehouse === 'preform' || 
+                                        lowerName.includes('g') || 
+                                        lowerName.includes('gr') ||
+                                        lowerName.includes('preform');
+                      
+                      let newAccessories: any[] = [];
+                      if (isPreform) {
+                        const sizeMatch = lowerName.match(/(\d+)/);
+                        const size = sizeMatch ? parseInt(sizeMatch[1]) : 0;
+                        let krishkaSize = selectedProductData?.subType || '';
+                        let ruchkaSize = '';
+
+                        if (!krishkaSize) {
+                          if (size >= 50 && size <= 70) krishkaSize = '38';
+                          else if (size > 70) krishkaSize = '48';
+                          else if (size > 0 && size < 50) krishkaSize = '28';
+                        }
+                        if (['28', '38', '48'].includes(krishkaSize)) {
+                          ruchkaSize = krishkaSize;
+                        }
+
+                        const targetQty = parseInt(form.targetQuantity) || 0;
+                        const unitsPerBag = selectedProductData?.unitsPerBag || 1000;
+                        const totalUnits = targetQty * unitsPerBag;
+
+                        if (krishkaSize) {
+                          const krishka = products.find(p => 
+                            (p.warehouse === 'krishka' || p.name.toLowerCase().includes('krishka') || p.name.toLowerCase().includes('qopqoq')) && 
+                            p.name.toLowerCase().includes(krishkaSize) && 
+                            p.active !== false
+                          );
+                          if (krishka) {
+                            newAccessories.push({
+                              id: krishka.id,
+                              name: krishka.name,
+                              quantity: totalUnits,
+                              price: krishka.pricePerBag / (krishka.unitsPerBag || 1000),
+                              type: 'krishka'
+                            });
+                          }
+                        }
+
+                        if (ruchkaSize) {
+                          const ruchka = products.find(p => 
+                            (p.warehouse === 'ruchka' || p.name.toLowerCase().includes('ruchka')) && 
+                            p.name.toLowerCase().includes(ruchkaSize) && 
+                            p.active !== false
+                          );
+                          if (ruchka) {
+                            newAccessories.push({
+                              id: ruchka.id,
+                              name: ruchka.name,
+                              quantity: totalUnits,
+                              price: ruchka.pricePerBag / (ruchka.unitsPerBag || 1000),
+                              type: 'ruchka'
+                            });
+                          }
+                        }
+                      }
+                      
+                      setForm(prev => ({ 
+                        ...prev, 
+                        productId: id, 
+                        productName: name,
+                        accessories: newAccessories
+                      }));
+                    }}
+                  />
+                </div>
               </div>
 
-              {/* Miqdor */}
-              <div>
-                <label className="block text-base font-semibold mb-3 flex items-center gap-2 text-blue-600">
-                  <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                    <Factory className="w-4 h-4" />
-                  </div>
-                  2. Maqsadli Miqdor
-                </label>
-                <input
-                  type="number"
-                  value={form.targetQuantity}
-                  onChange={(e) => setForm({ ...form, targetQuantity: e.target.value })}
-                  placeholder="Necha qop ishlab chiqarish kerak?"
-                  min="1"
-                  required
-                  className="w-full px-4 py-3 text-lg font-semibold border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800"
-                />
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("production.quantity")}</label>
+                <div className="relative group">
+                  <Package className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400 group-focus-within:text-purple-600 transition-colors" />
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={form.targetQuantity}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(',', '.');
+                      if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                      const targetQty = parseFloat(raw) || 0;
+                      const selectedProductData = products.find(p => p.id === form.productId);
+                      const unitsPerBag = selectedProductData?.unitsPerBag || 1000;
+                      const totalUnits = targetQty * unitsPerBag;
+
+                      setForm(prev => ({ 
+                          ...prev, 
+                          targetQuantity: raw,
+                          accessories: prev.accessories.map(acc => {
+                            const selectedAcc = products.find(p => p.id === acc.id);
+                            return {
+                              ...acc,
+                              quantity: totalUnits,
+                              price: acc.price || (selectedAcc ? (selectedAcc.pricePerBag / (selectedAcc.unitsPerBag || 1000)) : 0)
+                            };
+                          })
+                        }));
+                    }}
+                    className="w-full h-20 pl-16 pr-8 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-purple-500 rounded-[1.5rem] font-black text-3xl transition-all outline-none"
+                    placeholder="0"
+                    required
+                  />
+                </div>
               </div>
 
-              {/* Sana va Smena */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-base font-semibold mb-3 flex items-center gap-2 text-green-600">
-                    <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
-                      <Clock className="w-4 h-4" />
-                    </div>
-                    3. Rejalashtirilgan Sana
-                  </label>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center ml-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t("production.accessories")}</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const firstKrishka = products.find(p => p.warehouse === 'krishka');
+                      if (firstKrishka) {
+                        setForm(prev => ({
+                          ...prev,
+                          accessories: [...prev.accessories, {
+                            id: firstKrishka.id,
+                            name: firstKrishka.name,
+                            quantity: 0,
+                            price: firstKrishka.pricePerBag / (firstKrishka.unitsPerBag || 1000),
+                            type: 'krishka'
+                          }]
+                        }));
+                      }
+                    }}
+                    className="text-[10px] font-black text-purple-600 uppercase tracking-widest hover:text-purple-700 transition-colors"
+                  >
+                    + {t("production.add")}
+                  </button>
+                </div>
+                {form.accessories.length > 0 && (
+                  <div className="grid grid-cols-1 gap-4">
+                    {form.accessories.map((acc, index) => (
+                      <div key={index} className="flex items-center gap-4 bg-gray-50 dark:bg-gray-800/50 p-6 rounded-2xl border border-gray-100 dark:border-gray-800">
+                        <div className="flex-1">
+                          <p className="text-[10px] font-black text-purple-600 uppercase tracking-widest mb-1">{t("production.category")}</p>
+                          <select
+                            value={acc.type}
+                            onChange={(e) => {
+                              const newType = e.target.value;
+                              const firstOfNewType = products.find(p => p.warehouse === newType);
+                              setForm(prev => ({
+                                ...prev,
+                                accessories: prev.accessories.map((a, i) => i === index ? { 
+                                  ...a, 
+                                  type: newType, 
+                                  id: firstOfNewType?.id || '', 
+                                  name: firstOfNewType?.name || '',
+                                  price: firstOfNewType ? (firstOfNewType.pricePerBag / (firstOfNewType.unitsPerBag || 1000)) : 0
+                                } : a)
+                              }));
+                            }}
+                            className="w-full bg-transparent font-black text-purple-600 outline-none"
+                          >
+                            <option value="krishka">{t("production.krishka")}</option>
+                            <option value="ruchka">{t("production.ruchka")}</option>
+                          </select>
+                        </div>
+                        <div className="flex-[2]">
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{t("production.product")}</p>
+                          <select
+                            value={acc.id}
+                            onChange={(e) => {
+                              const newId = e.target.value;
+                              const newProduct = products.find(p => p.id === newId);
+                              setForm(prev => ({
+                                ...prev,
+                                accessories: prev.accessories.map((a, i) => i === index ? { 
+                                  ...a, 
+                                  id: newId, 
+                                  name: newProduct?.name || '',
+                                  price: newProduct ? (newProduct.pricePerBag / (newProduct.unitsPerBag || 1000)) : a.price
+                                } : a)
+                              }));
+                            }}
+                            className="w-full bg-transparent font-bold text-gray-900 dark:text-white outline-none"
+                          >
+                            {products.filter(p => p.warehouse === acc.type).map(p => (
+                              <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="w-32">
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{t("production.quantity")}</p>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={acc.quantity}
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(',', '.');
+                              if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                              const newQty = parseFloat(raw) || 0;
+                              setForm(prev => ({
+                                ...prev,
+                                accessories: prev.accessories.map((a, i) => i === index ? { ...a, quantity: raw } : a)
+                              }));
+                            }}
+                            className="w-full bg-transparent font-black text-gray-900 dark:text-white outline-none"
+                          />
+                        </div>
+                        <div className="w-32">
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{t("products.price")}</p>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={acc.price}
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(',', '.');
+                              if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                              const newPrice = parseFloat(raw) || 0;
+                              setForm(prev => ({
+                                ...prev,
+                                accessories: prev.accessories.map((a, i) => i === index ? { ...a, price: raw } : a)
+                              }));
+                            }}
+                            className="w-full bg-transparent font-black text-emerald-600 outline-none"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setForm(prev => ({
+                              ...prev,
+                              accessories: prev.accessories.filter((_, i) => i !== index)
+                            }));
+                          }}
+                          className="w-10 h-10 flex items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-900/30 text-rose-600 hover:bg-rose-600 hover:text-white transition-all"
+                        >
+                          <XCircle className="w-5 h-5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("production.date")}</label>
                   <input
                     type="date"
                     value={form.plannedDate}
                     onChange={(e) => setForm({ ...form, plannedDate: e.target.value })}
+                    className="w-full h-16 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-purple-500 rounded-2xl font-black outline-none transition-all"
                     required
-                    className="w-full px-4 py-3 text-lg font-semibold border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800"
                   />
                 </div>
-
-                <div>
-                  <label className="block text-base font-semibold mb-3 flex items-center gap-2 text-orange-600">
-                    <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900 rounded-full flex items-center justify-center">
-                      <Clock className="w-4 h-4" />
-                    </div>
-                    4. Smena
-                  </label>
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("production.shift")}</label>
                   <select
-                    className="w-full px-4 py-3 text-lg font-semibold border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white dark:bg-gray-800"
                     value={form.shift}
                     onChange={(e) => setForm({ ...form, shift: e.target.value })}
+                    className="w-full h-16 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-purple-500 rounded-2xl font-black appearance-none outline-none transition-all"
                   >
-                    <option value="Kunduzgi">☀️ Kunduzgi (08:00-20:00)</option>
-                    <option value="Tungi">🌙 Tungi (20:00-08:00)</option>
+                    <option value="Kunduzgi">☀️ {t("Kunduzgi")}</option>
+                    <option value="Tungi">🌙 {t("Tungi")}</option>
                   </select>
                 </div>
               </div>
 
-              {/* Izohlar */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Izohlar (ixtiyoriy)</label>
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("settings.general")}</label>
                 <textarea
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  placeholder="Qo'shimcha ma'lumotlar..."
-                  rows={3}
-                  className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-gray-800"
+                  className="w-full p-8 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-purple-500 rounded-[2.5rem] font-bold text-sm min-h-[120px] transition-all outline-none resize-none"
+                  placeholder={t("Ishlab chiqarish haqida qo'shimcha ma'lumot...")}
                 />
               </div>
 
-              <div className="flex gap-3 pt-4">
-                <Button 
-                  type="button" 
+              <div className="flex flex-col sm:flex-row gap-4 pt-10 border-t border-gray-50 dark:border-gray-800">
+                <button
+                  type="button"
                   onClick={() => setShowForm(false)}
-                  variant="outline"
-                  className="flex-1"
+                  className="flex-1 h-16 rounded-[2rem] border-2 border-gray-100 dark:border-gray-800 font-black text-xs tracking-[0.2em] text-gray-400 hover:bg-gray-50 transition-all active:scale-95"
                 >
-                  Bekor qilish
-                </Button>
-                <Button type="submit" className="flex-1 text-lg py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700" size="lg">
-                  <Factory className="w-5 h-5 mr-2" />
-                  Buyurtma Yaratish
-                </Button>
+                  {t("production.cancel")}
+                </button>
+                <button
+                  type="submit"
+                  className="flex-[2] h-16 bg-purple-600 hover:bg-purple-700 text-white rounded-[2rem] font-black text-xs tracking-[0.2em] shadow-2xl shadow-purple-500/30 transition-all active:scale-95 flex items-center justify-center gap-3"
+                >
+                  <Factory className="w-5 h-5" />
+                  {t("production.createOrder")}
+                </button>
               </div>
             </form>
-          </CardContent>
-        </Card>
+          </div>
         </div>
       )}
     </div>

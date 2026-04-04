@@ -9,10 +9,10 @@ async function main() {
   // Create admin user
   const adminPassword = await bcrypt.hash('admin123', 10);
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@aziztrades.com' },
+    where: { email: 'admin@luxpetplast.uz' },
     update: {},
     create: {
-      email: 'admin@aziztrades.com',
+      email: 'admin@luxpetplast.uz',
       password: adminPassword,
       name: 'Admin',
       role: 'ADMIN',
@@ -102,10 +102,10 @@ async function main() {
   const defaultSettings = [
     { key: 'USD_TO_UZS_RATE', value: '12500', description: 'USD to UZS exchange rate' },
     { key: 'EUR_TO_UZS_RATE', value: '13500', description: 'EUR to UZS exchange rate' },
-    { key: 'COMPANY_NAME', value: 'AzizTrades ERP', description: 'Company name' },
+    { key: 'COMPANY_NAME', value: 'Lux Pet Plast', description: 'Company name' },
     { key: 'COMPANY_ADDRESS', value: 'Toshkent, O\'zbekiston', description: 'Company address' },
     { key: 'COMPANY_PHONE', value: '+998901234567', description: 'Company phone' },
-    { key: 'COMPANY_EMAIL', value: 'info@aziztrades.com', description: 'Company email' },
+    { key: 'COMPANY_EMAIL', value: 'info@luxpetplast.uz', description: 'Company email' },
     { key: 'TAX_RATE', value: '12', description: 'VAT tax rate percentage' },
     { key: 'INVOICE_PREFIX', value: 'INV', description: 'Invoice number prefix' },
     { key: 'LOW_STOCK_THRESHOLD', value: '10', description: 'Low stock alert threshold' },

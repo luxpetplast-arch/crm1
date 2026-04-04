@@ -155,6 +155,83 @@ router.put('/:id/status', authorize('ADMIN', 'CASHIER', 'MANAGER', 'WAREHOUSE_MA
     const { id } = req.params;
     const { status } = req.body;
 
+    // Agar IN_PRODUCTION ga o'tkazilayotgan bo'lsa, mahsulotlar tayyor ekanligini tekshiramiz
+    if (status === 'IN_PRODUCTION') {
+      const order = await prisma.order.findUnique({
+        where: { id },
+        include: {
+          items: {
+            include: {
+              product: true
+            }
+          }
+        }
+      });
+
+      if (order) {
+        // Barcha mahsulotlar omborda borligini tekshirish
+        let allProductsReady = true;
+        for (const item of order.items) {
+          if (item.product.currentStock < item.quantityBags) {
+            allProductsReady = false;
+            break;
+          }
+        }
+
+        // Agar barcha mahsulotlar tayyor bo'lsa, avtomatik READY ga o'tkazamiz
+        if (allProductsReady) {
+          const updatedOrder = await prisma.order.update({
+            where: { id },
+            data: { status: 'READY' },
+            include: { 
+              customer: true,
+              items: {
+                include: {
+                  product: true
+                }
+              }
+            }
+          });
+
+          // Mijozga Telegram orqali xabar yuborish
+          if (updatedOrder.customer.telegramChatId && updatedOrder.customer.notificationsEnabled) {
+            try {
+              const { superCustomerBot } = await import('../bot/super-customer-bot');
+              
+              const message = `
+✅ **BUYURTMA TAYYOR!**
+
+📋 **Buyurtma:** \`${updatedOrder.orderNumber}\`
+📅 **Sana:** ${new Date().toLocaleDateString('uz-UZ')}
+
+Buyurtmangiz tayyor! Olib ketishingiz yoki yetkazib berishni buyurtma qilishingiz mumkin.
+
+📦 **Mahsulotlar:**
+${updatedOrder.items.map((item: any, index: number) => 
+  `${index + 1}. ${item.product.name} - ${item.quantityBags} qop`
+).join('\n')}
+
+💵 **Jami:** ${updatedOrder.totalAmount.toLocaleString()} so'm
+
+📞 Aloqa: +998 90 123 45 67
+              `;
+
+              if (superCustomerBot) {
+                await superCustomerBot.sendMessage(updatedOrder.customer.telegramChatId, message, {
+                  parse_mode: 'Markdown'
+                });
+                console.log(`✅ Auto-ready notification sent to customer ${updatedOrder.customer.name}`);
+              }
+            } catch (telegramError) {
+              console.error('Telegram notification error:', telegramError);
+            }
+          }
+
+          return res.json(updatedOrder);
+        }
+      }
+    }
+
     const order = await prisma.order.update({
       where: { id },
       data: { status },

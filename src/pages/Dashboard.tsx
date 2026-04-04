@@ -22,7 +22,307 @@ import {
   Zap,
   ArrowUpRight,
   ArrowDownRight,
-  RefreshCw
+  RefreshCw,
+  Brain,
+  TrendingDown,
+  FileText,
+  Calendar,
+  Layers,
+  Search,
+  Settings,
+  Shield,
+  HelpCircle,
+  LogOut,
+  Bell,
+  Menu,
+  ChevronRight,
+  ChevronLeft,
+  Filter,
+  Download,
+  Share2,
+  MoreVertical,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  Copy,
+  ExternalLink,
+  Info,
+  Check,
+  X,
+  PlusCircle,
+  MinusCircle,
+  ArrowRight,
+  ArrowLeft,
+  ArrowUp,
+  ArrowDown,
+  Layout,
+  LayoutDashboard,
+  PieChart as PieChartIcon,
+  BarChart as BarChartIcon,
+  LineChart as LineChartIcon,
+  Globe,
+  Mail,
+  Phone,
+  MapPin,
+  Briefcase,
+  Star,
+  Award,
+  Zap as FastIcon,
+  Heart,
+  Eye,
+  EyeOff,
+  Lock,
+  Unlock,
+  Key,
+  Database,
+  Cloud,
+  Cpu,
+  Smartphone,
+  Tablet,
+  Monitor,
+  HardDrive,
+  Usb,
+  Wifi,
+  Bluetooth,
+  Battery,
+  ZapOff,
+  Sun,
+  Moon,
+  CloudRain,
+  CloudSnow,
+  CloudLightning,
+  Wind,
+  Droplets,
+  Thermometer,
+  Umbrella,
+  Compass,
+  Map,
+  Navigation,
+  Flag,
+  FlagOff,
+  Home,
+  Briefcase as WorkIcon,
+  Book,
+  BookOpen,
+  GraduationCap,
+  Music,
+  Video,
+  Camera,
+  Image as ImageIcon,
+  Mic,
+  Headphones,
+  Speaker,
+  Cast,
+  Tv,
+  Radio,
+  Airplay,
+  MonitorOff,
+  SmartphoneOff,
+  TabletOff,
+  Hash,
+  AtSign,
+  Link as LinkIcon,
+  Link2,
+  Paperclip,
+  Scissors,
+  PenTool,
+  Pencil,
+  Brush,
+  Eraser,
+  Palette,
+  Droplet,
+  GlassWater,
+  Coffee,
+  Beer,
+  Wine,
+  Pizza,
+  Utensils,
+  Car,
+  Bike,
+  Plane,
+  Train,
+  Ship,
+  Subway,
+  Bus,
+  Tram,
+  Strikethrough,
+  Italic,
+  Bold,
+  Underline,
+  Heading1,
+  Heading2,
+  Heading3,
+  Heading4,
+  Heading5,
+  Heading6,
+  Code,
+  Terminal,
+  Quote,
+  Quote as QuoteIcon,
+  List,
+  ListOrdered,
+  Indent,
+  Outdent,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  Maximize,
+  Minimize,
+  Maximize2,
+  Minimize2,
+  StretchHorizontal,
+  StretchVertical,
+  Move,
+  MoveHorizontal,
+  MoveVertical,
+  RotateCcw,
+  RotateCw,
+  RefreshCw as RefreshIcon,
+  Repeat,
+  Repeat1,
+  Shuffle,
+  Play,
+  Pause,
+  StopCircle,
+  FastForward,
+  Rewind,
+  SkipBack,
+  SkipForward,
+  PlayCircle,
+  PauseCircle,
+  StopCircle as StopIcon,
+  Volume,
+  Volume1,
+  Volume2,
+  VolumeX,
+  VolumeOff,
+  MicOff,
+  VideoOff,
+  Cast as CastIcon,
+  Airplay as AirplayIcon,
+  Tv as TvIcon,
+  Radio as RadioIcon,
+  Monitor as MonitorIcon,
+  Smartphone as SmartphoneIcon,
+  Tablet as TabletIcon,
+  HardDrive as HardDriveIcon,
+  Usb as UsbIcon,
+  Wifi as WifiIcon,
+  Bluetooth as BluetoothIcon,
+  Battery as BatteryIcon,
+  ZapOff as ZapOffIcon,
+  Sun as SunIcon,
+  Moon as MoonIcon,
+  CloudRain as CloudRainIcon,
+  CloudSnow as CloudSnowIcon,
+  CloudLightning as CloudLightningIcon,
+  Wind as WindIcon,
+  Droplets as DropletsIcon,
+  Thermometer as ThermometerIcon,
+  Umbrella as UmbrellaIcon,
+  Compass as CompassIcon,
+  Map as MapIcon,
+  Navigation as NavigationIcon,
+  Flag as FlagIcon,
+  FlagOff as FlagOffIcon,
+  Home as HomeIcon,
+  Briefcase as BriefcaseIcon,
+  Book as BookIcon,
+  BookOpen as BookOpenIcon,
+  GraduationCap as GraduationCapIcon,
+  Music as MusicIcon,
+  Video as VideoIcon,
+  Camera as CameraIcon,
+  Image as ImageIcon_2,
+  Mic as MicIcon,
+  Headphones as HeadphonesIcon,
+  Speaker as SpeakerIcon,
+  Cast as CastIcon_2,
+  Tv as TvIcon_2,
+  Radio as RadioIcon_2,
+  Airplay as AirplayIcon_2,
+  MonitorOff as MonitorOffIcon,
+  SmartphoneOff as SmartphoneOffIcon,
+  TabletOff as TabletOffIcon,
+  Hash as HashIcon,
+  AtSign as AtSignIcon,
+  Link as LinkIcon_2,
+  Link2 as Link2Icon,
+  Paperclip as PaperclipIcon,
+  Scissors as ScissorsIcon,
+  PenTool as PenToolIcon,
+  Pencil as PencilIcon,
+  Brush as BrushIcon,
+  Eraser as EraserIcon,
+  Palette as PaletteIcon,
+  Droplet as DropletIcon,
+  GlassWater as GlassWaterIcon,
+  Coffee as CoffeeIcon,
+  Beer as BeerIcon,
+  Wine as WineIcon,
+  Pizza as PizzaIcon,
+  Utensils as UtensilsIcon,
+  Car as CarIcon,
+  Bike as BikeIcon,
+  Plane as PlaneIcon,
+  Train as TrainIcon,
+  Ship as ShipIcon,
+  Subway as SubwayIcon,
+  Bus as BusIcon,
+  Tram as TramIcon,
+  Strikethrough as StrikethroughIcon,
+  Italic as ItalicIcon,
+  Bold as BoldIcon,
+  Underline as UnderlineIcon,
+  Heading1 as Heading1Icon,
+  Heading2 as Heading2Icon,
+  Heading3 as Heading3Icon,
+  Heading4 as Heading4Icon,
+  Heading5 as Heading5Icon,
+  Heading6 as Heading6Icon,
+  Code as CodeIcon,
+  Terminal as TerminalIcon,
+  Quote as QuoteIcon_2,
+  List as ListIcon,
+  ListOrdered as ListOrderedIcon,
+  Indent as IndentIcon,
+  Outdent as OutdentIcon,
+  AlignLeft as AlignLeftIcon,
+  AlignCenter as AlignCenterIcon,
+  AlignRight as AlignRightIcon,
+  AlignJustify as AlignJustifyIcon,
+  Maximize as MaximizeIcon,
+  Minimize as MinimizeIcon,
+  Maximize2 as Maximize2Icon,
+  Minimize2 as Minimize2Icon,
+  StretchHorizontal as StretchHorizontalIcon,
+  StretchVertical as StretchVerticalIcon,
+  Move as MoveIcon,
+  MoveHorizontal as MoveHorizontalIcon,
+  MoveVertical as MoveVerticalIcon,
+  RotateCcw as RotateCcwIcon,
+  RotateCw as RotateCwIcon,
+  RefreshCw as RefreshCwIcon,
+  Repeat as RepeatIcon,
+  Repeat1 as Repeat1Icon,
+  Shuffle as ShuffleIcon,
+  Play as PlayIcon,
+  Pause as PauseIcon,
+  StopCircle as StopCircleIcon,
+  FastForward as FastForwardIcon,
+  Rewind as RewindIcon,
+  SkipBack as SkipBackIcon,
+  SkipForward as SkipForwardIcon,
+  PlayCircle as PlayCircleIcon,
+  PauseCircle as PauseCircleIcon,
+  Volume as VolumeIcon,
+  Volume1 as Volume1Icon,
+  Volume2 as Volume2Icon,
+  VolumeX as VolumeXIcon,
+  VolumeOff as VolumeOffIcon,
+  MicOff as MicOffIcon,
+  VideoOff as VideoOffIcon,
 } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell } from 'recharts';
 import api from '../lib/api';
@@ -89,223 +389,262 @@ export default function Dashboard() {
     : 0;
 
   return (
-    <div className="space-y-6 pb-8">
-      {/* Premium Welcome Header with Glassmorphism */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 dark:from-blue-900 dark:via-indigo-900 dark:to-purple-900 rounded-3xl p-8 sm:p-10 text-white shadow-2xl">
-        {/* Animated Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full mix-blend-overlay filter blur-3xl animate-blob"></div>
-          <div className="absolute top-0 right-0 w-96 h-96 bg-purple-300 rounded-full mix-blend-overlay filter blur-3xl animate-blob animation-delay-2000"></div>
-          <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-blue-300 rounded-full mix-blend-overlay filter blur-3xl animate-blob animation-delay-4000"></div>
-        </div>
+    <div className="space-y-12 pb-20 animate-in fade-in duration-1000">
+      {/* Premium Welcome Header with Glassmorphism - Ultra Premium Style */}
+      <div className="relative overflow-hidden bg-white dark:bg-gray-900 rounded-[3rem] p-10 sm:p-16 shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white dark:border-gray-800">
+        {/* Background blobs inside the header for depth */}
+        <div className="absolute top-0 -left-10 w-80 h-80 bg-blue-100 dark:bg-blue-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob pointer-events-none"></div>
+        <div className="absolute -bottom-10 -right-10 w-80 h-80 bg-purple-100 dark:bg-purple-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000 pointer-events-none"></div>
 
         <div className="relative z-10">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <Sparkles className="w-8 h-8 animate-pulse" />
-                <h1 className="text-4xl sm:text-5xl font-black tracking-tight">{latinToCyrillic("Boshqaruv Paneli")}</h1>
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-10">
+            <div className="space-y-6">
+              <div className="inline-flex items-center gap-2 px-5 py-2 bg-blue-50 dark:bg-blue-900/30 rounded-full border border-blue-100 dark:border-blue-800 text-[10px] font-black uppercase tracking-[0.3em] text-blue-600 dark:text-blue-400 shadow-sm">
+                <Sparkles className="w-3 h-3 animate-pulse" />
+                LUX PET PREMIUM
               </div>
-              <p className="text-blue-100 text-base sm:text-lg font-medium flex items-center gap-2">
-                <Clock className="w-5 h-5" />
-                {new Date().toLocaleDateString('uz-UZ', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-              </p>
+              <h1 className="text-6xl sm:text-8xl font-black text-gray-900 dark:text-white tracking-tighter leading-[0.85] drop-shadow-2xl">
+                {latinToCyrillic("Boshqaruv")} <br />
+                <span className="text-blue-600 dark:text-blue-400 drop-shadow-2xl">{latinToCyrillic("Paneli")}</span>
+              </h1>
+              <div className="flex flex-wrap items-center gap-4 text-gray-500 dark:text-gray-400">
+                <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800 px-5 py-2.5 rounded-2xl font-black text-xs border border-gray-100 dark:border-gray-700 shadow-sm">
+                  <Clock className="w-4 h-4 text-blue-500" />
+                  {new Date().toLocaleDateString('uz-UZ', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}
+                </div>
+                <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-full border border-emerald-100 dark:border-emerald-800/30">
+                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div>
+                  <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">LIVE DATA</span>
+                </div>
+              </div>
             </div>
             
-            {/* Premium Quick Actions */}
-            <div className="flex flex-wrap gap-3 w-full lg:w-auto">
-              {/* Refresh Button */}
-              <Button 
+            <div className="flex flex-wrap gap-4 w-full lg:w-auto">
+              <button 
                 onClick={handleRefresh}
                 disabled={refreshing}
-                size="lg"
-                className="bg-white/20 backdrop-blur-sm hover:bg-white/30 border-2 border-white/30 hover:scale-105 transition-all shadow-xl font-bold text-white"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-4 px-10 py-6 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-[2rem] font-black text-xs tracking-widest transition-all active:scale-95 text-gray-900 dark:text-white shadow-[0_10px_30px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-700"
               >
-                <RefreshCw className={`w-5 h-5 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                {refreshing ? latinToCyrillic("Yangilanmoqda") : latinToCyrillic("Yangilash")}
-              </Button>
+                <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshing ? '...' : latinToCyrillic("YANGILASH")}
+              </button>
               
-              {/* Main Action Button */}
-              <Button 
+              <button 
                 onClick={() => navigate('/sales')} 
-                size="lg"
-                className="flex-1 sm:flex-none bg-white text-blue-600 hover:bg-blue-50 hover:scale-105 transition-all shadow-xl hover:shadow-2xl font-bold"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-4 px-12 py-6 bg-blue-600 hover:bg-blue-700 rounded-[2rem] font-black text-xs tracking-widest transition-all active:scale-95 text-white shadow-[0_20px_50px_rgba(37,99,235,0.3)] hover:shadow-[0_25px_60px_rgba(37,99,235,0.4)]"
               >
-                <Plus className="w-5 h-5 mr-2" />
-                {latinToCyrillic("Yangi Sotuv")}
-              </Button>
+                <Plus className="w-5 h-5" />
+                {latinToCyrillic("YANGI SOTUV")}
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Premium KPI Cards with Glassmorphism and Enhanced Interactions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="group relative overflow-hidden bg-gradient-to-br from-green-500 to-emerald-600 dark:from-green-600 dark:to-emerald-700 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all hover:scale-105 cursor-pointer transform-gpu"
-             onClick={() => navigate('/sales')}>
-          {/* Animated Background Pattern */}
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity">
-            <div className="absolute -top-4 -right-4 w-24 h-24 bg-white rounded-full animate-pulse"></div>
-            <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-green-300 rounded-full animate-ping"></div>
-          </div>
-          
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm group-hover:scale-110 transition-transform">
-                <DollarSign className="w-8 h-8" />
-              </div>
-              <div className="flex items-center gap-1 text-sm font-semibold bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
-                {(stats.dailyTrend || 0) >= 0 ? (
-                  <><ArrowUpRight className="w-4 h-4" /> {Math.abs(stats.dailyTrend || 0)}%</>
-                ) : (
-                  <><ArrowDownRight className="w-4 h-4" /> {Math.abs(stats.dailyTrend || 0)}%</>
+      {/* Modern KPI Cards - Enhanced Visuals */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+        {[
+          { 
+            title: latinToCyrillic("Bugungi Daromad"), 
+            value: formatCurrency(stats.dailyRevenue || 0, 'UZS'),
+            trend: stats.dailyTrend || 0,
+            icon: DollarSign,
+            color: 'blue',
+            desc: `${stats.todaySales || 0} ${latinToCyrillic("ta sotuv")}`,
+            path: '/sales'
+          },
+          { 
+            title: latinToCyrillic("Oylik Daromad"), 
+            value: formatCurrency(stats.monthlyRevenue || 0, 'UZS'),
+            trend: stats.monthlyTrend || 0,
+            icon: TrendingUp,
+            color: 'emerald',
+            desc: `${latinToCyrillic("Foyda")}: ${profitMargin}%`,
+            path: '/reports'
+          },
+          { 
+            title: latinToCyrillic("Sof Foyda"), 
+            value: formatCurrency(stats.netProfit || 0, 'UZS'),
+            trend: stats.profitTrend || 0,
+            icon: Target,
+            color: 'violet',
+            desc: latinToCyrillic("Xarajatlardan keyin"),
+            path: '/expenses'
+          },
+          { 
+            title: latinToCyrillic("Qarzlar"), 
+            value: formatCurrency(stats.totalDebt || 0, 'UZS'),
+            trend: null,
+            icon: Users,
+            color: 'rose',
+            desc: `${stats.debtorsCount || 0} ${latinToCyrillic("mijozdan")}`,
+            path: '/customers'
+          }
+        ].map((kpi, idx) => (
+          <div 
+            key={idx}
+            onClick={() => navigate(kpi.path)}
+            className="group relative bg-white dark:bg-gray-900 rounded-[2.5rem] p-10 shadow-[0_15px_50px_rgba(0,0,0,0.03)] border border-gray-100 dark:border-gray-800 hover:scale-[1.05] transition-all duration-700 cursor-pointer overflow-hidden"
+          >
+            {/* Hover Glow - Enhanced */}
+            <div className={`absolute -top-24 -right-24 w-64 h-64 rounded-full blur-[80px] opacity-0 group-hover:opacity-30 transition-opacity duration-700 ${
+              kpi.color === 'blue' ? 'bg-blue-500' : 
+              kpi.color === 'emerald' ? 'bg-emerald-500' : 
+              kpi.color === 'violet' ? 'bg-violet-500' : 'bg-rose-500'
+            }`}></div>
+
+            <div className="relative z-10 flex flex-col h-full">
+              <div className="flex items-start justify-between mb-10">
+                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-2xl transition-all duration-700 group-hover:rotate-12 ${
+                  kpi.color === 'blue' ? 'bg-blue-600 text-white shadow-blue-500/20' : 
+                  kpi.color === 'emerald' ? 'bg-emerald-600 text-white shadow-emerald-500/20' : 
+                  kpi.color === 'violet' ? 'bg-violet-600 text-white shadow-violet-500/20' : 'bg-rose-600 text-white shadow-rose-500/20'
+                }`}>
+                  <kpi.icon className="w-8 h-8" />
+                </div>
+                {kpi.trend !== null && (
+                  <div className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[10px] font-black shadow-sm ${
+                    kpi.trend >= 0 
+                      ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800/30' 
+                      : 'bg-rose-50 text-rose-600 border border-rose-100 dark:bg-rose-900/20 dark:border-rose-800/30'
+                  }`}>
+                    {kpi.trend >= 0 ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
+                    {Math.abs(kpi.trend)}%
+                  </div>
                 )}
               </div>
-            </div>
-            <p className="text-sm font-medium text-green-100 mb-1">{latinToCyrillic("Bugungi Daromad")}</p>
-            <p className="text-3xl font-black mb-2">{formatCurrency(stats.dailyRevenue || 0, 'UZS')}</p>
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-green-100 flex items-center gap-2">
-                <Package className="w-4 h-4" />
-                {stats.todaySales || 0} {latinToCyrillic("ta sotuv")}
-              </p>
-              <div className="w-2 h-2 bg-green-300 rounded-full animate-pulse"></div>
-            </div>
-          </div>
-        </div>
-
-        <div className="group relative overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-700 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all hover:scale-105 cursor-pointer transform-gpu"
-             onClick={() => navigate('/reports')}>
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity">
-            <div className="absolute -top-4 -right-4 w-24 h-24 bg-white rounded-full animate-pulse"></div>
-            <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-blue-300 rounded-full animate-ping"></div>
-          </div>
-          
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm group-hover:scale-110 transition-transform">
-                <TrendingUp className="w-8 h-8" />
-              </div>
-              <div className="flex items-center gap-1 text-sm font-semibold bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
-                {(stats.monthlyTrend || 0) >= 0 ? (
-                  <><ArrowUpRight className="w-4 h-4" /> {Math.abs(stats.monthlyTrend || 0)}%</>
-                ) : (
-                  <><ArrowDownRight className="w-4 h-4" /> {Math.abs(stats.monthlyTrend || 0)}%</>
-                )}
+              
+              <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.25em] mb-4 drop-shadow-sm">{kpi.title}</p>
+              <h3 className="text-4xl sm:text-5xl font-black text-gray-900 dark:text-white tracking-tighter mb-6 break-all leading-none drop-shadow-md">{kpi.value}</h3>
+              
+              <div className="mt-auto flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 w-fit px-4 py-2 rounded-xl border border-gray-100 dark:border-gray-800/50">
+                <div className={`w-2 h-2 rounded-full ${
+                  kpi.color === 'blue' ? 'bg-blue-500' : 
+                  kpi.color === 'emerald' ? 'bg-emerald-500' : 
+                  kpi.color === 'violet' ? 'bg-violet-500' : 'bg-rose-500'
+                } animate-pulse shadow-[0_0_10px_rgba(0,0,0,0.2)]`}></div>
+                <p className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">{kpi.desc}</p>
               </div>
             </div>
-            <p className="text-sm font-medium text-blue-100 mb-1">{latinToCyrillic("Oylik Daromad")}</p>
-            <p className="text-3xl font-black mb-2">{formatCurrency(stats.monthlyRevenue || 0, 'UZS')}</p>
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-blue-100 flex items-center gap-2">
-                <BarChart3 className="w-4 h-4" />
-                {latinToCyrillic("Foyda")}: {profitMargin}%
-              </p>
-              <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
-            </div>
           </div>
-        </div>
-
-        <div className="group relative overflow-hidden bg-gradient-to-br from-purple-500 to-pink-600 dark:from-purple-600 dark:to-pink-700 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all hover:scale-105 cursor-pointer transform-gpu"
-             onClick={() => navigate('/expenses')}>
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity">
-            <div className="absolute -top-4 -right-4 w-24 h-24 bg-white rounded-full animate-pulse"></div>
-            <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-purple-300 rounded-full animate-ping"></div>
-          </div>
-          
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm group-hover:scale-110 transition-transform">
-                <Target className="w-8 h-8" />
-              </div>
-              <div className="flex items-center gap-1 text-sm font-semibold bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
-                {(stats.profitTrend || 0) >= 0 ? (
-                  <><ArrowUpRight className="w-4 h-4" /> {Math.abs(stats.profitTrend || 0)}%</>
-                ) : (
-                  <><ArrowDownRight className="w-4 h-4" /> {Math.abs(stats.profitTrend || 0)}%</>
-                )}
-              </div>
-            </div>
-            <p className="text-sm font-medium text-purple-100 mb-1">{latinToCyrillic("Sof Foyda")}</p>
-            <p className="text-3xl font-black mb-2">{formatCurrency(stats.netProfit || 0, 'UZS')}</p>
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-purple-100">{latinToCyrillic("Xarajatlardan keyin")}</p>
-              <div className="w-2 h-2 bg-purple-300 rounded-full animate-pulse"></div>
-            </div>
-          </div>
-        </div>
-
-        <div className="group relative overflow-hidden bg-gradient-to-br from-orange-500 to-red-600 dark:from-orange-600 dark:to-red-700 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all hover:scale-105 cursor-pointer transform-gpu"
-             onClick={() => navigate('/customers')}>
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity">
-            <div className="absolute -top-4 -right-4 w-24 h-24 bg-white rounded-full animate-pulse"></div>
-            <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-orange-300 rounded-full animate-ping"></div>
-          </div>
-          
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm group-hover:scale-110 transition-transform">
-                <Users className="w-8 h-8" />
-              </div>
-              <div className="text-sm font-semibold bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
-                {stats.debtorsCount || 0} {latinToCyrillic("mijoz")}
-              </div>
-            </div>
-            <p className="text-sm font-medium text-orange-100 mb-1">{latinToCyrillic("Qarzlar")}</p>
-            <p className="text-3xl font-black mb-2">{formatCurrency(stats.totalDebt || 0, 'UZS')}</p>
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-orange-100">{latinToCyrillic("Yig'ish kerak")}</p>
-              <div className="w-2 h-2 bg-orange-300 rounded-full animate-pulse"></div>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
-      {/* Real-time Activity Feed */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Real-time Activity Feed - Enhanced Glassmorphism */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2">
-          <Card className="shadow-2xl border-0 bg-gradient-to-br from-white to-blue-50 dark:from-gray-800 dark:to-blue-900/20 overflow-hidden">
-            <CardHeader className="border-b-2 border-blue-200 dark:border-blue-800 bg-gradient-to-r from-blue-500/10 to-indigo-500/10">
-              <CardTitle className="text-xl font-black flex items-center gap-2">
-                <Activity className="w-6 h-6 text-blue-600 animate-pulse" />
-                {latinToCyrillic("So'nggi Faoliyatlar")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="space-y-3">
-                {/* Mock Activity Items */}
+          <div className="bg-white dark:bg-gray-900 rounded-[3rem] shadow-[0_20px_60px_rgba(0,0,0,0.04)] border border-white dark:border-gray-800 overflow-hidden group">
+            <div className="p-10 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-gray-800/50 dark:to-indigo-900/10 flex items-center justify-between">
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-500/20 group-hover:rotate-6 transition-transform duration-500">
+                  <Activity className="w-7 h-7" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight uppercase">
+                    {latinToCyrillic("So'nggi Faoliyatlar")}
+                  </h3>
+                  <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-1">Real-time updates</p>
+                </div>
+              </div>
+              <button className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white dark:bg-gray-800 text-gray-400 hover:text-blue-600 border border-gray-100 dark:border-gray-700 shadow-sm transition-all active:scale-90">
+                <ArrowUpRight className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-10 space-y-6">
+              {[
+                { icon: ShoppingCart, title: latinToCyrillic('Yangi sotuv'), desc: '15G PREFORMA - 10 qop', time: latinToCyrillic('2 daqiqa oldin'), color: 'emerald', amount: '+2,500,000 UZS' },
+                { icon: Users, title: latinToCyrillic('Yangi mijoz'), desc: latinToCyrillic('Ali Valiyev ro\'yxatdan o\'tdi'), time: latinToCyrillic('15 daqiqa oldin'), color: 'blue', amount: null },
+                { icon: Truck, title: latinToCyrillic('Yetkazib berish'), desc: latinToCyrillic('Buyurtma #1234 yo\'lga chiqdi'), time: latinToCyrillic('1 soat oldin'), color: 'indigo', amount: null },
+                { icon: Package, title: latinToCyrillic('Mahsulot qo\'shildi'), desc: 'QOPQOQ 28MM - 5000 dona', time: latinToCyrillic('2 soat oldin'), color: 'amber', amount: null },
+                { icon: DollarSign, title: latinToCyrillic('To\'lov qabul qilindi'), desc: latinToCyrillic('500,000 UZS - Naqd pul'), time: latinToCyrillic('3 soat oldin'), color: 'emerald', amount: '+500,000 UZS' }
+              ].map((activity, index) => (
+                <div key={index} 
+                     className="group/item flex items-center gap-6 p-6 bg-gray-50/50 dark:bg-gray-800/30 rounded-[2rem] hover:bg-white dark:hover:bg-gray-800 hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-none border border-transparent hover:border-gray-100 dark:hover:border-gray-700 transition-all duration-500 cursor-pointer">
+                  <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-500 group-hover/item:scale-110 group-hover/item:rotate-6 ${
+                    activity.color === 'emerald' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 shadow-lg shadow-emerald-500/10' :
+                    activity.color === 'blue' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 shadow-lg shadow-blue-500/10' :
+                    activity.color === 'indigo' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 shadow-lg shadow-indigo-500/10' :
+                    'bg-amber-50 text-amber-600 dark:bg-amber-900/30 shadow-lg shadow-amber-500/10'
+                  }`}>
+                    <activity.icon className="w-7 h-7" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <h4 className="text-base font-black text-gray-900 dark:text-white tracking-tight uppercase">{activity.title}</h4>
+                      <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">{activity.time}</span>
+                    </div>
+                    <p className="text-sm font-bold text-gray-500 dark:text-gray-400">{activity.desc}</p>
+                  </div>
+                  {activity.amount && (
+                    <div className="text-right ml-4">
+                      <p className="text-sm font-black text-emerald-600 dark:text-emerald-400 tracking-tighter">{activity.amount}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-10">
+          {/* Quick Stats Sidebar Card */}
+          <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[3rem] p-10 text-white shadow-[0_30px_70px_rgba(37,99,235,0.3)] group hover:scale-[1.02] transition-all duration-700">
+            <div className="flex items-center justify-between mb-10">
+              <div className="w-16 h-16 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center group-hover:rotate-12 transition-transform duration-500">
+                <BarChart3 className="w-8 h-8" />
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em] mb-1">Target</p>
+                <p className="text-2xl font-black">84%</p>
+              </div>
+            </div>
+            <h4 className="text-2xl font-black tracking-tight mb-4 uppercase">{latinToCyrillic("Yillik Reja")}</h4>
+            <div className="w-full h-4 bg-white/10 rounded-full overflow-hidden mb-6 border border-white/10">
+              <div className="h-full bg-white shadow-[0_0_20px_rgba(255,255,255,0.5)] w-[84%] rounded-full animate-shimmer"></div>
+            </div>
+            <p className="text-sm font-bold text-white/70 leading-relaxed">
+              {latinToCyrillic("Yillik reja ko'rsatkichi kutilganidan 12% yuqori natija ko'rsatmoqda.")}
+            </p>
+          </div>
+
+          {/* AI Insights Card */}
+          <div className="bg-white dark:bg-gray-900 rounded-[3rem] p-10 shadow-[0_20px_60px_rgba(0,0,0,0.04)] border border-white dark:border-gray-800 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-all duration-700"></div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-purple-500/20 group-hover:scale-110 transition-transform duration-500">
+                  <Brain className="w-7 h-7" />
+                </div>
+                <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">AI Insights</h4>
+              </div>
+              <div className="space-y-6">
                 {[
-                  { icon: ShoppingCart, title: latinToCyrillic('Yangi sotuv'), desc: 'Cement M500 - 10 qop', time: latinToCyrillic('2 daqiqa oldin'), color: 'green' },
-                  { icon: Users, title: latinToCyrillic('Yangi mijoz'), desc: latinToCyrillic('Ali Valiyev ro\'yxatdan o\'tdi'), time: latinToCyrillic('15 daqiqa oldin'), color: 'blue' },
-                  { icon: Truck, title: latinToCyrillic('Yetkazib berish'), desc: latinToCyrillic('Buyurtma #1234 yo\'lga chiqdi'), time: latinToCyrillic('1 soat oldin'), color: 'purple' },
-                  { icon: Package, title: latinToCyrillic('Mahsulot qo\'shildi'), desc: 'Gips 50kg - 100 qop', time: latinToCyrillic('2 soat oldin'), color: 'orange' },
-                  { icon: DollarSign, title: latinToCyrillic('To\'lov qabul qilindi'), desc: latinToCyrillic('500,000 UZS - Naqd pul'), time: latinToCyrillic('3 soat oldin'), color: 'emerald' }
-                ].map((activity, index) => (
-                  <div key={index} 
-                       className="group flex items-center gap-4 p-4 bg-gradient-to-r from-white to-gray-50 dark:from-gray-700 dark:to-gray-800 rounded-2xl hover:shadow-lg transition-all hover:scale-102 border-2 border-gray-200 dark:border-gray-700 cursor-pointer">
-                    <div className={`w-12 h-12 bg-gradient-to-br from-${activity.color}-400 to-${activity.color}-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
-                      <activity.icon className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-base">{activity.title}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 font-semibold">{activity.desc}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-gray-500 font-semibold">{activity.time}</p>
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mt-1"></div>
-                    </div>
+                  { text: latinToCyrillic("15G mahsulotiga talab o'smoqda"), color: 'blue' },
+                  { text: latinToCyrillic("Xarajatlarni 5% ga kamaytirish mumkin"), color: 'emerald' },
+                  { text: latinToCyrillic("Yangi bozor segmenti aniqlandi"), color: 'amber' }
+                ].map((insight, i) => (
+                  <div key={i} className="flex items-start gap-4 group/insight cursor-pointer">
+                    <div className={`mt-1.5 w-2 h-2 rounded-full bg-${insight.color}-500 shadow-[0_0_10px_rgba(0,0,0,0.2)] group-hover/insight:scale-150 transition-transform`}></div>
+                    <p className="text-sm font-bold text-gray-600 dark:text-gray-400 group-hover/insight:text-gray-900 dark:group-hover/insight:text-white transition-colors">{insight.text}</p>
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
+              <button 
+                onClick={() => navigate('/analytics')}
+                className="w-full mt-10 py-4 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400 transition-all border border-gray-100 dark:border-gray-700 active:scale-95"
+              >
+                {latinToCyrillic("Barcha tahlillar")}
+              </button>
+            </div>
+          </div>
         </div>
+      </div>
 
-        {/* Quick Actions Panel */}
+      {/* Quick Actions Panel */}
         <Card className="shadow-2xl border-0 bg-gradient-to-br from-white to-purple-50 dark:from-gray-800 dark:to-purple-900/20 overflow-hidden">
           <CardHeader className="border-b-2 border-purple-200 dark:border-purple-800 bg-gradient-to-r from-purple-500/10 to-violet-500/10">
-            <CardTitle className="font-black flex items-center gap-2">
-              <Zap className="w-6 h-6 text-purple-600 animate-pulse" />
+            <CardTitle className="text-2xl font-black flex items-center gap-2 drop-shadow-sm">
+              <Zap className="w-7 h-7 text-purple-600 animate-pulse" />
               {latinToCyrillic("Tezkor Amallar")}
             </CardTitle>
           </CardHeader>
@@ -335,7 +674,6 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
-      </div>
 
       {/* Secondary Stats with Modern Design */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -490,11 +828,11 @@ export default function Dashboard() {
               </div>
               <div className="text-right">
                 <p className="text-2xl font-black text-blue-600 dark:text-blue-400">{stats.todaySales || 0}</p>
-                <p className="text-xs text-gray-500 font-semibold">Bugun</p>
+                <p className="text-xs text-gray-500 font-semibold">{latinToCyrillic("Bugun")}</p>
               </div>
             </div>
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Bugungi Sotuvlar</p>
-            <p className="text-xs text-gray-500 mt-1">+{Math.floor(Math.random() * 20 + 5)}% kecha</p>
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{latinToCyrillic("Bugungi Sotuvlar")}</p>
+            <p className="text-xs text-gray-500 mt-1">+{Math.floor(Math.random() * 20 + 5)}% {latinToCyrillic("kecha")}</p>
           </CardContent>
         </Card>
 
@@ -544,8 +882,8 @@ export default function Dashboard() {
                 <p className="text-xs text-gray-500 font-semibold">Kutilmoqda</p>
               </div>
             </div>
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Yetkazib Berish</p>
-            <p className="text-xs text-blue-500 mt-1">Bugun</p>
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{latinToCyrillic("Yetkazib Berish")}</p>
+            <p className="text-xs text-blue-500 mt-1">{latinToCyrillic("Bugun")}</p>
           </CardContent>
         </Card>
       </div>

@@ -6,7 +6,7 @@ import CustomerSelector from '../components/CustomerSelector';
 import ProductSelector from '../components/ProductSelector';
 import DebugInfo from '../components/DebugInfo';
 import api from '../lib/api';
-import { formatDate, formatDateTime } from '../lib/dateUtils';
+import { formatDate } from '../lib/dateUtils';
 import { 
   Package, 
   Plus, 
@@ -22,10 +22,22 @@ import {
   Activity,
   Bot,
   X,
-  AlertCircle
+  AlertCircle,
+  FileText,
+  Factory,
+  Truck,
+  Banknote,
+  Landmark,
+  Smartphone,
+  MoreHorizontal
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { exportToExcel } from '../lib/excelUtils';
+import { cn } from '../lib/utils';
+
 
 export default function Orders() {
+  const { t } = useTranslation();
   const [orders, setOrders] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -92,7 +104,15 @@ export default function Orders() {
   const [form, setForm] = useState({
     customerId: '',
     customerName: '',
-    items: [] as Array<{ productId: string; productName: string; quantityBags: number; quantityUnits: number }>,
+    items: [] as Array<{ 
+      productId: string; 
+      productName: string; 
+      quantityBags: number; 
+      unitsPerBag: number; 
+      quantityUnits: number;
+      priceType: 'BAG' | 'UNIT';
+      price: number;
+    }>,
     priority: 'NORMAL',
     requestedDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Ertaga
     notes: ''
@@ -165,6 +185,37 @@ export default function Orders() {
     }
   };
 
+  const handleExport = () => {
+    const dataToExport = filteredOrders.map(o => ({
+      'Buyurtma #': o.orderNumber,
+      'Mijoz': o.customer?.name || 'Noma\'lum',
+      'Mahsulotlar': o.items?.map((i: any) => `${i.productName} (${i.quantityBags} qop)`).join(', '),
+      'Jami summa': o.totalAmount,
+      'Sana': formatDate(o.createdAt),
+      'Status': statusConfig[o.status as keyof typeof statusConfig]?.label || o.status,
+      'Prioritet': priorityConfig[o.priority as keyof typeof priorityConfig]?.label || o.priority
+    }));
+    exportToExcel(dataToExport, 'Buyurtmalar', 'Buyurtmalar');
+  };
+
+  // Ishlab chiqarish buyurtmasi yaratish
+  const createProductionOrder = async (productId: string, quantity: number) => {
+    try {
+      const response = await api.post('/production-orders', {
+        productId,
+        quantity,
+        priority: 'HIGH',
+        notes: 'Buyurtmalar uchun avtomatik yaratildi'
+      });
+      
+      alert(`✅ Ishlab chiqarish buyurtmasi yaratildi!\n\nMahsulot: ${response.data.productName}\nMiqdor: ${quantity} qop`);
+      loadData();
+    } catch (error: any) {
+      console.error('Ishlab chiqarish buyurtmasi xatolik:', error);
+      alert('❌ Ishlab chiqarish buyurtmasi yaratilmadi: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -185,12 +236,25 @@ export default function Orders() {
     try {
       console.log('Submitting order:', form);
       
+
+      // Calculate subtotals and total
+      const itemsWithSubtotals = form.items.map(item => {
+        const subtotal = item.priceType === 'BAG' 
+          ? (item.quantityBags * item.price) 
+          : (item.quantityUnits * item.price);
+        return {
+          ...item,
+          unitPrice: item.price,
+          subtotal
+        };
+      });
+
+      const totalAmount = itemsWithSubtotals.reduce((sum, item) => sum + item.subtotal, 0);
+
       const response = await api.post('/orders', {
         ...form,
-        items: form.items.map(item => ({
-          ...item,
-          quantityUnits: item.quantityUnits || 0 // Dona yo'q, faqat qop
-        })),
+        items: itemsWithSubtotals,
+        totalAmount,
         requestedDate: new Date(form.requestedDate).toISOString()
       });
       
@@ -248,7 +312,15 @@ export default function Orders() {
   const addItem = () => {
     setForm({
       ...form,
-      items: [...form.items, { productId: '', productName: '', quantityBags: 0, quantityUnits: 0 }]
+      items: [...form.items, { 
+        productId: '', 
+        productName: '', 
+        quantityBags: 0, 
+        unitsPerBag: 0, 
+        quantityUnits: 0,
+        priceType: 'BAG',
+        price: 0
+      }]
     });
   };
 
@@ -256,7 +328,15 @@ export default function Orders() {
     setForm({
       customerId: '',
       customerName: '',
-      items: [{ productId: '', productName: '', quantityBags: 0, quantityUnits: 0 }], // Start with one item
+      items: [{ 
+        productId: '', 
+        productName: '', 
+        quantityBags: 0, 
+        unitsPerBag: 0, 
+        quantityUnits: 0,
+        priceType: 'BAG',
+        price: 0
+      }], // Start with one item
       priority: 'NORMAL',
       requestedDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       notes: ''
@@ -279,13 +359,24 @@ export default function Orders() {
 
   const updateItem = (index: number, field: string, value: any) => {
     console.log('🔄 updateItem called:', { index, field, value });
-    console.log('🔄 Current items before update:', form.items);
     
     const newItems = [...form.items];
-    newItems[index] = { ...newItems[index], [field]: value };
+    const item = { ...newItems[index], [field]: value };
     
-    console.log('📝 Updated item:', newItems[index]);
-    console.log('📝 All new items:', newItems);
+    // Auto-calculate logic: Bags * UnitsPerBag = TotalUnits
+    if (field === 'quantityBags' || field === 'unitsPerBag') {
+      const bags = field === 'quantityBags' ? (parseInt(value) || 0) : (item.quantityBags || 0);
+      const perBag = field === 'unitsPerBag' ? (parseInt(value) || 0) : (item.unitsPerBag || 0);
+      item.quantityUnits = bags * perBag;
+    } else if (field === 'quantityUnits') {
+      const total = parseInt(value) || 0;
+      const perBag = item.unitsPerBag || 0;
+      if (perBag > 0) {
+        item.quantityBags = Math.floor(total / perBag);
+      }
+    }
+    
+    newItems[index] = item;
     
     setForm({
       ...form,
@@ -293,11 +384,9 @@ export default function Orders() {
     });
     
     // Real-time inventory check
-    if (field === 'productId' && value) {
+    if ((field === 'productId' || field === 'quantityBags') && value) {
       checkInventory(newItems);
     }
-    
-    console.log('📋 Form after setForm called');
   };
 
   // Real-time inventory checking
@@ -414,11 +503,6 @@ export default function Orders() {
       
       // Print receipt after successful sale
       try {
-        const { exec } = require('child_process');
-        const fs = require('fs');
-        const { promisify } = require('util');
-        const execAsync = promisify(exec);
-        
         const orderData = {
           orderNumber: selectedOrder.orderNumber,
           cashier: 'Admin',
@@ -429,73 +513,55 @@ export default function Orders() {
           paidAmount: paymentForm.uzs + (paymentForm.usd * 12500) + paymentForm.click
         };
         
-        const receipt = `
-${fs.readFileSync('./src/logo-final.txt', 'utf8')}
+        const receiptContent = `
+        LUX PET PLAST ERP TIZIMI
 ****************************************
-Сана: ${new Date().toLocaleDateString('uz-UZ')}
-Вақт: ${new Date().toLocaleTimeString('uz-UZ')}
-Буюртма: ${orderData.orderNumber}
-Кассир: ${orderData.cashier}
-========================================
-МИЁЗ МАЪЛУМОТЛАРИ:
-Иси: ${orderData.customer?.name || 'Номаълу'}
-Телефон: ${orderData.customer?.phone || 'Мавжуд эмас'}
-Манзил: ${orderData.customer?.address || 'Мавжуд эмас'}
-Холати: ${orderData.customer?.category || 'Оддий миёз'}
-========================================
-╔════════════════════╦════╦═════╦════════╗
-║     Махсулот      ║ Қоп ║ Нарх ║  Жами  ║
-╠════════════════════╬════╬═════╬════════╣
+            YUK XATI (CHEK)
+****************************************
+Sana: ${new Date().toLocaleDateString('uz-UZ')}
+Vaqt: ${new Date().toLocaleTimeString('uz-UZ')}
+Buyurtma: ${orderData.orderNumber}
+Kassir: ${orderData.cashier}
+----------------------------------------
+MIJOZ MA'LUMOTLARI:
+----------------------------------------
+Ismi: ${orderData.customer?.name || 'Noma\'lum'}
+Tel: ${orderData.customer?.phone || 'Mavjud emas'}
+Manzil: ${orderData.customer?.address || 'Mavjud emas'}
+----------------------------------------
+┌──────────────────────────┬─────┬─────┐
+│ Mahsulot nomi            │ Qop │ Dona│
+├──────────────────────────┼─────┼─────┤
 ${orderData.items?.map((item: any) => 
-  `║ ${(item.product?.name || item.productName || 'Номаълу').substring(0, 16).padEnd(16)} ║ ${item.quantityBags.toString().padStart(2)} ║ ${item.unitPrice?.toString().padStart(4)} ║ ${(item.quantityBags * (item.unitPrice || 0)).toString().padStart(6)} ║`
-).join('\n╠════════════════════╬════╬═════╬════════╣\n') || '║ Махсулотлар мавжуд эмас                     ║'}
-╠════════════════════╬════╬═════╬════════╣
-╚════════════════════╩════╩═════╩════════╝
-Жами махсулотлар: ${orderData.items?.length || 0} та
-Умумий сумма: ${orderData.totalAmount} сўм
-Тўлов тури: ${orderData.paymentType}
-Тўланган: ${orderData.paidAmount} сўм
-Қайтим: ${orderData.paidAmount - orderData.totalAmount} сўм
-========================================
-МИЁЗ ҚАРЗ ҲОЛАТИ:
-Жорий қарз: ${orderData.customer?.debt || 0} сўм
-Бу сувддан кейин: ${(orderData.customer?.debt || 0) + (orderData.totalAmount - (orderData.paidAmount || 0))} сўм
-Қарз саналари: ${orderData.customer?.debtDates ? orderData.customer.debtDates.map((date: any) => new Date(date).toLocaleDateString('uz-UZ')).join(', ') : 'Мавжуд эмас'}
-Баланс: ${orderData.customer?.balance || 0} сўм
-Чегирма лимити: ${orderData.customer?.discountLimit || 0} сўм
-========================================
-Қўшимча хизматлар:
-* Қадоклаш бепул
-* Етказиб бериш 2 кун
-* Кафолат 1 ой
-* Қарзга сотиш мавжуд
-========================================
-ХАРИДИНГИЗ УЧУН РАҲМАТ!
-Қайтиб келишингизни кутамиз!
+  `│ ${(item.product?.name || item.productName || 'Noma\'lum').substring(0, 24).padEnd(24).replace(/[^\x00-\x7F]/g, "")} │ ${item.quantityBags.toString().padStart(3)} │ ${item.quantityUnits.toString().padStart(3)} │`
+).join('\n├──────────────────────────┼─────┼─────┤\n') || '│ Mahsulotlar mavjud emas              │'}
+└──────────────────────────┴─────┴─────┘
+----------------------------------------
+Umumiy summa: ${orderData.totalAmount.toLocaleString()} UZS
+To'lov turi: ${orderData.paymentType}
+To'langan: ${orderData.paidAmount.toLocaleString()} UZS
+Qaytim: ${(orderData.paidAmount - orderData.totalAmount).toLocaleString()} UZS
+----------------------------------------
+MIJOZ BALANSI:
+----------------------------------------
+Joriy qarz: ${orderData.customer?.debt || 0} UZS
+Oxirgi balans: ${orderData.customer?.balance || 0} UZS
+----------------------------------------
+     XARIDINGIZ UCHUN RAHMAT!
+    Zavod: +998 90 000 00 00
 ****************************************
 ID: SLS-${selectedOrder.id}
-${new Date().toLocaleString('uz-UZ')}
-****************************************
-        `.trim();
+`.trim();
         
-        const tempFile = `./sales-receipt-${Date.now()}.txt`;
-        fs.writeFileSync(tempFile, receipt, 'utf8');
+        await api.post('/print/receipt', {
+          content: receiptContent,
+          filename: `sales-receipt-${Date.now()}.txt`
+        });
         
-        await execAsync(`powershell -Command "Get-Content '${tempFile}' | Out-Printer -Name 'Xprinter XP-365B'"`);
-        
-        setTimeout(() => {
-          try {
-            fs.unlinkSync(tempFile);
-          } catch (error: any) {
-            console.log('Temp file cleanup error:', error.message);
-          }
-        }, 5000);
-        
-        console.log('✅ Savdo cheki chop etildi');
+        console.log('✅ Savdo cheki chop etish uchun serverga yuborildi');
         
       } catch (printError) {
         console.error('❌ Chek chop etish xatolik:', printError);
-        // Don't fail the sale if printing fails
       }
       
       setShowPaymentModal(false);
@@ -731,197 +797,188 @@ ${new Date().toLocaleString('uz-UZ')}
   }
 
   return (
-    <div className="space-y-4 p-2 sm:p-4">
+    <>
+    <div className="space-y-12 pb-20 animate-in fade-in duration-1000">
       <DebugInfo />
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <h1 className="text-3xl sm:text-4xl font-bold flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-            <Package className="w-6 h-6 text-white" />
+      
+      {/* Premium Header Section */}
+      <div className="relative overflow-hidden bg-white dark:bg-gray-900 rounded-[3rem] p-10 sm:p-16 shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white dark:border-gray-800">
+        <div className="absolute top-0 -left-10 w-64 h-64 bg-blue-100 dark:bg-blue-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob pointer-events-none"></div>
+        <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-purple-100 dark:bg-purple-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000 pointer-events-none"></div>
+
+        <div className="relative z-10">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-10">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-full border border-blue-100 dark:border-blue-800 text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">
+                <Package className="w-3 h-3 animate-pulse" />
+                Order Management System
+              </div>
+              <h1 className="text-5xl sm:text-7xl font-black text-gray-900 dark:text-white tracking-tighter leading-[0.9]">
+                {t("Buyurtmalar")}<br />
+                <span className="text-blue-600">{t("Nazorati")}</span>
+              </h1>
+              <p className="text-gray-500 dark:text-gray-400 font-bold max-w-md text-sm sm:text-base">
+                {t("Barcha buyurtmalar ro'yxati, ishlab chiqarish tahlili va savdo jarayoni")}
+              </p>
+            </div>
+            
+            <div className="flex flex-wrap gap-4 w-full lg:w-auto">
+              <button 
+                onClick={handleExport}
+                className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-8 py-5 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-[2rem] font-black text-xs transition-all active:scale-95 border border-emerald-100 dark:border-emerald-800"
+              >
+                <FileText className="w-5 h-5" />
+                EXCEL
+              </button>
+              <button 
+                onClick={initializeForm} 
+                className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-10 py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] font-black text-xs shadow-2xl shadow-blue-500/30 transition-all hover:scale-105 active:scale-95"
+              >
+                <Plus className="w-5 h-5" />
+                {t("YANGI BUYURTMA")}
+              </button>
+            </div>
           </div>
-          <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Buyurtmalar</span>
-        </h1>
-        <Button 
-          onClick={initializeForm}
-          size="lg"
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Yangi Buyurtma
-        </Button>
+        </div>
       </div>
 
-      {/* Statistika Kartochkalari */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        {/* Jami */}
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-2 border-blue-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                <Clock className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-xs font-medium text-blue-600 dark:text-blue-300">Jami</span>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6 px-4">
+        {[
+          { label: t("Jami"), value: orderStats.total, icon: Clock, color: 'blue' },
+          { label: t("Tasdiqlandi"), value: orderStats.confirmed, icon: CheckCircle, color: 'cyan' },
+          { label: t("Ishlab chiqarish"), value: orderStats.inProduction, icon: Activity, color: 'purple' },
+          { label: t("Tayyor"), value: orderStats.ready, icon: CheckCircle, color: 'green' },
+          { label: t("Sotildi"), value: orderStats.sold, icon: DollarSign, color: 'emerald' },
+          { label: t("Botdan"), value: orderStats.fromBot, icon: Bot, color: 'indigo' }
+        ].map((stat, i) => (
+          <div key={i} className="group bg-white dark:bg-gray-900 p-6 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm transition-all duration-500 hover:shadow-xl hover:-translate-y-1">
+            <div className={`w-12 h-12 bg-${stat.color}-50 dark:bg-${stat.color}-900/20 rounded-2xl flex items-center justify-center text-${stat.color}-600 mb-6 transition-transform group-hover:rotate-12`}>
+              <stat.icon className="w-6 h-6" />
             </div>
-            <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{orderStats.total}</p>
-            <p className="text-xs text-blue-600 dark:text-blue-400">Buyurtma</p>
-          </CardContent>
-        </Card>
-
-        {/* Tasdiqlandi */}
-        <Card className="bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-950 dark:to-cyan-900 border-2 border-cyan-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg flex items-center justify-center">
-                <CheckCircle className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-xs font-medium text-cyan-600 dark:text-cyan-300">Tasdiqlandi</span>
-            </div>
-            <p className="text-2xl font-bold text-cyan-700 dark:text-cyan-300">{orderStats.confirmed}</p>
-            <p className="text-xs text-cyan-600 dark:text-cyan-400">Buyurtma</p>
-          </CardContent>
-        </Card>
-
-        {/* Ishlab chiqarilmoqda */}
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-2 border-purple-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <Activity className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-xs font-medium text-purple-600 dark:text-purple-300">Ishlab chiqarilmoqda</span>
-            </div>
-            <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">{orderStats.inProduction}</p>
-            <p className="text-xs text-purple-600 dark:text-purple-400">Buyurtma</p>
-          </CardContent>
-        </Card>
-
-        {/* Tayyor */}
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border-2 border-green-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
-                <CheckCircle className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-xs font-medium text-green-600 dark:text-green-300">Tayyor</span>
-            </div>
-            <p className="text-2xl font-bold text-green-700 dark:text-green-300">{orderStats.ready}</p>
-            <p className="text-xs text-green-600 dark:text-green-400">Buyurtma</p>
-          </CardContent>
-        </Card>
-
-        {/* Sotildi */}
-        <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900 border-2 border-emerald-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-300">Sotildi</span>
-            </div>
-            <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{orderStats.sold}</p>
-            <p className="text-xs text-emerald-600 dark:text-emerald-400">Buyurtma</p>
-          </CardContent>
-        </Card>
-
-        {/* Botdan kelgan */}
-        <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-950 dark:to-indigo-900 border-2 border-indigo-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                <Bot className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-xs font-medium text-indigo-600 dark:text-indigo-300">Botdan</span>
-            </div>
-            <p className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">{orderStats.fromBot}</p>
-            <p className="text-xs text-indigo-600 dark:text-indigo-400">Buyurtma</p>
-          </CardContent>
-        </Card>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">{stat.label}</p>
+            <p className={`text-2xl font-black tracking-tight text-gray-900 dark:text-white`}>
+              {stat.value}
+            </p>
+          </div>
+        ))}
       </div>
 
-      {/* Mahsulotlar bo'yicha statistika */}
+      {/* Product Analysis Section */}
       {Object.keys(productStats).length > 0 && (
-        <Card className="shadow-lg hover:shadow-xl transition-all duration-300">
-          <CardHeader className="bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-950 dark:to-yellow-950 border-b border-orange-200 dark:border-orange-800">
-            <CardTitle className="text-base sm:text-lg flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-yellow-600 rounded-lg flex items-center justify-center">
-                <Brain className="w-4 h-4 text-white" />
-              </div>
-              <span className="bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent font-bold">Mahsulotlar bo'yicha tahlil</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="px-4">
+          <div className="bg-white dark:bg-gray-900 rounded-[3.5rem] p-10 border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between mb-10">
+              <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-4">
+                <div className="w-12 h-12 bg-orange-50 dark:bg-orange-900/30 rounded-2xl flex items-center justify-center text-orange-600">
+                  <Package className="w-6 h-6" />
+                </div>
+                {t("Mahsulotlar Bo'yicha")} <span className="text-orange-600">{t("Tahlil")}</span>
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {Object.values(productStats).map((stat: any, index) => (
-                <div key={index} className="p-4 bg-gradient-to-br from-gray-50 to-slate-100 dark:from-gray-900 dark:to-slate-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all duration-200">
-                  <h4 className="font-bold text-lg mb-3 text-gray-800 dark:text-gray-200">{stat.productName}</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between items-center p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-                      <span className="text-blue-600 dark:text-blue-300 font-medium">📋 Buyurtma:</span>
-                      <span className="font-bold text-blue-700 dark:text-blue-200">{stat.totalOrdered} qop</span>
+                <div key={index} className={`relative overflow-hidden group p-8 rounded-[2.5rem] border-2 transition-all duration-500 ${
+                  stat.needProduction > 0 
+                    ? 'border-rose-100 bg-rose-50/30 dark:bg-rose-900/10' 
+                    : 'border-emerald-100 bg-emerald-50/30 dark:bg-emerald-900/10'
+                }`}>
+                  {stat.needProduction > 0 && (
+                    <div className="absolute top-0 right-0 p-6">
+                      <div className="w-3 h-3 bg-rose-500 rounded-full animate-ping"></div>
                     </div>
-                    <div className="flex justify-between items-center p-2 bg-green-50 dark:bg-green-900/30 rounded-lg">
-                      <span className="text-green-600 dark:text-green-300 font-medium">✅ Tayyor:</span>
-                      <span className="font-bold text-green-700 dark:text-green-200">{stat.totalReady} qop</span>
+                  )}
+
+                  <h4 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight mb-6">{stat.productName}</h4>
+                  
+                  <div className="space-y-4 mb-8">
+                    <div className="flex justify-between items-center p-3 rounded-xl bg-white/50 dark:bg-gray-900/50">
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t("Buyurtma")}</span>
+                      <span className="font-black text-blue-600">{stat.totalOrdered} {t("QOP")}</span>
                     </div>
-                    <div className="flex justify-between items-center p-2 bg-amber-50 dark:bg-amber-900/30 rounded-lg">
-                      <span className="text-amber-600 dark:text-amber-300 font-medium">📦 Jami:</span>
-                      <span className="font-bold text-amber-700 dark:text-amber-200">{stat.totalReady} qop</span>
+                    <div className="flex justify-between items-center p-3 rounded-xl bg-white/50 dark:bg-gray-900/50">
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t("Ombor")}</span>
+                      <span className="font-black text-emerald-600">{stat.inStock} {t("QOP")}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 rounded-xl bg-white/50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-800">
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{stat.needProduction > 0 ? t("Kamchilik") : t("Holat")}</span>
+                      <span className={`font-black ${stat.needProduction > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        {stat.needProduction > 0 ? `-${stat.needProduction} QOP` : t("YETARLI")}
+                      </span>
                     </div>
                   </div>
+                  
+                  {stat.needProduction > 0 && (
+                    <button
+                      onClick={() => createProductionOrder(stat.productId, stat.needProduction)}
+                      className="w-full py-4 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl font-black text-[10px] tracking-[0.1em] shadow-xl shadow-orange-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+                    >
+                      <Factory className="w-4 h-4" />
+                      {t("ISHLAB CHIQARISH BUYURTMASI")}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
-      {/* Filtrlar */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="space-y-4">
-            {/* Basic Search */}
-            <div>
-              <Input
-                placeholder="Qidirish (raqam, mijoz)..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                icon={<Search className="w-4 h-4" />}
-              />
-            </div>
+      {/* Filters Section */}
+      <div className="px-4">
+        <div className="bg-white/60 dark:bg-gray-900/60 backdrop-blur-2xl p-8 rounded-[3rem] border border-white dark:border-gray-800 shadow-2xl space-y-8">
+          <div className="relative group">
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-blue-600 transition-colors" />
+            <input
+              placeholder={t("Buyurtma raqami yoki mijoz nomi orqali qidirish...")}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full h-16 pl-16 pr-8 bg-white dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-[2rem] font-bold text-sm transition-all outline-none shadow-sm"
+            />
+          </div>
 
-            {/* Primary Filters */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">{t("Holati")}</label>
               <select
-                className="px-3 py-2 bg-background border border-border rounded-lg"
+                className="w-full h-14 px-6 bg-white dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-black text-xs appearance-none shadow-sm outline-none"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
-                <option value="ALL">Barcha statuslar</option>
+                <option value="ALL">{t("Barcha holatlar")}</option>
                 {Object.entries(statusConfig).map(([key, config]) => (
                   <option key={key} value={key}>{config.label}</option>
                 ))}
               </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">{t("Prioritet")}</label>
               <select
-                className="px-3 py-2 bg-background border border-border rounded-lg"
+                className="w-full h-14 px-6 bg-white dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-black text-xs appearance-none shadow-sm outline-none"
                 value={priorityFilter}
                 onChange={(e) => setPriorityFilter(e.target.value)}
               >
-                <option value="ALL">Barcha prioritetlar</option>
+                <option value="ALL">{t("Barcha prioritetlar")}</option>
                 {Object.entries(priorityConfig).map(([key, config]) => (
                   <option key={key} value={key}>{config.label}</option>
                 ))}
               </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">{t("Vaqt Oralig'i")}</label>
               <select
-                className="px-3 py-2 bg-background border border-border rounded-lg"
+                className="w-full h-14 px-6 bg-white dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-black text-xs appearance-none shadow-sm outline-none"
                 value={advancedFilters.dateRange}
                 onChange={(e) => setAdvancedFilters({ ...advancedFilters, dateRange: e.target.value as any })}
               >
-                <option value="all">Barcha vaqt</option>
-                <option value="today">Bugun</option>
-                <option value="week">Oxirgi 7 kun</option>
-                <option value="month">Oxirgi 30 kun</option>
+                <option value="all">{t("Barcha vaqt")}</option>
+                <option value="today">{t("Bugun")}</option>
+                <option value="week">{t("Oxirgi 7 kun")}</option>
+                <option value="month">{t("Oxirgi 30 kun")}</option>
               </select>
             </div>
+          </div>
 
             {/* Advanced Filters Toggle */}
             <div className="flex items-center justify-between">
@@ -953,23 +1010,31 @@ ${new Date().toLocaleString('uz-UZ')}
                 <div>
                   <label className="block text-xs font-medium mb-1">Min Amount ($)</label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm"
                     value={advancedFilters.minAmount}
-                    onChange={(e) => setAdvancedFilters({ ...advancedFilters, minAmount: e.target.value })}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(',', '.');
+                      if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                      setAdvancedFilters({ ...advancedFilters, minAmount: raw });
+                    }}
                     placeholder="0"
-                    min="0"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-1">Max Amount ($)</label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm"
                     value={advancedFilters.maxAmount}
-                    onChange={(e) => setAdvancedFilters({ ...advancedFilters, maxAmount: e.target.value })}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(',', '.');
+                      if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                      setAdvancedFilters({ ...advancedFilters, maxAmount: raw });
+                    }}
                     placeholder="999999"
-                    min="0"
                   />
                 </div>
               </div>
@@ -996,319 +1061,7 @@ ${new Date().toLocaleString('uz-UZ')}
               </button>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Yangi Buyurtma Formasi */}
-      {showForm && (
-        <div className="max-h-[85vh] overflow-y-auto">
-        <Card className="border-2 border-primary shadow-2xl hover:shadow-3xl transition-all duration-300">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 sticky top-0 z-10 border-b border-blue-200 dark:border-blue-800">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Brain className="w-6 h-6 text-primary" />
-                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-bold">
-                  Yangi Buyurtma - AI Rejalashtirish
-                </span>
-              </CardTitle>
-              <Button 
-                type="button" 
-                onClick={closeForm} 
-                variant="outline" 
-                size="sm"
-                className="hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition-all duration-200"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-6">
-            {/* Form Errors Display */}
-            {formErrors.items && (
-              <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 border-2 border-red-300 dark:border-red-700 rounded-xl shadow-lg">
-                <div className="flex items-center gap-2 mb-3">
-                  <AlertCircle className="w-5 h-5 text-red-600" />
-                  <p className="text-red-700 dark:text-red-300 font-bold text-lg">Xatoliklar:</p>
-                </div>
-                <ul className="text-red-600 dark:text-red-400 space-y-2">
-                  {formErrors.items.map((error, index) => (
-                    <li key={index} className="flex items-start gap-2">
-                      <span className="text-red-500 mt-1">•</span>
-                      <span className="text-sm">{error}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Mijoz - Katta va qulay */}
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 p-6 rounded-2xl border-2 border-blue-200 dark:border-blue-800 shadow-lg">
-                <label className="block text-base font-bold mb-4 flex items-center gap-3 text-blue-700 dark:text-blue-300">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
-                    <User className="w-5 h-5 text-white" />
-                  </div>
-                  <span className="text-lg">1. Mijozni Tanlang</span>
-                </label>
-                <CustomerSelector
-                  customers={customers}
-                  selectedId={form.customerId}
-                  searchValue={customerSearch}
-                  onSearchChange={setCustomerSearch}
-                  onSelect={(id, name) => {
-                    setForm(prev => ({ ...prev, customerId: id, customerName: name }));
-                    if (formErrors.customerId) {
-                      setFormErrors(prev => ({ ...prev, customerId: undefined }));
-                    }
-                  }}
-                />
-                {formErrors.customerId && (
-                  <div className="mt-3 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg">
-                    <p className="text-red-700 dark:text-red-300 text-sm font-medium flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4" />
-                      {formErrors.customerId}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Mahsulotlar - Katta va qulay */}
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 p-6 rounded-2xl border-2 border-green-200 dark:border-green-800 shadow-lg">
-                <div className="flex justify-between items-center mb-4">
-                  <label className="text-base font-bold flex items-center gap-3 text-green-700 dark:text-green-300">
-                    <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 dark:from-green-600 dark:to-green-700 rounded-xl flex items-center justify-center shadow-lg">
-                      <Package className="w-5 h-5 text-white" />
-                    </div>
-                    <span className="text-lg">2. Mahsulotlarni Qo'shing</span>
-                  </label>
-                  <Button 
-                    type="button" 
-                    onClick={addItem} 
-                    size="lg" 
-                    className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-                  >
-                    <Plus className="w-5 h-5 mr-2" />
-                    Mahsulot Qo'shish
-                  </Button>
-                </div>
-                
-                {form.items.length === 0 && (
-                  <div className="p-12 bg-gradient-to-br from-gray-50 to-slate-100 dark:from-gray-900 dark:to-slate-900 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 text-center">
-                    <Package className="w-16 h-16 mx-auto text-gray-400 dark:text-gray-500 mb-4" />
-                    <p className="text-gray-600 dark:text-gray-300 text-lg font-medium mb-2">Mahsulot qo'shish uchun yuqoridagi tugmani bosing</p>
-                    <p className="text-gray-500 dark:text-gray-400 text-sm">Kamida bitta mahsulot qo'shishingiz shart</p>
-                  </div>
-                )}
-                
-                {formErrors.items && formErrors.items.length > 0 && (
-                  <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200">
-                    <p className="text-red-600 text-sm font-semibold mb-2">❌ Xatoliklar:</p>
-                    {formErrors.items.map((error, index) => (
-                      <p key={index} className="text-red-500 text-sm">• {error}</p>
-                    ))}
-                  </div>
-                )}
-                
-                {form.items.map((item, index) => (
-                  <div key={index} className="mb-6 p-6 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-green-950 dark:via-emerald-950 dark:to-teal-950 rounded-2xl border-2 border-green-300 dark:border-green-700 shadow-lg hover:shadow-xl transition-all duration-300">
-                    <div className="flex justify-between items-center mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 dark:from-green-600 dark:to-emerald-700 rounded-lg flex items-center justify-center">
-                          <span className="text-white font-bold text-sm">{index + 1}</span>
-                        </div>
-                        <span className="font-bold text-green-700 dark:text-green-300">Mahsulot #{index + 1}</span>
-                      </div>
-                      <Button 
-                        type="button" 
-                        onClick={() => removeItem(index)}
-                        variant="outline"
-                        size="sm"
-                        className="text-red-600 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-all duration-200"
-                      >
-                        <XCircle className="w-4 h-4 mr-1" />
-                        O'chirish
-                      </Button>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Mahsulot</label>
-                        <ProductSelector
-                          products={products}
-                          selectedId={item.productId}
-                          searchValue={productSearches[index] || ''}
-                          onSearchChange={(value) => {
-                            setProductSearches(prev => ({ ...prev, [index]: value }));
-                          }}
-                          onSelect={(id, name, price) => {
-                            console.log('🎯 Orders onSelect called:', { id, name, price, index });
-                            try {
-                              updateItem(index, 'productId', id);
-                              updateItem(index, 'productName', name);
-                              console.log('✅ Orders updateItem completed');
-                            } catch (error) {
-                              console.error('❌ Orders updateItem error:', error);
-                            }
-                          }}
-                        />
-                      </div>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-sm font-medium mb-2">Miqdor (qop)</label>
-                          <input
-                            type="number"
-                            value={item.quantityBags || ''}
-                            onChange={(e) => updateItem(index, 'quantityBags', parseInt(e.target.value) || 0)}
-                            placeholder="Necha qop?"
-                            min="1"
-                            required
-                            className="w-full px-4 py-3 text-lg font-semibold border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800"
-                          />
-                        </div>
-                        
-                        <div>
-                          <label className="block text-sm font-medium mb-2">Miqdor (dona)</label>
-                          <input
-                            type="number"
-                            value={item.quantityUnits || ''}
-                            onChange={(e) => updateItem(index, 'quantityUnits', parseInt(e.target.value) || 0)}
-                            placeholder="Necha dona?"
-                            min="0"
-                            className="w-full px-4 py-3 text-lg font-semibold border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-800"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Inventory warning for this item */}
-                      {item.productId && inventoryCheck.find(check => check.productId === item.productId && check.needProduction > 0) && (
-                        <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200">
-                          <p className="text-orange-600 text-sm font-semibold">
-                            ⚠️ Omborda yetarli emas: {inventoryCheck.find(check => check.productId === item.productId)?.inStock} qop bor, 
-                            {inventoryCheck.find(check => check.productId === item.productId)?.needProduction} qop kerak
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Sana va Izoh */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-base font-semibold mb-3 flex items-center gap-2 text-orange-600">
-                    <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900 rounded-full flex items-center justify-center">
-                      <Calendar className="w-4 h-4" />
-                    </div>
-                    3. Yetkazish Sanasi
-                  </label>
-                  <input
-                    type="date"
-                    value={form.requestedDate}
-                    onChange={(e) => {
-                      setForm({ ...form, requestedDate: e.target.value });
-                      if (formErrors.requestedDate) {
-                        setFormErrors(prev => ({ ...prev, requestedDate: undefined }));
-                      }
-                    }}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-3 text-lg font-semibold border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white dark:bg-gray-800"
-                  />
-                  {formErrors.requestedDate && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.requestedDate}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-base font-semibold mb-3 flex items-center gap-2 text-purple-600">
-                    <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
-                      <Brain className="w-4 h-4" />
-                    </div>
-                    4. Prioritet
-                  </label>
-                  <select
-                    className="w-full px-4 py-3 text-lg font-semibold border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white dark:bg-gray-800"
-                    value={form.priority}
-                    onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                  >
-                    {Object.entries(priorityConfig).map(([key, config]) => (
-                      <option key={key} value={key}>{config.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Izoh */}
-              <div>
-                <label className="block text-base font-semibold mb-3 flex items-center gap-2 text-gray-600">
-                  <div className="w-8 h-8 bg-gray-100 dark:bg-gray-900 rounded-full flex items-center justify-center">
-                    <span className="text-sm">📝</span>
-                  </div>
-                  5. Izoh (ixtiyoriy)
-                </label>
-                <textarea
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  placeholder="Qo'shimcha izohlar..."
-                  rows={3}
-                  className="w-full px-4 py-3 text-lg border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 bg-white dark:bg-gray-800"
-                />
-              </div>
-
-              {/* Inventory Warning */}
-              {showInventoryWarning && inventoryCheck.length > 0 && (
-                <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border-2 border-orange-200">
-                  <h3 className="font-semibold text-orange-600 mb-3 flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5" />
-                    Ombor Tekshiruvi
-                  </h3>
-                  <div className="space-y-2">
-                    {inventoryCheck.map((item, index) => (
-                      <div key={index} className={`p-3 rounded-lg border-l-4 ${
-                        item.status === 'NEED_PRODUCTION' 
-                          ? 'border-orange-500 bg-orange-100 dark:bg-orange-900/40' 
-                          : 'border-green-500 bg-green-100 dark:bg-green-900/40'
-                      }`}>
-                        <div className="flex justify-between items-center">
-                          <span className="font-medium">{item.productName}</span>
-                          <span className={`text-sm font-semibold ${
-                            item.status === 'NEED_PRODUCTION' ? 'text-orange-600' : 'text-green-600'
-                          }`}>
-                            {item.status === 'NEED_PRODUCTION' 
-                              ? `${item.inStock} → ${item.ordered} (-${item.needProduction})` 
-                              : `✅ ${item.inStock} qop bor`
-                            }
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-sm text-orange-600 mt-2">
-                    💡 Ishlab chiqarish rejasi avtomatik yaratiladi
-                  </p>
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-4">
-                <Button 
-                  type="button" 
-                  onClick={() => setShowForm(false)}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  Bekor qilish
-                </Button>
-                <Button type="submit" className="flex-1 text-lg py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700" size="lg">
-                  <Brain className="w-5 h-5 mr-2" />
-                  AI Tahlil va Yaratish
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
         </div>
-      )}
 
       {/* Bulk Actions Toolbar */}
       {bulkActions.selectedOrders.length > 0 && (
@@ -1359,741 +1112,813 @@ ${new Date().toLocaleString('uz-UZ')}
         </Card>
       )}
 
-      {/* Kanban Board - 4 ustun */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      {/* Kanban Board - Premium Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8 px-4">
         {Object.entries(groupedOrders).map(([status, ordersList]) => {
           const config = statusConfig[status as keyof typeof statusConfig];
           const Icon = config.icon;
           
           return (
-            <Card key={status} className="h-fit">
-              <CardHeader className={`bg-${config.color}-50 dark:bg-${config.color}-900/20 p-4`}>
-                <CardTitle className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <Icon className="w-4 h-4" />
-                    <span className="truncate">{config.label}</span>
+            <div key={status} className="flex flex-col gap-6">
+              {/* Column Header */}
+              <div className="bg-white dark:bg-gray-900 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className={`w-10 h-10 bg-${config.color}-50 dark:bg-${config.color}-900/20 rounded-xl flex items-center justify-center text-${config.color}-600`}>
+                    <Icon className="w-5 h-5" />
                   </div>
-                  <span className="px-2 py-1 bg-background rounded-full text-xs flex-shrink-0">
-                    {ordersList.length}
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-3 space-y-3 max-h-[70vh] overflow-y-auto">
+                  <div>
+                    <h3 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">{config.label}</h3>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{ordersList.length} {t("BUYURTMA")}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Order Cards Container */}
+              <div className="space-y-4 max-h-[1000px] overflow-y-auto pr-2 custom-scrollbar">
                 {ordersList.map((order) => (
                   <div
                     key={order.id}
-                    className="border border-gray-200 bg-white rounded-lg p-3 hover:bg-gray-50 transition-colors cursor-pointer shadow-sm hover:shadow-md"
+                    onClick={() => viewDetails(order.id)}
+                    className="group relative bg-white dark:bg-gray-900 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 p-6 shadow-sm transition-all duration-500 hover:shadow-2xl hover:-translate-y-1 cursor-pointer overflow-hidden"
                   >
-                    <div className="flex items-start gap-3">
-                      {/* Checkbox for selection */}
-                      <input
-                        type="checkbox"
-                        checked={bulkActions.selectedOrders.includes(order.id)}
-                        onChange={() => toggleOrderSelection(order.id)}
-                        className="mt-1 rounded border-gray-300"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      
-                      {/* Order content */}
-                      <div 
-                        className="flex-1"
-                        onClick={() => viewDetails(order.id)}
-                      >
-                        <div className="space-y-2">
-                          {/* Header */}
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-bold text-gray-900">#{order.orderNumber}</span>
-                            <span className={`text-xs px-2 py-1 rounded text-white ${
-                              order.status === 'CONFIRMED' ? 'bg-blue-500' :
-                              order.status === 'IN_PRODUCTION' ? 'bg-purple-600' :
-                              order.status === 'READY' ? 'bg-green-600' :
-                              order.status === 'SOLD' ? 'bg-emerald-600' :
-                              'bg-gray-400'
-                            }`}>
-                              {statusConfig[order.status as keyof typeof statusConfig].label}
-                            </span>
-                          </div>
-                          
-                          {/* Mijoz */}
-                          <div className="flex items-center gap-2 text-sm">
-                            <span className="text-blue-600 font-medium">{order.customer?.name}</span>
-                            <div className="flex gap-1">
-                              {order.customer?.telegramChatId && <span className="text-blue-500">📱</span>}
-                              {order.customer?.category === 'VIP' && <span className="text-purple-500">👑</span>}
-                            </div>
-                          </div>
-                          
-                          {/* Mahsulotlar */}
-                          <div className="text-xs text-gray-600 space-y-1">
-                            {order.items?.slice(0, 2).map((item: any, index: number) => (
-                              <div key={index} className="flex justify-between">
-                                <span className="truncate">{item.product?.name}</span>
-                                <span className="font-medium">{item.quantityBags}q {item.quantityUnits}d</span>
-                              </div>
-                            ))}
-                            {order.items?.length > 2 && (
-                              <div className="text-xs text-gray-400 italic">+{order.items.length - 2} ko'proq...</div>
-                            )}
-                          </div>
-                          
-                          {/* Vaqt va Summa */}
-                          <div className="flex justify-between items-center text-xs text-gray-500 pt-1 border-t border-gray-100">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {formatDate(order.requestedDate)}
-                            </span>
-                            <div className="text-right">
-                              <span className="font-bold text-blue-600 text-sm">${order.totalAmount?.toFixed(2)}</span>
-                              {order.priority !== 'NORMAL' && (
-                                <span className={`ml-1 text-xs px-1.5 py-0.5 rounded text-white ${
-                                  order.priority === 'HIGH' ? 'bg-orange-500' :
-                                  order.priority === 'URGENT' ? 'bg-red-500' :
-                                  'bg-gray-500'
-                                }`}>
-                                  {order.priority}
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                    {/* Status Accent Line */}
+                    <div className={`absolute top-0 left-0 w-1.5 h-full bg-${config.color}-500 transition-all duration-500 group-hover:w-2`}></div>
+
+                    <div className="space-y-6">
+                      {/* Header */}
+                      <div className="flex justify-between items-start pl-2">
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">#{order.orderNumber}</p>
+                          <h4 className="font-black text-gray-900 dark:text-white uppercase tracking-tight truncate max-w-[150px]">
+                            {order.customer?.name}
+                          </h4>
                         </div>
+                        <div className="flex gap-1">
+                          {order.customer?.category === 'VIP' && (
+                            <div className="w-6 h-6 bg-amber-50 dark:bg-amber-900/30 rounded-lg flex items-center justify-center text-amber-600">
+                              <span className="text-xs">👑</span>
+                            </div>
+                          )}
+                          {order.priority === 'URGENT' && (
+                            <div className="w-6 h-6 bg-rose-50 dark:bg-rose-900/30 rounded-lg flex items-center justify-center text-rose-600 animate-pulse">
+                              <AlertTriangle className="w-3.5 h-3.5" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Items Preview */}
+                      <div className="space-y-2 pl-2">
+                        {order.items?.slice(0, 2).map((item: any, index: number) => (
+                          <div key={index} className="flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/30 p-3 rounded-xl border border-gray-50 dark:border-gray-800">
+                            <span className="text-[10px] font-bold text-gray-500 truncate max-w-[100px] uppercase">{item.product?.name}</span>
+                            <span className="text-[10px] font-black text-blue-600">{item.quantityBags} {t("QOP")}</span>
+                          </div>
+                        ))}
+                        {order.items?.length > 2 && (
+                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">+{order.items.length - 2} {t("yana")}</p>
+                        )}
+                      </div>
+
+                      {/* Footer */}
+                      <div className="pt-4 border-t border-gray-50 dark:border-gray-800 flex justify-between items-center pl-2">
+                        <div className="flex items-center gap-2 text-gray-400">
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span className="text-[10px] font-bold">{formatDate(order.requestedDate)}</span>
+                        </div>
+                        <p className="text-lg font-black text-emerald-600 tracking-tighter">${order.totalAmount?.toFixed(2)}</p>
                       </div>
                     </div>
                   </div>
                 ))}
-              </CardContent>
-            </Card>
+
+                {ordersList.length === 0 && (
+                  <div className="py-20 text-center opacity-20 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-[3rem]">
+                    <Package className="w-12 h-12 mb-4" />
+                    <p className="text-xs font-black uppercase tracking-widest">{t("BO'SH")}</p>
+                  </div>
+                )}
+              </div>
+            </div>
           );
         })}
       </div>
+    </div>
 
-      {/* Detail Modal */}
-      {showDetail && selectedOrder && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 animate-in fade-in duration-200"
-          onClick={() => setShowDetail(false)}
-        >
-          <div onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-          <Card 
-            className="max-w-4xl w-full max-h-[95vh] overflow-hidden shadow-2xl animate-in slide-in-from-bottom-4 duration-300"
-          >
-            <CardHeader className="bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 dark:from-blue-950 dark:via-purple-950 dark:to-pink-950 border-b-2 border-primary/20 sticky top-0 z-10">
-              <div className="flex justify-between items-start gap-4">
-                <div className="flex-1">
-                  <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
-                    <Package className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
-                    Buyurtma #{selectedOrder.orderNumber}
-                    {selectedOrder.orderNumber.startsWith('BOT-') && (
-                      <span className="px-2 py-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded text-xs font-bold flex items-center gap-1">
-                        🤖 BOT
-                      </span>
-                    )}
-                  </CardTitle>
-                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                    {formatDateTime(selectedOrder.createdAt)}
-                  </p>
+      {/* New Order Form Modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xl flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-gray-900 w-full max-w-4xl rounded-[3rem] overflow-hidden shadow-2xl border border-white/20 animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
+            <div className="p-10 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center bg-blue-50/30 dark:bg-blue-900/10 shrink-0">
+              <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600">
+                  <Brain className="w-6 h-6" />
                 </div>
-                <Button 
-                  onClick={() => setShowDetail(false)} 
-                  variant="outline" 
-                  size="sm"
-                  className="flex-shrink-0 hover:bg-red-50 hover:text-red-600 hover:border-red-300"
-                >
-                  <XCircle className="w-4 h-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Yopish</span>
-                </Button>
-              </div>
-            </CardHeader>
-            <div className="overflow-y-auto max-h-[calc(95vh-80px)]">
-            <CardContent className="p-3 sm:p-6 space-y-4 sm:space-y-6">
-              {/* Asosiy Ma'lumotlar */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div className="p-3 sm:p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-1 flex items-center gap-1">
-                    <User className="w-3 h-3 sm:w-4 sm:h-4" />
-                    Mijoz
-                  </p>
-                  <p className="font-semibold text-sm sm:text-base">{selectedOrder.customer?.name}</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">{selectedOrder.customer?.phone}</p>
+                {t("YANGI")} <span className="text-blue-600">{t("BUYURTMA")}</span>
+              </h3>
+              <button onClick={closeForm} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-10 sm:p-16 space-y-12 overflow-y-auto custom-scrollbar">
+              {/* Form Errors Display */}
+              {Object.keys(formErrors).length > 0 && (
+                <div className="p-6 bg-rose-50 dark:bg-rose-900/20 border-2 border-rose-200 dark:border-rose-800 rounded-[2rem] space-y-2">
+                  <div className="flex items-center gap-3 text-rose-600">
+                    <AlertCircle className="w-5 h-5" />
+                    <h4 className="font-black uppercase tracking-widest text-xs">{t("Xatoliklar bor")}</h4>
+                  </div>
+                  <ul className="list-disc list-inside text-xs font-bold text-rose-500/80">
+                    {formErrors.customerId && <li>{formErrors.customerId}</li>}
+                    {formErrors.requestedDate && <li>{formErrors.requestedDate}</li>}
+                    {formErrors.items?.map((err, i) => <li key={i}>{err}</li>)}
+                  </ul>
                 </div>
-                <div className="p-3 sm:p-4 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 rounded-lg border border-purple-200 dark:border-purple-800">
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-2">Status</p>
-                  <span className={`inline-flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-semibold ${
-                    selectedOrder.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                    selectedOrder.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                    selectedOrder.status === 'IN_PRODUCTION' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
-                    selectedOrder.status === 'READY' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                    selectedOrder.status === 'SOLD' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' :
-                    'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                  }`}>
-                    {React.createElement(statusConfig[selectedOrder.status as keyof typeof statusConfig].icon, { className: 'w-3 h-3 sm:w-4 sm:h-4' })}
-                    {statusConfig[selectedOrder.status as keyof typeof statusConfig].label}
-                  </span>
+              )}
+
+              {/* Step 1: Customer */}
+              <div className="space-y-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl flex items-center justify-center font-black">1</div>
+                  <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">{t("Mijozni Tanlang")}</h4>
                 </div>
-                <div className="p-3 sm:p-4 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900 rounded-lg border border-orange-200 dark:border-orange-800">
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-2">Prioritet</p>
-                  <span className={`inline-block px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-semibold text-white ${
-                    selectedOrder.priority === 'LOW' ? 'bg-gray-600' :
-                    selectedOrder.priority === 'NORMAL' ? 'bg-blue-600' :
-                    selectedOrder.priority === 'HIGH' ? 'bg-orange-600' :
-                    'bg-red-600'
-                  }`}>
-                    {priorityConfig[selectedOrder.priority as keyof typeof priorityConfig].label}
-                  </span>
-                </div>
-                <div className="p-3 sm:p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 rounded-lg border border-green-200 dark:border-green-800">
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-1 flex items-center gap-1">
-                    <DollarSign className="w-3 h-3 sm:w-4 sm:h-4" />
-                    Jami Summa
-                  </p>
-                  <p className="text-xl sm:text-2xl font-bold text-green-600 dark:text-green-400">
-                    ${selectedOrder.totalAmount?.toFixed(2)}
-                  </p>
+                <div className="bg-gray-50 dark:bg-gray-800/50 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800">
+                  <CustomerSelector
+                    customers={customers}
+                    selectedId={form.customerId}
+                    searchValue={customerSearch}
+                    onSearchChange={setCustomerSearch}
+                    onSelect={(id, name) => {
+                      setForm(prev => ({ ...prev, customerId: id, customerName: name }));
+                      if (formErrors.customerId) {
+                        setFormErrors(prev => ({ ...prev, customerId: undefined }));
+                      }
+                    }}
+                  />
                 </div>
               </div>
 
-              {/* Mahsulotlar */}
-              <div className="border-t border-border pt-4">
-                <h3 className="font-semibold mb-3 text-sm sm:text-base flex items-center gap-2">
-                  <Package className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                  Mahsulotlar
-                </h3>
-                <div className="space-y-2">
-                  {selectedOrder.items?.map((item: any, index: number) => (
-                    <div key={index} className="p-3 bg-gradient-to-r from-muted to-muted/50 rounded-lg flex flex-col sm:flex-row justify-between gap-2 hover:shadow-md transition-shadow border border-border/50">
-                      <div className="flex-1">
-                        <p className="font-medium text-sm sm:text-base">{item.product?.name || 'Mahsulot'}</p>
-                        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900 rounded text-blue-700 dark:text-blue-300 mr-2">
-                            {item.quantityBags} qop
-                          </span>
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 dark:bg-purple-900 rounded text-purple-700 dark:text-purple-300">
-                            {item.quantityUnits} dona
-                          </span>
-                        </p>
+              {/* Step 2: Products */}
+              <div className="space-y-8">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl flex items-center justify-center font-black">2</div>
+                    <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">{t("Mahsulotlar")}</h4>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={addItem}
+                    className="flex items-center gap-2 px-6 py-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-xl font-black text-[10px] tracking-widest hover:scale-105 transition-all active:scale-95"
+                  >
+                    <Plus className="w-4 h-4" />
+                    {t("QO'SHISH")}
+                  </button>
+                </div>
+
+                <div className="space-y-0 border-t border-gray-200 dark:border-gray-800">
+                  {form.items.map((item, index) => (
+                    <div key={index} className="py-6 border-b border-gray-200 dark:border-gray-800 relative group">
+                      <button 
+                        type="button" 
+                        onClick={() => removeItem(index)}
+                        className="absolute top-6 right-0 text-gray-300 hover:text-rose-500 transition-colors z-20"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+
+                      <div className="space-y-4">
+                        {/* 1. Mahsulot nomi (To'liq qator) */}
+                        <div className="pr-10">
+                          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Mahsulot</label>
+                          <ProductSelector
+                            products={products}
+                            selectedId={item.productId}
+                            searchValue={productSearches[index] || ''}
+                            onSearchChange={(value) => {
+                              setProductSearches(prev => ({ ...prev, [index]: value }));
+                            }}
+                            onSelect={(id, name, pricePerBag, unitsPerBag, cardType, pricePerPiece) => {
+                              const newItems = [...form.items];
+                              newItems[index] = { 
+                                ...newItems[index], 
+                                productId: id, 
+                                productName: name,
+                                unitsPerBag: unitsPerBag || 0,
+                                quantityUnits: (newItems[index].quantityBags || 0) * (unitsPerBag || 0),
+                                priceType: 'BAG',
+                                price: pricePerBag || 0
+                              };
+                              setForm({ ...form, items: newItems });
+                              checkInventory(newItems);
+                            }}
+                          />
+                        </div>
+
+                        {/* 2. Qop | Qopdagi dona | Jami (Yonma-yon) */}
+                        <div className="grid grid-cols-3 gap-4">
+                          <div>
+                            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Qop</label>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={item.quantityBags || ''}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(',', '.');
+                                if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                                updateItem(index, 'quantityBags', raw === '' ? 0 : parseFloat(raw));
+                              }}
+                              className="w-full h-11 px-4 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 focus:border-blue-500 rounded-lg font-bold text-lg outline-none transition-colors"
+                              placeholder="0"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Qopdagi dona</label>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={item.unitsPerBag || ''}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(',', '.');
+                                if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                                updateItem(index, 'unitsPerBag', raw === '' ? 0 : parseFloat(raw));
+                              }}
+                              className="w-full h-11 px-4 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 focus:border-blue-500 rounded-lg font-bold text-lg outline-none transition-colors"
+                              placeholder="0"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Jami</label>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={item.quantityUnits || ''}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(',', '.');
+                                if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                                updateItem(index, 'quantityUnits', raw === '' ? 0 : parseFloat(raw));
+                              }}
+                              className="w-full h-11 px-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-600 rounded-lg font-bold text-lg outline-none"
+                              placeholder="0"
+                            />
+                          </div>
+                        </div>
+
+                        {/* 3. Narx kiritish (Pastki qismda) */}
+                        <div className="flex items-center justify-between pt-2">
+                          <div className="flex bg-gray-100 dark:bg-gray-800 p-0.5 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <button
+                              type="button"
+                              onClick={() => updateItem(index, 'priceType', 'BAG')}
+                              className={cn(
+                                "px-3 py-1.5 rounded-md text-[10px] font-bold transition-all",
+                                item.priceType === 'BAG' ? "bg-white dark:bg-gray-700 text-blue-600 shadow-sm" : "text-gray-400"
+                              )}
+                            >
+                              QOPGA
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateItem(index, 'priceType', 'UNIT')}
+                              className={cn(
+                                "px-3 py-1.5 rounded-md text-[10px] font-bold transition-all",
+                                item.priceType === 'UNIT' ? "bg-white dark:bg-gray-700 text-blue-600 shadow-sm" : "text-gray-400"
+                              )}
+                            >
+                              DONAGA
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="relative w-36">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={item.price || ''}
+                                onChange={(e) => {
+                                  const raw = e.target.value.replace(',', '.');
+                                  if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                                  updateItem(index, 'price', raw === '' ? 0 : parseFloat(raw));
+                                }}
+                                className="w-full h-10 pl-8 pr-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 focus:border-emerald-500 rounded-lg font-bold text-lg outline-none text-emerald-600 transition-colors"
+                                placeholder="0.00"
+                              />
+                              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500 font-bold">$</div>
+                            </div>
+                            <div className="text-right min-w-[100px]">
+                              <p className="text-[10px] font-bold text-gray-400 uppercase mb-0.5">SUMMA</p>
+                              <p className="text-lg font-black text-emerald-600">
+                                ${(item.priceType === 'BAG' ? (item.quantityBags * item.price) : (item.quantityUnits * item.price)).toFixed(2)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <p className="font-bold text-base sm:text-lg text-green-600 dark:text-green-400 self-end sm:self-center">
-                        ${item.subtotal?.toFixed(2)}
-                      </p>
+
+                      {/* Inventory Check (Juda ixcham) */}
+                      {item.productId && inventoryCheck.find(check => check.productId === item.productId && check.needProduction > 0) && (
+                        <div className="mt-3 flex items-center gap-2 text-orange-600">
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          <span className="text-[10px] font-bold uppercase tracking-wide">
+                            Zaxira yetishmaydi: {inventoryCheck.find(check => check.productId === item.productId)?.inStock} bor
+                          </span>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* AI Rejasi */}
-              {selectedOrder.productionPlan && (
-                <div className="border-t border-border pt-6">
-                  <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    <Brain className="w-5 h-5 text-purple-600" />
-                    AI Ishlab Chiqarish Rejasi
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                      <p className="text-sm text-muted-foreground">AI Ishonch</p>
-                      <p className="text-2xl font-bold text-purple-600">
-                        {selectedOrder.productionPlan.aiConfidence}%
-                      </p>
+              {/* Step 3: Details */}
+              <div className="space-y-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl flex items-center justify-center font-black">3</div>
+                  <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">{t("Tafsilotlar")}</h4>
+                </div>
+                
+                {/* Overall Inventory Summary */}
+                {showInventoryWarning && (
+                  <div className="p-8 bg-orange-50 dark:bg-orange-900/20 rounded-[2.5rem] border border-orange-100 dark:border-orange-800 space-y-4">
+                    <div className="flex items-center gap-3 text-orange-600">
+                      <Factory className="w-5 h-5" />
+                      <h4 className="font-black uppercase tracking-widest text-xs">{t("Ishlab chiqarish rejasi kerak")}</h4>
                     </div>
-                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                      <p className="text-sm text-muted-foreground">Reja Turi</p>
-                      <p className="text-lg font-semibold">
-                        {selectedOrder.productionPlan.planType}
-                      </p>
-                    </div>
-                    <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                      <p className="text-sm text-muted-foreground">Status</p>
-                      <p className="text-lg font-semibold">
-                        {selectedOrder.productionPlan.status}
-                      </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {inventoryCheck.filter(c => c.needProduction > 0).map((c, i) => (
+                        <div key={i} className="bg-white/50 dark:bg-gray-900/50 p-4 rounded-xl flex justify-between items-center">
+                          <span className="text-[10px] font-black uppercase tracking-tight">{c.productName}</span>
+                          <span className="text-xs font-black text-rose-600">-{c.needProduction} {t("qop")}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
-
-                  {/* AI Tavsiyalari */}
-                  {selectedOrder.productionPlan.recommendations && (
-                    <div>
-                      <h4 className="font-semibold mb-2">AI Tavsiyalari</h4>
-                      <div className="space-y-2">
-                        {JSON.parse(selectedOrder.productionPlan.recommendations).map((rec: any, index: number) => (
-                          <div key={index} className={`p-3 rounded-lg border-l-4 ${
-                            rec.type === 'CRITICAL' ? 'border-red-500 bg-red-50 dark:bg-red-900/20' :
-                            rec.type === 'WARNING' ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20' :
-                            'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                          }`}>
-                            <p className="font-semibold text-sm">{rec.title}</p>
-                            <p className="text-sm text-muted-foreground">{rec.description}</p>
-                            <p className="text-sm font-medium mt-1">💡 {rec.action}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                )}
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("Yetkazish Sanasi")}</label>
+                    <input
+                      type="date"
+                      value={form.requestedDate}
+                      onChange={(e) => setForm({ ...form, requestedDate: e.target.value })}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full h-16 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-black transition-all outline-none"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("Prioritet")}</label>
+                    <select
+                      value={form.priority}
+                      onChange={(e) => setForm({ ...form, priority: e.target.value })}
+                      className="w-full h-16 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-black text-sm appearance-none outline-none"
+                    >
+                      {Object.entries(priorityConfig).map(([key, config]) => (
+                        <option key={key} value={key}>{config.label}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              )}
 
-              {/* Actions */}
-              <div className="border-t-2 border-primary/20 pt-4 sticky bottom-0 bg-background/95 backdrop-blur-sm">
-                <h3 className="font-semibold mb-3 text-sm sm:text-base">Status O'zgartirish</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("Izoh")}</label>
+                  <textarea
+                    value={form.notes}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                    className="w-full p-8 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-[2.5rem] font-bold text-sm min-h-[120px] transition-all outline-none resize-none"
+                    placeholder={t("Buyurtma haqida qo'shimcha ma'lumot...")}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4 pt-10 border-t border-gray-50 dark:border-gray-800">
+                <button
+                  type="button"
+                  onClick={closeForm}
+                  className="flex-1 h-16 rounded-[2rem] border-2 border-gray-100 dark:border-gray-800 font-black text-xs tracking-[0.2em] text-gray-400 hover:bg-gray-50 transition-all active:scale-95"
+                >
+                  {t("BEKOR QILISH")}
+                </button>
+                <button
+                  type="submit"
+                  className="flex-[2] h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] font-black text-xs tracking-[0.2em] shadow-2xl shadow-blue-500/30 transition-all active:scale-95 flex items-center justify-center gap-3"
+                >
+                  <Brain className="w-5 h-5" />
+                  {t("BUYURTMANI TASDIQLASH")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Modal - Premium */}
+      {showDetail && selectedOrder && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xl flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-gray-900 w-full max-w-4xl rounded-[3.5rem] overflow-hidden shadow-2xl border border-white/20 animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
+            <div className="p-10 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center bg-gray-50/30 dark:bg-gray-800/30 shrink-0">
+              <div className="flex items-center gap-6">
+                <div className="w-16 h-16 bg-blue-600 text-white rounded-[1.5rem] flex items-center justify-center font-black text-xl shadow-xl shadow-blue-500/20">
+                  #{selectedOrder.orderNumber.split('-').pop()}
+                </div>
+                <div>
+                  <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">{t("Buyurtma Tafsilotlari")}</h3>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">ID: {selectedOrder.id}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowDetail(false)} className="w-12 h-12 flex items-center justify-center rounded-full bg-white dark:bg-gray-800 text-gray-400 hover:text-rose-500 shadow-sm transition-colors">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-10 sm:p-16 overflow-y-auto custom-scrollbar space-y-12">
+              {/* Order Info Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[
+                  { label: t("MIJOZ"), value: selectedOrder.customer?.name, icon: User, color: 'blue' },
+                  { label: t("STATUS"), value: statusConfig[selectedOrder.status as keyof typeof statusConfig].label, icon: Activity, color: statusConfig[selectedOrder.status as keyof typeof statusConfig].color },
+                  { label: t("SANA"), value: formatDate(selectedOrder.requestedDate), icon: Calendar, color: 'orange' },
+                  { label: t("SUMMA"), value: `$${selectedOrder.totalAmount?.toFixed(2)}`, icon: DollarSign, color: 'emerald' }
+                ].map((item, i) => (
+                  <div key={i} className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800">
+                    <div className={`w-10 h-10 bg-${item.color}-50 dark:bg-${item.color}-900/20 rounded-xl flex items-center justify-center text-${item.color}-600 mb-4`}>
+                      <item.icon className="w-5 h-5" />
+                    </div>
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">{item.label}</p>
+                    <p className="text-sm font-black text-gray-900 dark:text-white uppercase truncate">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Products Table */}
+              <div className="space-y-6">
+                <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-3">
+                  <Package className="w-6 h-6 text-blue-600" />
+                  {t("MAHSULOTLAR RO'YXATI")}
+                </h4>
+                <div className="bg-gray-50/50 dark:bg-gray-800/30 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 overflow-hidden">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-gray-100/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700">
+                        <th className="text-left py-5 px-8 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t("MAHSULOT")}</th>
+                        <th className="text-center py-5 px-8 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t("MIQDOR")}</th>
+                        <th className="text-right py-5 px-8 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t("SUBTOTAL")}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                      {selectedOrder.items?.map((item: any, idx: number) => (
+                        <tr key={idx} className="group hover:bg-white dark:hover:bg-gray-800/50 transition-colors">
+                          <td className="py-5 px-8">
+                            <p className="font-black text-gray-900 dark:text-white uppercase tracking-tight">{item.product?.name || t("MAHSULOT")}</p>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase">{item.product?.bagType || '-'}</p>
+                          </td>
+                          <td className="py-5 px-8 text-center">
+                            <div className="inline-flex items-center gap-3 px-4 py-2 bg-white dark:bg-gray-900 rounded-xl shadow-sm">
+                              <span className="text-xs font-black text-blue-600">{item.quantityBags} {t("QOP")}</span>
+                              <div className="w-1 h-1 bg-gray-200 rounded-full"></div>
+                              <span className="text-xs font-black text-purple-600">{item.quantityUnits} {t("DONA")}</span>
+                            </div>
+                          </td>
+                          <td className="py-5 px-8 text-right font-black text-emerald-600 tracking-tighter">
+                            ${item.subtotal?.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Status Actions Section */}
+              <div className="pt-10 border-t border-gray-50 dark:border-gray-800">
+                <h4 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6 text-center">{t("AMALLAR")}</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {selectedOrder.status === 'CONFIRMED' && (
                     <>
-                      <Button 
-                        onClick={() => {
-                          changeStatus(selectedOrder.id, 'IN_PRODUCTION');
-                          setShowDetail(false);
-                        }} 
-                        className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800"
+                      <button 
+                        onClick={() => { changeStatus(selectedOrder.id, 'IN_PRODUCTION'); setShowDetail(false); }}
+                        className="h-16 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-black text-[10px] tracking-widest shadow-xl shadow-purple-500/20 transition-all active:scale-95 flex items-center justify-center gap-3"
                       >
-                        <Package className="w-4 h-4 mr-2" />
-                        Ishlab Chiqarishni Boshlash
-                      </Button>
-                      <Button 
-                        onClick={() => {
-                          changeStatus(selectedOrder.id, 'CANCELLED');
-                          setShowDetail(false);
-                        }} 
-                        variant="destructive"
-                        className="w-full"
+                        <Package className="w-5 h-5" />
+                        {t("ISHLAB CHIQARISHNI BOSHLASH")}
+                      </button>
+                      <button 
+                        onClick={() => { changeStatus(selectedOrder.id, 'CANCELLED'); setShowDetail(false); }}
+                        className="h-16 bg-rose-50 dark:bg-rose-900/20 text-rose-600 rounded-2xl font-black text-[10px] tracking-widest transition-all hover:bg-rose-600 hover:text-white active:scale-95"
                       >
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Bekor Qilish
-                      </Button>
+                        {t("BUYURTMANI BEKOR QILISH")}
+                      </button>
                     </>
                   )}
                   {selectedOrder.status === 'IN_PRODUCTION' && (
                     <>
-                      <Button 
-                        onClick={() => {
-                          changeStatus(selectedOrder.id, 'READY');
-                          setShowDetail(false);
-                        }} 
-                        className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+                      <button 
+                        onClick={() => { changeStatus(selectedOrder.id, 'READY'); setShowDetail(false); }}
+                        className="h-16 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-[10px] tracking-widest shadow-xl shadow-emerald-500/20 transition-all active:scale-95 flex items-center justify-center gap-3"
                       >
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Tayyor Deb Belgilash
-                      </Button>
-                      <Button 
-                        onClick={() => {
-                          changeStatus(selectedOrder.id, 'CANCELLED');
-                          setShowDetail(false);
-                        }} 
-                        variant="destructive"
-                        className="w-full"
+                        <CheckCircle className="w-5 h-5" />
+                        {t("TAYYOR DEB BELGILASH")}
+                      </button>
+                      <button 
+                        onClick={() => { changeStatus(selectedOrder.id, 'CANCELLED'); setShowDetail(false); }}
+                        className="h-16 bg-rose-50 dark:bg-rose-900/20 text-rose-600 rounded-2xl font-black text-[10px] tracking-widest transition-all hover:bg-rose-600 hover:text-white active:scale-95"
                       >
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Bekor Qilish
-                      </Button>
+                        {t("BUYURTMANI BEKOR QILISH")}
+                      </button>
                     </>
                   )}
                   {selectedOrder.status === 'READY' && (
                     <>
-                      <Button 
-                        onClick={() => {
-                          setShowDetail(false);
-                          openPaymentModal(selectedOrder);
-                        }} 
-                        className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+                      <button 
+                        onClick={() => { setShowDetail(false); openPaymentModal(selectedOrder); }}
+                        className="h-16 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-[10px] tracking-widest shadow-xl shadow-emerald-500/20 transition-all active:scale-95 flex items-center justify-center gap-3"
                       >
-                        <DollarSign className="w-4 h-4 mr-2" />
-                        Sotish va To'lov Qabul Qilish
-                      </Button>
-                      <Button 
-                        onClick={() => {
-                          changeStatus(selectedOrder.id, 'CANCELLED');
-                          setShowDetail(false);
-                        }} 
-                        variant="destructive"
-                        className="w-full"
+                        <DollarSign className="w-5 h-5" />
+                        {t("SOTUV VA TO'LOV QABUL QILISH")}
+                      </button>
+                      <button 
+                        onClick={() => { changeStatus(selectedOrder.id, 'CANCELLED'); setShowDetail(false); }}
+                        className="h-16 bg-rose-50 dark:bg-rose-900/20 text-rose-600 rounded-2xl font-black text-[10px] tracking-widest transition-all hover:bg-rose-600 hover:text-white active:scale-95"
                       >
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Bekor Qilish
-                      </Button>
+                        {t("BUYURTMANI BEKOR QILISH")}
+                      </button>
                     </>
                   )}
                   {selectedOrder.status === 'SOLD' && (
-                    <div className="col-span-2 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                      <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                      <p className="font-semibold text-green-700 dark:text-green-300 text-center mb-2">
-                        Buyurtma sotildi!
-                      </p>
-                      <div className="text-sm space-y-1">
-                        <p>💰 To'langan: <span className="font-bold">${selectedOrder.paidAmount?.toFixed(2)}</span></p>
-                        {selectedOrder.totalAmount - selectedOrder.paidAmount > 0 && (
-                          <p className="text-red-600 dark:text-red-400">
-                            📋 Qarz: <span className="font-bold">${(selectedOrder.totalAmount - selectedOrder.paidAmount).toFixed(2)}</span>
-                          </p>
-                        )}
+                    <div className="col-span-2 bg-emerald-50 dark:bg-emerald-900/20 p-10 rounded-[2.5rem] border border-emerald-100 dark:border-emerald-800 text-center">
+                      <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center text-emerald-600 mx-auto mb-6">
+                        <CheckCircle className="w-8 h-8" />
                       </div>
-                    </div>
-                  )}
-                  {selectedOrder.status === 'DELIVERED' && (
-                    <div className="col-span-2 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg text-center">
-                      <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                      <p className="font-semibold text-green-700 dark:text-green-300">
-                        Buyurtma muvaffaqiyatli yetkazildi!
-                      </p>
-                    </div>
-                  )}
-                  {selectedOrder.status === 'CANCELLED' && (
-                    <div className="col-span-2 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg text-center">
-                      <XCircle className="w-8 h-8 text-red-600 mx-auto mb-2" />
-                      <p className="font-semibold text-red-700 dark:text-red-300">
-                        Buyurtma bekor qilingan
+                      <h5 className="text-xl font-black text-emerald-900 dark:text-emerald-100 uppercase tracking-tight mb-2">{t("BUYURTMA SOTILDI")}</h5>
+                      <p className="text-sm font-bold text-emerald-600/70 uppercase tracking-widest">
+                        {t("TO'LANGAN")}: ${selectedOrder.paidAmount?.toFixed(2)}
                       </p>
                     </div>
                   )}
                 </div>
               </div>
-            </CardContent>
             </div>
-          </Card>
           </div>
         </div>
       )}
 
-      {/* To'lov Modali */}
+      {/* To'lov Modali - Premium */}
       {showPaymentModal && selectedOrder && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 animate-in fade-in duration-200"
-          onClick={() => setShowPaymentModal(false)}
-        >
-          <div onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-            <Card className="max-w-2xl w-full shadow-2xl animate-in slide-in-from-bottom-4 duration-300">
-              <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 border-b-2 border-green-200">
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
-                      <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
-                      To'lov Qabul Qilish
-                    </CardTitle>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                      Buyurtma #{selectedOrder.orderNumber}
-                    </p>
-                  </div>
-                  <Button 
-                    onClick={() => setShowPaymentModal(false)} 
-                    variant="outline" 
-                    size="sm"
-                    className="flex-shrink-0"
-                  >
-                    <XCircle className="w-4 h-4" />
-                  </Button>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xl flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-gray-900 w-full max-w-2xl rounded-[3.5rem] overflow-hidden shadow-2xl border border-white/20 animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
+            <div className="p-10 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center bg-emerald-50/30 dark:bg-emerald-900/10 shrink-0">
+              <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-4">
+                <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center text-emerald-600">
+                  <DollarSign className="w-6 h-6" />
                 </div>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6 space-y-4">
-                {/* Jami summa */}
-                <div className="p-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 rounded-lg border-2 border-blue-200">
-                  <p className="text-sm text-muted-foreground mb-1">Jami Summa</p>
-                  <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                    ${selectedOrder.totalAmount?.toFixed(2)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                {t("SOTUV VA")} <span className="text-emerald-600">{t("TO'LOV")}</span>
+              </h3>
+              <button onClick={() => setShowPaymentModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400">
+                <MoreHorizontal className="w-5 h-5 rotate-45" />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => { e.preventDefault(); handleSellOrder(); }} className="p-10 sm:p-16 overflow-y-auto custom-scrollbar space-y-10">
+              {/* Order Summary Card */}
+              <div className="relative overflow-hidden bg-gradient-to-br from-emerald-600 to-blue-700 rounded-[2.5rem] p-10 text-white shadow-xl">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+                <div className="relative z-10 space-y-2">
+                  <p className="text-[10px] font-black text-emerald-100 uppercase tracking-[0.3em]">{t("JAMI TO'LOV SUMMASI")}</p>
+                  <h4 className="text-5xl font-black tracking-tighter leading-none">${selectedOrder.totalAmount?.toFixed(2)}</h4>
+                  <p className="text-xs font-bold text-emerald-100/70 uppercase tracking-widest mt-4">
                     ≈ {(selectedOrder.totalAmount * exchangeRates.USD_TO_UZS).toLocaleString()} UZS
                   </p>
                 </div>
+              </div>
 
-                {/* To'lov inputlari */}
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-sm">To'lov Turlari</h3>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium mb-1">💵 UZS (so'm)</label>
-                      <Input
-                        type="number"
-                        value={paymentForm.uzs}
-                        onChange={(e) => setPaymentForm({ ...paymentForm, uzs: parseFloat(e.target.value) || 0 })}
-                        min="0"
-                        step="1000"
-                        className="text-right"
-                      />
-                      {paymentForm.uzs > 0 && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          ≈ ${(paymentForm.uzs / exchangeRates.USD_TO_UZS).toFixed(2)} USD
-                        </p>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <label className="block text-xs font-medium mb-1">💵 USD (dollar)</label>
-                      <Input
-                        type="number"
-                        value={paymentForm.usd}
-                        onChange={(e) => setPaymentForm({ ...paymentForm, usd: parseFloat(e.target.value) || 0 })}
-                        min="0"
-                        step="0.01"
-                        className="text-right"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-xs font-medium mb-1">💳 Click</label>
-                      <Input
-                        type="number"
-                        value={paymentForm.click}
-                        onChange={(e) => setPaymentForm({ ...paymentForm, click: parseFloat(e.target.value) || 0 })}
-                        min="0"
-                        step="1000"
-                        className="text-right"
-                      />
-                      {paymentForm.click > 0 && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          ≈ ${(paymentForm.click / exchangeRates.USD_TO_UZS).toFixed(2)} USD
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Jami to'lov */}
-                  <div className="p-3 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 rounded-lg border border-green-200">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium">Jami To'lov:</span>
-                      <div className="text-right">
-                        <span className="text-xl font-bold text-green-600 dark:text-green-400">
-                          ${totalPaymentUSD.toFixed(2)}
-                        </span>
-                        <p className="text-xs text-muted-foreground">
-                          ≈ {(totalPaymentUSD * exchangeRates.USD_TO_UZS).toLocaleString()} UZS
-                        </p>
+              {/* Payment Grid */}
+              <div className="space-y-6">
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("TO'LOV TURLARI")}</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center text-emerald-600">
+                        <Banknote className="w-4 h-4" />
                       </div>
+                      <span className="text-[10px] font-black uppercase tracking-widest">UZS</span>
                     </div>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={paymentForm.uzs || ''}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(',', '.');
+                        if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                        setPaymentForm({ ...paymentForm, uzs: raw === '' ? 0 : parseFloat(raw) });
+                      }}
+                      className="w-full bg-transparent font-black text-xl text-gray-900 dark:text-white outline-none"
+                      placeholder="0"
+                    />
                   </div>
 
-                  {/* Qarz */}
-                  {(selectedOrder.totalAmount - totalPaymentUSD) > 0 && (
-                    <div className="p-3 bg-gradient-to-r from-red-50 to-red-100 dark:from-red-950 dark:to-red-900 rounded-lg border border-red-200">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-red-700 dark:text-red-300">Qarz:</span>
-                        <div className="text-right">
-                          <span className="text-xl font-bold text-red-600 dark:text-red-400">
-                            ${(selectedOrder.totalAmount - totalPaymentUSD).toFixed(2)}
-                          </span>
-                          <p className="text-xs text-muted-foreground">
-                            ≈ {((selectedOrder.totalAmount - totalPaymentUSD) * exchangeRates.USD_TO_UZS).toLocaleString()} UZS
-                          </p>
-                        </div>
+                  <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center text-blue-600">
+                        <DollarSign className="w-4 h-4" />
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-widest">USD</span>
+                    </div>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={paymentForm.usd || ''}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(',', '.');
+                        if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                        setPaymentForm({ ...paymentForm, usd: raw === '' ? 0 : parseFloat(raw) });
+                      }}
+                      className="w-full bg-transparent font-black text-xl text-gray-900 dark:text-white outline-none"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center text-purple-600">
+                        <Smartphone className="w-4 h-4" />
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-widest">CLICK</span>
+                    </div>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={paymentForm.click || ''}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(',', '.');
+                        if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                        setPaymentForm({ ...paymentForm, click: raw === '' ? 0 : parseFloat(raw) });
+                      }}
+                      className="w-full bg-transparent font-black text-xl text-gray-900 dark:text-white outline-none"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Debt Section */}
+              {(selectedOrder.totalAmount - totalPaymentUSD) > 0.01 && (
+                <div className="bg-rose-50 dark:bg-rose-900/20 p-8 rounded-[2.5rem] border border-rose-100 dark:border-rose-800 space-y-6">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-rose-100 dark:bg-rose-900/30 rounded-xl flex items-center justify-center text-rose-600">
+                        <AlertTriangle className="w-5 h-5" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium mb-1 text-red-700 dark:text-red-300">
-                          📅 To'lov Sanasi (Qarz Muddati)
-                        </label>
-                        <Input
-                          type="date"
-                          value={paymentForm.dueDate}
-                          onChange={(e) => setPaymentForm({ ...paymentForm, dueDate: e.target.value })}
-                          min={new Date().toISOString().split('T')[0]}
-                        />
+                        <h5 className="text-[10px] font-black text-rose-600 uppercase tracking-widest">{t("QOLDIQ QARZ")}</h5>
+                        <p className="text-2xl font-black text-rose-900 dark:text-rose-100 tracking-tighter">${(selectedOrder.totalAmount - totalPaymentUSD).toFixed(2)}</p>
                       </div>
                     </div>
-                  )}
-
-                  {/* Validation warning */}
-                  {totalPaymentUSD === 0 && !paymentForm.dueDate && (
-                    <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200">
-                      <p className="text-sm text-yellow-600 dark:text-yellow-300">
-                        ⚠️ Iltimos, to'lov summasini yoki qarz muddatini kiriting
-                      </p>
-                    </div>
-                  )}
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("QARZNI QAYTARISH MUDDATI")}</label>
+                    <input
+                      type="date"
+                      value={paymentForm.dueDate}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, dueDate: e.target.value })}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full h-14 px-6 bg-white dark:bg-gray-900 border-2 border-transparent focus:border-rose-500 rounded-xl font-black transition-all outline-none"
+                    />
+                  </div>
                 </div>
+              )}
 
-                {/* Mijoz ma'lumotlari */}
-                <div className="p-3 bg-muted rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">Mijoz</p>
-                  <p className="font-semibold">{selectedOrder.customer?.name}</p>
-                  <p className="text-sm text-muted-foreground">{selectedOrder.customer?.phone}</p>
-                  {selectedOrder.customer?.telegramChatId && (
-                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                      ✅ Telegram orqali chek yuboriladi
-                    </p>
-                  )}
-                </div>
-
-                {/* Tugmalar */}
-                <div className="flex gap-2 pt-4 border-t">
-                  <Button 
-                    onClick={handleSellOrder}
-                    className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
-                  >
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Sotish va Saqlash
-                  </Button>
-                  <Button 
-                    onClick={() => openDriverPaymentModal(selectedOrder)}
-                    variant="outline"
-                    className="flex-1"
-                  >
-                    <DollarSign className="w-4 h-4 mr-2" />
-                    Haydovchi to'lovi
-                  </Button>
-                  <Button 
-                    onClick={() => setShowPaymentModal(false)}
-                    variant="outline"
-                  >
-                    Bekor qilish
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 pt-10 border-t border-gray-50 dark:border-gray-800">
+                <button
+                  type="button"
+                  onClick={() => openDriverPaymentModal(selectedOrder)}
+                  className="flex-1 h-16 rounded-[2rem] border-2 border-blue-100 dark:border-blue-800 font-black text-[10px] tracking-[0.2em] text-blue-600 hover:bg-blue-50 transition-all active:scale-95 flex items-center justify-center gap-3"
+                >
+                  <Truck className="w-4 h-4" />
+                  {t("HAYDOVCHI TO'LOVI")}
+                </button>
+                <button
+                  type="submit"
+                  className="flex-[2] h-16 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[2rem] font-black text-[10px] tracking-[0.2em] shadow-2xl shadow-emerald-500/30 transition-all active:scale-95 flex items-center justify-center gap-3"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  {t("SOTUVNI YAKUNLASH")}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
-      {/* Haydovchi To'lov Modali */}
+      {/* Driver Payment Modal - Premium */}
       {showDriverPaymentModal && selectedOrder && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 animate-in fade-in duration-200"
-          onClick={() => setShowDriverPaymentModal(false)}
-        >
-          <div onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-            <Card className="max-w-2xl w-full shadow-2xl animate-in slide-in-from-bottom-4 duration-300">
-              <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border-b-2 border-blue-200">
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
-                      <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
-                      Haydovchi To'lovini Qabul Qilish
-                    </CardTitle>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                      Buyurtma #{selectedOrder.orderNumber}
-                    </p>
-                  </div>
-                  <Button 
-                    onClick={() => setShowDriverPaymentModal(false)} 
-                    variant="outline" 
-                    size="sm"
-                    className="flex-shrink-0"
-                  >
-                    <XCircle className="w-4 h-4" />
-                  </Button>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xl flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-gray-900 w-full max-w-2xl rounded-[3.5rem] overflow-hidden shadow-2xl border border-white/20 animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
+            <div className="p-10 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center bg-blue-50/30 dark:bg-blue-900/10 shrink-0">
+              <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600">
+                  <Truck className="w-6 h-6" />
                 </div>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6 space-y-4">
-                {/* Buyurtma ma'lumotlari */}
-                <div className="p-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 rounded-lg border-2 border-blue-200">
-                  <p className="text-sm text-muted-foreground mb-1">Buyurtma Summasi</p>
-                  <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                    ${selectedOrder.totalAmount?.toFixed(2)}
-                  </p>
-                  {selectedOrder.paidAmount > 0 && (
-                    <p className="text-sm text-green-600 dark:text-green-400 mt-2">
-                      ✅ Avval to'langan: ${selectedOrder.paidAmount?.toFixed(2)}
-                    </p>
-                  )}
-                </div>
+                {t("HAYDOVCHI")} <span className="text-blue-600">{t("TO'LOVI")}</span>
+              </h3>
+              <button onClick={() => setShowDriverPaymentModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400">
+                <MoreHorizontal className="w-5 h-5 rotate-45" />
+              </button>
+            </div>
 
-                {/* Haydovchi tanlash */}
+            <form onSubmit={(e) => { e.preventDefault(); handleDriverPayment(); }} className="p-10 sm:p-16 overflow-y-auto custom-scrollbar space-y-10">
+              <div className="bg-gray-50 dark:bg-gray-800/50 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 space-y-8">
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-sm">Haydovchini Tanlang</h3>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("HAYDOVCHINI TANLANG")}</label>
                   <select
                     value={driverPaymentForm.driverId}
                     onChange={(e) => setDriverPaymentForm({ ...driverPaymentForm, driverId: e.target.value })}
-                    className="w-full p-2 border rounded-lg"
+                    className="w-full h-16 px-6 bg-white dark:bg-gray-900 border-2 border-transparent focus:border-blue-500 rounded-2xl font-black text-sm appearance-none outline-none transition-all shadow-sm"
                   >
-                    <option value="">Haydovchini tanlang...</option>
+                    <option value="">{t("Haydovchini tanlang...")}</option>
                     {drivers.filter(d => d.active).map(driver => (
                       <option key={driver.id} value={driver.id}>
-                        {driver.name} - {driver.vehicleNumber} - ⭐ {driver.rating}/5.0
+                        {driver.name} - {driver.vehicleNumber}
                       </option>
                     ))}
                   </select>
                 </div>
 
-                {/* To'lov usuli */}
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-sm">To'lov Usuli</h3>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setDriverPaymentForm({ ...driverPaymentForm, paymentMethod: 'CASH' })}
-                      className={`p-3 rounded-lg border-2 text-center transition-colors ${
-                        driverPaymentForm.paymentMethod === 'CASH'
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      💵 Naqd
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDriverPaymentForm({ ...driverPaymentForm, paymentMethod: 'TRANSFER' })}
-                      className={`p-3 rounded-lg border-2 text-center transition-colors ${
-                        driverPaymentForm.paymentMethod === 'TRANSFER'
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      🏦 Bank
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDriverPaymentForm({ ...driverPaymentForm, paymentMethod: 'CLICK' })}
-                      className={`p-3 rounded-lg border-2 text-center transition-colors ${
-                        driverPaymentForm.paymentMethod === 'CLICK'
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      💳 Click
-                    </button>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("TO'LOV USULI")}</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { id: 'CASH', label: t('NAQD'), icon: Banknote, color: 'emerald' },
+                      { id: 'TRANSFER', label: t('BANK'), icon: Landmark, color: 'blue' },
+                      { id: 'CLICK', label: t('CLICK'), icon: Smartphone, color: 'purple' }
+                    ].map((method) => (
+                      <button
+                        key={method.id}
+                        type="button"
+                        onClick={() => setDriverPaymentForm({ ...driverPaymentForm, paymentMethod: method.id })}
+                        className={`flex flex-col items-center justify-center gap-3 p-6 rounded-[2rem] border-2 transition-all ${
+                          driverPaymentForm.paymentMethod === method.id 
+                            ? `border-${method.color}-500 bg-${method.color}-50 dark:bg-${method.color}-900/20 shadow-lg shadow-${method.color}-500/10` 
+                            : 'border-white dark:border-gray-900 hover:border-gray-100'
+                        }`}
+                      >
+                        <method.icon className={`w-6 h-6 ${driverPaymentForm.paymentMethod === method.id ? `text-${method.color}-600` : 'text-gray-400'}`} />
+                        <span className={`text-[9px] font-black uppercase tracking-widest ${driverPaymentForm.paymentMethod === method.id ? `text-${method.color}-700` : 'text-gray-400'}`}>
+                          {method.label}
+                        </span>
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                {/* To'lov summasi */}
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-sm">To'lov Summasi</h3>
-                  <Input
-                    type="number"
-                    value={driverPaymentForm.amount}
-                    onChange={(e) => setDriverPaymentForm({ ...driverPaymentForm, amount: parseFloat(e.target.value) || 0 })}
-                    min="0"
-                    step="0.01"
-                    placeholder="To'lov summasini kiriting..."
-                    className="text-right text-lg"
-                  />
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("TO'LOV SUMMASI (USD)")}</label>
+                  <div className="relative group">
+                    <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400 group-focus-within:text-blue-600 transition-colors" />
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={driverPaymentForm.amount || ''}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(',', '.');
+                        if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                        setDriverPaymentForm({ ...driverPaymentForm, amount: raw === '' ? 0 : parseFloat(raw) });
+                      }}
+                      className="w-full h-20 pl-16 pr-8 bg-white dark:bg-gray-900 border-2 border-transparent focus:border-blue-500 rounded-[1.5rem] font-black text-3xl transition-all outline-none shadow-sm text-blue-600"
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
 
-                {/* Izoh */}
                 <div className="space-y-3">
-                  <h3 className="font-semibold text-sm">Izoh</h3>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("IZOH")}</label>
                   <textarea
                     value={driverPaymentForm.notes}
                     onChange={(e) => setDriverPaymentForm({ ...driverPaymentForm, notes: e.target.value })}
-                    placeholder="Qo'shimcha izoh..."
-                    className="w-full p-2 border rounded-lg resize-none"
-                    rows={3}
+                    className="w-full p-8 bg-white dark:bg-gray-900 border-2 border-transparent focus:border-blue-500 rounded-[2.5rem] font-bold text-sm min-h-[100px] transition-all outline-none resize-none shadow-sm"
+                    placeholder={t("Haydovchi to'lovi haqida...")}
                   />
                 </div>
+              </div>
 
-                {/* Mijoz ma'lumotlari */}
-                <div className="p-3 bg-muted rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">Mijoz</p>
-                  <p className="font-semibold">{selectedOrder.customer?.name}</p>
-                  <p className="text-sm text-muted-foreground">{selectedOrder.customer?.phone}</p>
-                </div>
-
-                {/* Tugmalar */}
-                <div className="flex gap-2 pt-4 border-t">
-                  <Button 
-                    onClick={handleDriverPayment}
-                    className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
-                  >
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    To'lovni Qabul Qilish
-                  </Button>
-                  <div>
-                    <Button 
-                      onClick={() => setShowDriverPaymentModal(false)}
-                      variant="outline"
-                    >
-                      Bekor qilish
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              <div className="flex flex-col sm:flex-row gap-4 pt-10 border-t border-gray-50 dark:border-gray-800">
+                <button
+                  type="button"
+                  onClick={() => setShowDriverPaymentModal(false)}
+                  className="flex-1 h-16 rounded-[2rem] border-2 border-gray-100 dark:border-gray-800 font-black text-xs tracking-[0.2em] text-gray-400 hover:bg-gray-50 transition-all active:scale-95"
+                >
+                  {t("BEKOR QILISH")}
+                </button>
+                <button
+                  type="submit"
+                  className="flex-[2] h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] font-black text-xs tracking-[0.2em] shadow-2xl shadow-blue-500/30 transition-all active:scale-95 flex items-center justify-center gap-3"
+                >
+                  <CheckCircle className="w-5 h-5" />
+                  {t("TO'LOVNI TASDIQLASH")}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

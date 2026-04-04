@@ -2,7 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import authRoutes from './routes/auth';
 import productRoutes from './routes/products';
+import variantRoutes from './routes/variants';
+import productVariantsRoutes from './routes/product-variants';
 import rawMaterialRoutes from './routes/raw-materials';
+import cardRoutes from './routes/cards';
+import productTypeRoutes from './routes/product-types';
+import productCategoriesRoutes from './routes/product-categories';
 import supplierRoutes from './routes/suppliers';
 import productionRoutes from './routes/production';
 import qualityCheckRoutes from './routes/quality-checks';
@@ -35,17 +40,29 @@ import botApiRoutes from './routes/bot-api';
 import statisticsRoutes from './routes/statistics';
 import exportRoutes from './routes/export';
 import printRoutes from './routes/print';
+import bagLabelRoutes from './routes/bag-labels';
+import businessAIRoutes from './routes/business-ai';
 import { botManager } from './bot/bot-manager';
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/variants', variantRoutes);
+app.use('/api/product-variants', productVariantsRoutes);
 app.use('/api/raw-materials', rawMaterialRoutes);
+app.use('/api/cards', cardRoutes);
+app.use('/api/product-types', productTypeRoutes);
+app.use('/api/product-categories', productCategoriesRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/production', productionRoutes);
 app.use('/api/quality-checks', qualityCheckRoutes);
@@ -70,6 +87,7 @@ app.use('/api/mega-ai', megaAIRoutes);
 app.use('/api/logistics', logisticsRoutes);
 app.use('/api/super-manager', superManagerRoutes);
 app.use('/api/cashbox-ai', cashboxAIRoutes);
+app.use('/api/business-ai', businessAIRoutes);
 
 // Public routes (autentifikatsiya kerak emas)
 app.use('/api/public', publicOrdersRoutes);
@@ -82,6 +100,7 @@ app.use('/api/customer-chats', customerChatsRoutes);
 app.use('/api/statistics', statisticsRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/print', printRoutes);
+app.use('/api/bag-labels', bagLabelRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -96,7 +115,6 @@ app.listen(PORT, async () => {
 ║  📊 API:    http://localhost:${PORT}/api              ║
 ║  🔐 Health: http://localhost:${PORT}/api/health       ║
 ║  💻 Frontend: http://localhost:3000                   ║
-║  🤖 Bots:   http://localhost:${PORT}/api/bots         ║
 ║                                                       ║
 ║  📧 Login: admin@aziztrades.com                      ║
 ║  🔑 Password: admin123                               ║
@@ -107,12 +125,12 @@ app.listen(PORT, async () => {
 ║  🛡️  Quality Control                                 ║
 ║  ✅ Task Management                                  ║
 ║  💰 Advanced Financial Control                      ║
-║  🤖 Multi-Bot System                                ║
+║  🤖 Multi-Bot System (Disabled)                     ║
 ║                                                       ║
 ╚═══════════════════════════════════════════════════════╝
   `);
   
-  // Bot manager'ni ishga tushirish
-  console.log('🤖 Bot Manager ishga tushirilmoqda...');
-  await botManager.initAllBots();
+  // Bot manager'ni ishga tushirish (vaqtinchalik o'chirildi)
+  // console.log('🤖 Bot Manager ishga tushirilmoqda...');
+  // await botManager.initAllBots();
 });

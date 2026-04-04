@@ -10,19 +10,19 @@ interface BadgeProps {
 
 export function Badge({ children, variant = 'default', color, className }: BadgeProps) {
   const variants = {
-    default: 'bg-secondary text-secondary-foreground',
-    success: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
-    warning: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20',
-    danger: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
-    info: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+    default: 'bg-secondary text-secondary-foreground border-border',
+    success: 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20',
+    warning: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20',
+    danger: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
+    info: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
   };
 
   const colorVariants = {
-    green: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
-    yellow: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20',
-    red: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
-    gray: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20',
-    blue: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+    green: 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20',
+    yellow: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20',
+    red: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
+    gray: 'bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20',
+    blue: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
   };
 
   const selectedVariant = color ? colorVariants[color] : variants[variant];
@@ -30,9 +30,9 @@ export function Badge({ children, variant = 'default', color, className }: Badge
   return (
     <span
       className={cn(
-        'inline-flex items-center px-2 sm:px-2.5 py-0.5 sm:py-1',
-        'rounded-full text-xs font-medium border',
-        'whitespace-nowrap',
+        'inline-flex items-center px-2.5 py-1',
+        'rounded-lg text-[10px] sm:text-xs font-black border uppercase tracking-wider',
+        'whitespace-nowrap transition-all duration-300',
         selectedVariant,
         className
       )}

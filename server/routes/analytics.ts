@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { authenticate } from '../middleware/auth';
+import { authenticate, authorizeAnalytics } from '../middleware/auth';
 import {
   calculateAdvancedMetrics,
   detectAnomalies,
@@ -15,6 +15,7 @@ const router = Router();
 const prisma = new PrismaClient();
 
 router.use(authenticate);
+router.use(authorizeAnalytics);
 
 // Advanced AI Insights - Kuchaytirilgan tahlil endpoint
 router.get('/ai-insights', async (req, res) => {

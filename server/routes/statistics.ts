@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { authenticate } from '../middleware/auth';
+import { authenticate, authorizeAnalytics } from '../middleware/auth';
 import { calculateAllMetrics } from '../utils/business-metrics';
 
 const router = Router();
 const prisma = new PrismaClient();
 
 router.use(authenticate);
+router.use(authorizeAnalytics);
 
 // Keng qamrovli statistika
 router.get('/comprehensive', async (req, res) => {

@@ -1,35 +1,48 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
 import Button from '../components/Button';
+import Input from '../components/Input';
 import { 
   Plus, 
   Trash2, 
   Calculator,
-  Zap,
   DollarSign,
-  Printer
+  Printer,
+  ShoppingCart,
+  X,
+  RotateCcw,
+  Sparkles,
+  FileText,
+  User,
+  Clock,
+  Package
 } from 'lucide-react';
 import CustomerSelector from '../components/CustomerSelector';
-import ProductSelector from '../components/ProductSelector';
 import api from '../lib/api';
 import { latinToCyrillic } from '../lib/transliterator';
 import SalesHistory from '../components/SalesHistory';
 import { formatDateTime } from '../lib/dateUtils';
-import { printReceipt, prepareSaleReceipt } from '../lib/receiptPrinter';
+import { generateSimpleReceiptHTML, generateDeliveryReceiptHTML } from '../lib/simpleReceiptPrinter';
 
 export default function Sales() {
   console.log('🏪 Sales component rendering...');
+  const navigate = useNavigate();
   
   const [sales, setSales] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [exchangeRate, setExchangeRate] = useState('12500');
   const [exchangeRates, setExchangeRates] = useState({ USD_TO_UZS: 12500, EUR_TO_UZS: 13500 });
   const [activeTab, setActiveTab] = useState<'sales' | 'history'>('sales');
   
   // Qidiruv
   const [customerSearch, setCustomerSearch] = useState('');
-  const [productSearch, setProductSearch] = useState('');
+  
+  // Product type grouping
+  const [expandedProductGroups, setExpandedProductGroups] = useState<string[]>([]);
+  const [activeProductCategory, setActiveProductCategory] = useState<'all' | 'preform' | 'krishka' | 'ruchka' | 'other'>('all');
   
   // Form uchun
   const [form, setForm] = useState<{
@@ -39,6 +52,8 @@ export default function Sales() {
     paidUZS: string;
     paidUSD: string;
     paidCLICK: string;
+    paymentType: string;
+    currency: string;
   }>({
     customerId: '',
     customerName: '',
@@ -46,6 +61,8 @@ export default function Sales() {
     paidUZS: '',
     paidUSD: '',
     paidCLICK: '',
+    paymentType: 'cash',
+    currency: 'USD',
   });
 
   // Yangi mahsulot qo'shish uchun
@@ -59,6 +76,30 @@ export default function Sales() {
   // Debug: showForm state'ini kuzatish
   console.log('📝 Current showForm state:', showForm);
   console.log('📝 Current newItem state:', newItem);
+
+  // Product grouping function
+  const groupProductsByType = (products: any[]) => {
+    const groups: { [key: string]: any[] } = {};
+    
+    products.forEach(product => {
+      const groupName = product.bagType || product.warehouse || 'Boshqa';
+      
+      if (!groups[groupName]) {
+        groups[groupName] = [];
+      }
+      groups[groupName].push(product);
+    });
+    
+    return groups;
+  };
+
+  const toggleProductGroup = (groupName: string) => {
+    setExpandedProductGroups(prev => 
+      prev.includes(groupName) 
+        ? prev.filter(g => g !== groupName)
+        : [...prev, groupName]
+    );
+  };
 
   // Tanlangan mijozni olish
   const selectedCustomer = customers.find(c => c.id === form.customerId);
@@ -122,6 +163,132 @@ export default function Sales() {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [showForm]);
 
+  // Oddiy chek chiqarish funksiyasi
+  const printSimpleReceipt = (sale: any, customer: any, user: any) => {
+    // Debug: log the sale items to see their structure
+    console.log('🖨️ Chek chiqarilmoqda...');
+    console.log('📦 Sale items:', sale?.items);
+    
+    // Map items to correct format for receipt
+    const receiptItems = (sale.items || []).map((item: any) => {
+      // Try multiple possible field names for product name
+      // Server returns: item.product?.name (from Prisma relation)
+      const productName = item?.product?.name || item?.productName || item?.name || 'Noma\'lum';
+      console.log('📝 Item:', item, '-> Product name:', productName);
+      
+      return {
+        name: productName,
+        quantity: item?.quantity || 0,
+        unit: item?.saleType === 'piece' ? 'dona' : 'qop',
+        piecesPerBag: item?.product?.unitsPerBag || item?.unitsPerBag || item?.piecesPerBag || 2000,
+        pricePerUnit: item?.pricePerBag || item?.pricePerUnit || 0,
+        subtotal: item?.subtotal || 0
+      };
+    });
+
+    const receiptData = {
+      saleId: sale.id,
+      receiptNumber: sale.receiptNumber || sale.id.slice(0, 8),
+      date: formatDateTime(sale.createdAt).split(' ')[0],
+      time: formatDateTime(sale.createdAt).split(' ')[1],
+      cashier: user.name,
+      customer: {
+        name: customer?.name || 'Noma\'lum',
+        phone: customer?.phone,
+        address: customer?.address,
+        previousBalanceUZS: customer?.debtUZS || 0,
+        previousBalanceUSD: customer?.debtUSD || 0,
+        newBalanceUZS: customer?.debtUZS || 0,
+        newBalanceUSD: customer?.debtUSD || 0
+      },
+      items: receiptItems,
+      subtotal: sale.totalAmount || 0,
+      total: sale.totalAmount || 0,
+      payments: {
+        uzs: sale.paymentDetails?.uzs || 0,
+        usd: sale.paymentDetails?.usd || 0,
+        click: sale.paymentDetails?.click || 0
+      },
+      totalPaid: sale.paidAmount || 0,
+      debt: sale.debtAmount || 0,
+      companyInfo: {
+        name: 'LUX PET PLAST',
+        address: 'Buxoro viloyati, Vobkent tumani',
+        phone: '+998 91 414 44 58, +998 91 920 07 00'
+      }
+    };
+
+    const receiptHTML = generateSimpleReceiptHTML(receiptData);
+    const printWindow = window.open('', '_blank', 'width=400,height=600');
+    if (printWindow) {
+      printWindow.document.write(receiptHTML);
+      printWindow.document.close();
+    }
+  };
+
+  // Yuk xati chiqarish funksiyasi
+  const printDeliveryReceipt = (sale: any, customer: any, user: any) => {
+    // Debug: log the sale items to see their structure
+    console.log('🖨️ Yuk xati chiqarilmoqda...');
+    console.log('📦 Sale items:', sale?.items);
+    
+    // Map items to correct format for receipt
+    const receiptItems = (sale.items || []).map((item: any) => {
+      // Try multiple possible field names for product name
+      // Server returns: item.product?.name (from Prisma relation)
+      const productName = item?.product?.name || item?.productName || item?.name || 'Noma\'lum';
+      console.log('📝 Item:', item, '-> Product name:', productName);
+      
+      return {
+        name: productName,
+        quantity: item?.quantity || 0,
+        unit: item?.saleType === 'piece' ? 'dona' : 'qop',
+        piecesPerBag: item?.product?.unitsPerBag || item?.unitsPerBag || item?.piecesPerBag || 2000,
+        pricePerUnit: item?.pricePerBag || item?.pricePerUnit || 0,
+        subtotal: item?.subtotal || 0
+      };
+    });
+
+    const receiptData = {
+      saleId: sale.id,
+      receiptNumber: sale.receiptNumber || sale.id.slice(0, 8),
+      date: formatDateTime(sale.createdAt).split(' ')[0],
+      time: formatDateTime(sale.createdAt).split(' ')[1],
+      cashier: user.name,
+      customer: {
+        name: customer?.name || 'Noma\'lum',
+        phone: customer?.phone,
+        address: customer?.address,
+        previousBalanceUZS: customer?.debtUZS || 0,
+        previousBalanceUSD: customer?.debtUSD || 0,
+        newBalanceUZS: customer?.debtUZS || 0,
+        newBalanceUSD: customer?.debtUSD || 0
+      },
+      items: receiptItems,
+      subtotal: sale.totalAmount || 0,
+      total: sale.totalAmount || 0,
+      payments: {
+        uzs: sale.paymentDetails?.uzs || 0,
+        usd: sale.paymentDetails?.usd || 0,
+        click: sale.paymentDetails?.click || 0
+      },
+      totalPaid: sale.paidAmount || 0,
+      debt: sale.debtAmount || 0,
+      companyInfo: {
+        name: 'LUX PET PLAST',
+        address: 'Buxoro viloyati, Vobkent tumani',
+        phone: '+998 91 414 44 58, +998 91 920 07 00'
+      }
+    };
+
+    const receiptHTML = generateDeliveryReceiptHTML(receiptData);
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    if (printWindow) {
+      printWindow.document.write(receiptHTML);
+      printWindow.document.close();
+    }
+  };
+
   const loadData = async () => {
     try {
       console.log('🔄 Loading data...');
@@ -157,39 +324,124 @@ export default function Sales() {
     console.log('📝 Current newItem:', newItem);
     
     if (!newItem.productId || !newItem.quantity) {
-      console.log('❌ Validation failed - productId or quantity missing');
+      alert(latinToCyrillic('Iltimos, mahsulot va miqdorni to\'ldiring!'));
       return;
     }
     
-    console.log('✅ Validation passed');
-    const subtotal = (parseFloat(newItem.quantity) || 0) * (parseFloat(newItem.pricePerBag) || 0);
-    console.log('💰 Subtotal calculated:', subtotal);
+    const selectedProduct = products.find(p => p.id === newItem.productId);
+    if (!selectedProduct) {
+      alert(latinToCyrillic('Mahsulot topilmadi!'));
+      return;
+    }
+
+    const quantity = parseFloat(newItem.quantity);
+    const pricePerBag = parseFloat(newItem.pricePerBag) || 0;
+    const subtotal = quantity * pricePerBag;
+    const unitsPerBag = selectedProduct.unitsPerBag || 2000;
     
-    setForm(prev => {
-      const updatedForm = {
-        ...prev,
-        items: [...prev.items, {
-          productId: newItem.productId,
-          productName: newItem.productName,
-          quantity: parseFloat(newItem.quantity),
-          pricePerBag: parseFloat(newItem.pricePerBag),
-          subtotal
-        }]
-      };
-      console.log('📋 Form updated with new item:', updatedForm.items);
-      return updatedForm;
-    });
+    // Asosiy mahsulotni qo'shish
+    const newItems: any[] = [{
+      productId: selectedProduct.id,
+      productName: selectedProduct.name,
+      quantity: quantity,
+      pricePerBag: pricePerBag,
+      subtotal: subtotal,
+      saleType: 'bag',
+      unitsPerBag: unitsPerBag,
+      warehouse: selectedProduct.warehouse,
+      subType: selectedProduct.subType
+    }];
     
-    // Yangi mahsulot qo'shish formini tozalash
+    // Preform uchun krishka va ruchka qo'shish
+    const isPreform = selectedProduct.warehouse === 'preform' || selectedProduct.name.toLowerCase().includes('g');
+    
+    if (isPreform) {
+      const accessorySize = selectedProduct.subType || '';
+      const totalUnits = quantity * unitsPerBag;
+      
+      // Krishka va Ruchka o'lchamlarini aniqlash
+      let krishkaSize = accessorySize;
+      let ruchkaSize = accessorySize;
+
+      // Agar subType bo'lmasa, nomidan aniqlash (fallback)
+      if (!accessorySize) {
+        const nameMatch = selectedProduct.name.match(/(\d+)/);
+        const weight = nameMatch ? parseInt(nameMatch[1]) : 0;
+        
+        if ([15, 21, 26, 30].includes(weight)) {
+          krishkaSize = '28';
+          ruchkaSize = '28';
+        } else if ([52, 70].includes(weight)) {
+          krishkaSize = '38';
+          ruchkaSize = '38';
+        } else if ([75, 80, 85, 86, 175].includes(weight)) {
+          krishkaSize = '48';
+          ruchkaSize = '48';
+        }
+      }
+
+      if (krishkaSize) {
+        // Mos krishkani topish
+        const krishka = products.find(p => 
+          (p.warehouse === 'krishka' || p.name.toLowerCase().includes('krishka')) && 
+          p.name.includes(krishkaSize) && 
+          p.active !== false
+        );
+        
+        if (krishka) {
+          const upb = Number(krishka.unitsPerBag) || 1000;
+          const kPrice = Number(krishka.pricePerBag) || 65;
+          const kPricePerPiece = upb > 0 ? kPrice / upb : 0;
+          
+          newItems.push({
+            productId: krishka.id,
+            productName: krishka.name,
+            quantity: totalUnits, // Krishka donada
+            pricePerBag: kPrice,
+            pricePerPiece: undefined,
+            subtotal: totalUnits * kPricePerPiece,
+            saleType: 'piece',
+            unitsPerBag: upb,
+            warehouse: 'krishka'
+          });
+        }
+        
+        // Mos ruchkani topish (faqat kerak bo'lsa)
+        const ruchka = products.find(p => 
+          (p.warehouse === 'ruchka' || p.name.toLowerCase().includes('ruchka')) && 
+          p.name.includes(ruchkaSize) && 
+          p.active !== false
+        );
+        
+        if (ruchka) {
+          const upb = Number(ruchka.unitsPerBag) || 1000;
+          const rPrice = Number(ruchka.pricePerBag) || 76;
+          const rPricePerPiece = upb > 0 ? rPrice / upb : 0;
+          
+          newItems.push({
+            productId: ruchka.id,
+            productName: ruchka.name,
+            quantity: totalUnits, // Ruchka donada
+            pricePerBag: rPrice,
+            pricePerPiece: rPricePerPiece,
+            subtotal: totalUnits * rPricePerPiece,
+            saleType: 'piece',
+            unitsPerBag: upb,
+            warehouse: 'ruchka'
+          });
+        }
+      }
+    }
+    
+    setForm(prev => ({ ...prev, items: [...prev.items, ...newItems] }));
+    
+    // Tozalash
     setNewItem({
       productId: '',
       productName: '',
       quantity: '',
       pricePerBag: '',
     });
-    
-    console.log('🔄 Form cleared');
-    setProductSearch('');
   };
 
   const removeProduct = (index: number) => {
@@ -197,6 +449,163 @@ export default function Sales() {
       ...prev,
       items: prev.items.filter((_, i) => i !== index)
     }));
+  };
+
+  // Savatni birlashtirish funktsiyalari
+  const mergeItemsByType = (mergeType: 'sum' | 'dollar' | 'pieces' | 'bags') => {
+    console.log('🔄 mergeItemsByType called with:', mergeType);
+    console.log('🔄 Current items:', form.items);
+    
+    if (form.items.length === 0) {
+      console.log('❌ No items to merge');
+      return;
+    }
+    
+    const mergedItems: Record<string, any> = {};
+    const currentItems = [...form.items];
+    
+    // Komplektlarni aniqlash (Preform + Krishka + Ruchka)
+    const preformItems = currentItems.filter(i => i.productName.toLowerCase().includes('preform'));
+    const krishkaItems = currentItems.filter(i => i.productName.toLowerCase().includes('krishka'));
+    const ruchkaItems = currentItems.filter(i => i.productName.toLowerCase().includes('ruchka'));
+    
+    // Har bir komplekt uchun birlashtirish
+    preformItems.forEach(preform => {
+      const matchingKrishka = krishkaItems.find(k => k.quantity === preform.quantity);
+      const matchingRuchka = ruchkaItems.find(r => r.quantity === preform.quantity);
+      
+      if (matchingKrishka && matchingRuchka) {
+        // Komplekt topildi - bitta card qilamiz
+        const komlektKey = `Komplekt: ${preform.productName}`;
+        
+        if (mergeType === 'sum') {
+          // Xuddi shu narxlarda birlashtirish
+          const totalQuantity = preform.quantity;
+          const totalSum = preform.subtotal + matchingKrishka.subtotal + matchingRuchka.subtotal;
+          
+          mergedItems[komlektKey] = {
+            productId: preform.productId,
+            productName: komlektKey,
+            quantity: totalQuantity,
+            pricePerBag: totalSum / totalQuantity,
+            subtotal: totalSum,
+            isKomplekt: true,
+            items: [preform, matchingKrishka, matchingRuchka]
+          };
+        } else if (mergeType === 'dollar') {
+          // O'rtacha $ narxda birlashtirish
+          const totalQuantity = preform.quantity;
+          const totalSum = preform.subtotal + matchingKrishka.subtotal + matchingRuchka.subtotal;
+          const avgPrice = totalSum / totalQuantity;
+          
+          mergedItems[komlektKey] = {
+            productId: preform.productId,
+            productName: komlektKey,
+            quantity: totalQuantity,
+            pricePerBag: avgPrice,
+            subtotal: totalSum,
+            isKomplekt: true,
+            items: [preform, matchingKrishka, matchingRuchka]
+          };
+        } else if (mergeType === 'pieces') {
+          // Dona bo'yicha birlashtirish
+          const totalPieces = preform.quantity * 2000;
+          const totalQuantity = Math.ceil(totalPieces / 2000);
+          const totalSum = preform.subtotal + matchingKrishka.subtotal + matchingRuchka.subtotal;
+          
+          mergedItems[komlektKey] = {
+            productId: preform.productId,
+            productName: komlektKey,
+            quantity: totalQuantity,
+            pricePerBag: totalSum / totalQuantity,
+            subtotal: totalSum,
+            isKomplekt: true,
+            items: [preform, matchingKrishka, matchingRuchka]
+          };
+        } else if (mergeType === 'bags') {
+          // Qop bo'yicha birlashtirish
+          const totalQuantity = preform.quantity;
+          const totalSum = preform.subtotal + matchingKrishka.subtotal + matchingRuchka.subtotal;
+          
+          mergedItems[komlektKey] = {
+            productId: preform.productId,
+            productName: komlektKey,
+            quantity: totalQuantity,
+            pricePerBag: totalSum / totalQuantity,
+            subtotal: totalSum,
+            isKomplekt: true,
+            items: [preform, matchingKrishka, matchingRuchka]
+          };
+        }
+        
+        console.log(`🔄 Komplekt yaratildi:`, mergedItems[komlektKey]);
+      } else {
+        // Yolg'iz mahsulot - oddiy birlashtirish
+        const productName = preform.productName;
+        const itemsOfType = currentItems.filter(i => i.productName === productName);
+        
+        if (mergeType === 'sum') {
+          const totalQuantity = itemsOfType.reduce((sum, i) => sum + i.quantity, 0);
+          const firstPrice = itemsOfType[0].pricePerBag;
+          
+          mergedItems[productName] = {
+            productId: itemsOfType[0].productId,
+            productName: productName,
+            quantity: totalQuantity,
+            pricePerBag: firstPrice,
+            subtotal: totalQuantity * firstPrice,
+            isKomplekt: false
+          };
+        }
+        // ... qolgan merge type lar uchun
+      }
+    });
+    
+    // Krishka va Ruchka larni komplektsiz qolganlarini qo'shish
+    const usedKrishka = new Set();
+    const usedRuchka = new Set();
+    
+    Object.values(mergedItems).forEach(item => {
+      if (item.isKomplekt && item.items) {
+        usedKrishka.add(item.items[1].productName);
+        usedRuchka.add(item.items[2].productName);
+      }
+    });
+    
+    // Komplektsiz Krishka va Ruchka larni alohida qo'shish
+    krishkaItems.forEach(krishka => {
+      if (!usedKrishka.has(krishka.productName)) {
+        mergedItems[krishka.productName] = {
+          ...krishka,
+          isKomplekt: false
+        };
+      }
+    });
+    
+    ruchkaItems.forEach(ruchka => {
+      if (!usedRuchka.has(ruchka.productName)) {
+        mergedItems[ruchka.productName] = {
+          ...ruchka,
+          isKomplekt: false
+        };
+      }
+    });
+    
+    // Yangi items array yaratish
+    const newItems = Object.values(mergedItems);
+    
+    console.log('🔄 New items after merge:', newItems);
+    console.log('🔄 Setting form with new items...');
+    
+    // Formni yangilash
+    setForm(prev => {
+      console.log('🔄 Previous form items:', prev.items);
+      const newForm = { ...prev, items: newItems };
+      console.log('🔄 New form items:', newForm.items);
+      return newForm;
+    });
+    
+    console.log(`✅ Savat ${mergeType} bo'yicha birlashtirildi!`);
   };
 
   const totalAmount = form.items.reduce((sum, item) => sum + item.subtotal, 0);
@@ -241,29 +650,18 @@ export default function Sales() {
       
       console.log('✅ Sotuv yaratildi:', createdSale);
       
-      // Chek chiqarish
+      // Oddiy chek chiqarish
       try {
-        console.log('🖨️ Chek chiqarilmoqda...');
+        console.log('🖨️ Oddiy chek chiqarilmoqda...');
         
         // Foydalanuvchi ma'lumotlarini olish
         const userStr = localStorage.getItem('user');
         const user = userStr ? JSON.parse(userStr) : { name: 'Kassir' };
         
-        // Chek ma'lumotlarini tayyorlash
-        const receiptData = prepareSaleReceipt(
-          {
-            ...createdSale,
-            items: form.items
-          },
-          selectedCustomer,
-          user,
-          exchangeRates.USD_TO_UZS
-        );
+        // Oddiy chek chiqarish
+        printSimpleReceipt(createdSale, selectedCustomer, user);
         
-        // Chekni chop etish
-        printReceipt(receiptData);
-        
-        console.log('✅ Chek chiqarildi!');
+        console.log('✅ Oddiy chek chiqarildi!');
       } catch (printError) {
         console.error('❌ Chek chiqarishda xatolik:', printError);
         // Chek chiqarishda xatolik bo'lsa ham, sotuvni davom ettirish
@@ -278,6 +676,8 @@ export default function Sales() {
         paidUZS: '',
         paidUSD: '',
         paidCLICK: '',
+        paymentType: 'cash',
+        currency: 'USD',
       });
       setNewItem({
         productId: '',
@@ -296,645 +696,218 @@ export default function Sales() {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">{latinToCyrillic("Sotuvlar")}</h1>
-        <div className="flex gap-4">
-          <Button
-            variant={activeTab === 'sales' ? 'primary' : 'outline'}
-            onClick={() => setActiveTab('sales')}
-          >
-            {latinToCyrillic("Sotuvlar")}
-          </Button>
-          <Button
-            variant={activeTab === 'history' ? 'primary' : 'outline'}
-            onClick={() => setActiveTab('history')}
-          >
-            {latinToCyrillic("Tarix")}
-          </Button>
+    <div className="min-h-screen w-full space-y-12 pb-20 animate-in fade-in duration-1000">
+      {/* Premium Header Section */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-white via-blue-50/30 to-emerald-50/30 dark:from-gray-900 dark:via-blue-900/10 dark:to-emerald-900/10 shadow-[0_20px_60px_rgba(0,0,0,0.08)] border-x border-t border-white dark:border-gray-800 rounded-b-[2rem]">
+        <div className="absolute top-0 -left-20 w-96 h-96 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob pointer-events-none"></div>
+        <div className="absolute -bottom-20 -right-20 w-96 h-96 bg-gradient-to-br from-emerald-400/20 to-teal-400/20 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob animation-delay-2000 pointer-events-none"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-r from-amber-200/10 to-orange-200/10 rounded-full mix-blend-multiply filter blur-3xl opacity-40 pointer-events-none"></div>
+
+        <div className="relative z-10 p-8 sm:p-12 lg:p-16">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full text-[10px] font-black uppercase tracking-[0.25em] text-white shadow-lg shadow-blue-500/25">
+                <ShoppingCart className="w-3 h-3" />
+                {latinToCyrillic("SAVDO VA SOTUV TIZIMI")}
+              </div>
+              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 dark:text-white tracking-tight leading-[1.1]">
+                {latinToCyrillic("Savdo")} <br />
+                <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-emerald-600 bg-clip-text text-transparent">{latinToCyrillic("Bo'limi")}</span>
+              </h1>
+              <p className="text-gray-500 dark:text-gray-400 font-medium max-w-md text-base leading-relaxed">
+                {latinToCyrillic("Mijozlar bilan savdo jarayonlarini boshqarish va chek chiqarish")}
+              </p>
+            </div>
+            
+            <div className="flex flex-col gap-4 w-full lg:w-auto">
+              {/* Valyuta kursi - Enhanced */}
+              <div className="flex items-center gap-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 px-6 py-4 rounded-2xl border border-amber-200/50 dark:border-amber-800/50 shadow-lg shadow-amber-500/10 backdrop-blur-sm">
+                <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <DollarSign className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-bold text-gray-600">1 USD =</span>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      value={exchangeRate}
+                      onChange={(e) => setExchangeRate(e.target.value)}
+                      className="w-28 h-10 text-base font-black text-amber-700 border-amber-300/50 bg-white/80 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
+                      min="1"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-amber-600">UZS</span>
+                  </div>
+                </div>
+              </div>
+              
+              <button 
+                onClick={() => navigate('/cashier/sales/add')} 
+                className="group relative overflow-hidden bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-600 hover:from-blue-500 hover:via-blue-600 hover:to-indigo-500 text-white px-8 py-5 rounded-2xl font-black text-sm uppercase tracking-wider shadow-xl shadow-blue-500/30 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/40 hover:-translate-y-0.5"
+              >
+                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                <span className="relative flex items-center justify-center gap-3">
+                  <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                    <Plus className="w-5 h-5" />
+                  </div>
+                  {latinToCyrillic("Yangi Sotuv")}
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* Tabs - Premium Style */}
+      <div className="flex p-2 bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl border-x border-white dark:border-gray-800 shadow-xl rounded-2xl mx-4">
+        <button
+          onClick={() => setActiveTab('sales')}
+          className={`flex-1 px-8 py-4 rounded-xl font-black text-sm tracking-wider transition-all duration-500 flex items-center justify-center gap-2 ${
+            activeTab === 'sales' 
+              ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30 scale-[1.02]' 
+              : 'text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
+          }`}
+        >
+          <ShoppingCart className="w-4 h-4" />
+          {latinToCyrillic("AMALDAGI SOTUVLAR")}
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`flex-1 px-8 py-4 rounded-xl font-black text-sm tracking-wider transition-all duration-500 flex items-center justify-center gap-2 ${
+            activeTab === 'history' 
+              ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30 scale-[1.02]' 
+              : 'text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
+          }`}
+        >
+          <Clock className="w-4 h-4" />
+          {latinToCyrillic("SOTUVLAR TARIXI")}
+        </button>
       </div>
 
       {activeTab === 'history' && <SalesHistory />}
 
       {activeTab === 'sales' && (
-        <div>
-          {!showForm ? (
-            <div className="space-y-4">
-              {/* Yangi sotuv tugmasi */}
-              <div className="flex justify-end">
-                <Button 
-                  onClick={() => {
-                    console.log('🆕 Yangi sotuv tugmasi bosildi');
-                    setShowForm(true);
-                  }} 
-                  size="lg"
-                >
+        <div className="p-0 w-full">
+          {/* Sotuvlar ro'yxati */}
+          {sales.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <p className="text-gray-500 mb-4">Hozircha sotuvlar yo'q</p>
+                <Button onClick={() => navigate('/cashier/sales/add')}>
                   <Plus className="w-5 h-5 mr-2" />
-                  {latinToCyrillic("Yangi Sotuv")}
+                  Birinchi Sotuvni Qo'shing
                 </Button>
               </div>
-
-              {/* Sotuvlar ro'yxati */}
-              {sales.length === 0 ? (
-                <div className="text-center py-12 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                  <p className="text-gray-500 mb-4">Hozircha sotuvlar yo'q</p>
-                  <Button onClick={() => setShowForm(true)}>
-                    <Plus className="w-5 h-5 mr-2" />
-                    Birinchi Sotuvni Qo'shing
-                  </Button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {sales.map((sale: any) => (
-                    <Card key={sale.id} className="hover:shadow-lg transition-shadow">
-                      <CardHeader>
-                        <CardTitle className="text-lg flex items-center justify-between">
-                          <span>#{sale.id.slice(0, 8)}</span>
-                          <span className="text-sm text-gray-500">
-                            {formatDateTime(sale.createdAt)}
-                          </span>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Mijoz:</span>
-                            <span className="font-semibold">{sale.customer?.name || 'N/A'}</span>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-4">
+                {sales.map((sale: any, index: number) => (
+                  <Card key={sale.id} className="group relative overflow-hidden bg-white dark:bg-gray-900 border-0 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 rounded-3xl">
+                    {/* Gradient border effect */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-emerald-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-3xl"></div>
+                    
+                    <CardHeader className="relative pb-4">
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500"></div>
+                      <CardTitle className="text-lg flex items-center justify-between pt-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                            #{index + 1}
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Jami:</span>
-                            <span className="font-semibold text-green-600">
+                          <span className="font-black text-gray-800 dark:text-white">{sale.id.slice(0, 8)}</span>
+                        </div>
+                        <span className="text-xs font-medium text-gray-500 bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-full">
+                          {formatDateTime(sale.createdAt)}
+                        </span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="relative space-y-4">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                          <div className="flex items-center gap-2 text-gray-500">
+                            <User className="w-4 h-4" />
+                            <span className="text-sm font-medium">Mijoz:</span>
+                          </div>
+                          <span className="font-bold text-gray-800 dark:text-white">{sale.customer?.name || 'N/A'}</span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="p-3 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800">
+                            <span className="text-xs font-medium text-emerald-600 block mb-1">Jami</span>
+                            <span className="text-xl font-black text-emerald-700">
                               ${sale.totalAmount?.toFixed(2) || '0.00'}
                             </span>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">To'landi:</span>
-                            <span className="font-semibold text-blue-600">
+                          <div className="p-3 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
+                            <span className="text-xs font-medium text-blue-600 block mb-1">To'landi</span>
+                            <span className="text-xl font-black text-blue-700">
                               ${sale.paidAmount?.toFixed(2) || '0.00'}
                             </span>
                           </div>
-                          {sale.debtAmount > 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Qarz:</span>
-                              <span className="font-semibold text-red-600">
+                        </div>
+                        
+                        {sale.debtAmount > 0 && (
+                          <div className="p-3 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20 rounded-xl border border-red-100 dark:border-red-800">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-red-600">Qarz:</span>
+                              <span className="text-lg font-black text-red-700">
                                 ${sale.debtAmount?.toFixed(2) || '0.00'}
                               </span>
                             </div>
-                          )}
-                          <div className="pt-2 border-t">
-                            <p className="text-sm text-gray-500">
-                              {sale.items?.length || 0} ta mahsulot
-                            </p>
                           </div>
-                          <div className="pt-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                try {
-                                  console.log('🖨️ Chek qayta chiqarilmoqda...');
-                                  
-                                  // Foydalanuvchi ma'lumotlarini olish
-                                  const userStr = localStorage.getItem('user');
-                                  const user = userStr ? JSON.parse(userStr) : { name: 'Kassir' };
-                                  
-                                  // Chek ma'lumotlarini tayyorlash
-                                  const receiptData = prepareSaleReceipt(
-                                    sale,
-                                    sale.customer,
-                                    user,
-                                    exchangeRates.USD_TO_UZS
-                                  );
-                                  
-                                  // Chekni chop etish
-                                  printReceipt(receiptData);
-                                  
-                                  console.log('✅ Chek qayta chiqarildi!');
-                                } catch (error) {
-                                  console.error('❌ Chek chiqarishda xatolik:', error);
-                                  alert('Chek chiqarishda xatolik yuz berdi!');
-                                }
-                              }}
-                              className="w-full"
-                            >
-                              <Printer className="w-4 h-4 mr-2" />
-                              Chek Chiqarish
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="max-h-[85vh] overflow-y-auto">
-              <Card className="border-2 border-primary shadow-lg">
-                <CardHeader className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-950 dark:to-green-950 sticky top-0 z-10">
-                  <CardTitle className="flex items-center gap-2 text-xl">
-                    <Zap className="w-6 h-6 text-primary" />
-                    {latinToCyrillic("Yangi Sotuv")}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 sm:p-6">
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Asosiy ma'lumotlar - 2 qator */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {/* Mijoz tanlash */}
-                      <div className="space-y-2">
-                        <label className="block text-lg font-bold text-blue-600 flex items-center gap-2">
-                          👤 Mijoz
-                        </label>
-                        <CustomerSelector
-                          customers={customers}
-                          selectedId={form.customerId}
-                          searchValue={customerSearch}
-                          onSearchChange={setCustomerSearch}
-                          onSelect={(id, name) => {
-                            setForm(prev => ({ ...prev, customerId: id, customerName: name }));
-                          }}
-                        />
-                      </div>
-
-                      {/* Mahsulotlar qo'shish - yonma-yon */}
-                      <div className="space-y-4">
-                        <label className="block text-lg font-bold text-green-600 flex items-center gap-2">
-                          📦 Mahsulot
-                        </label>
-                        <span className="text-sm font-semibold text-gray-600 bg-gray-100 px-3 py-1 rounded-full w-fit">
-                          {form.items.length} mahsulot
-                        </span>
-
-                        {/* Narx belgilash tugmasi */}
-                        {selectedCustomer && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowPriceModal(true)}
-                            className="text-purple-600 hover:bg-purple-50 border-purple-300"
-                          >
-                            <DollarSign className="w-4 h-4 mr-2" />
-                            Narx Belgilash
-                          </Button>
                         )}
-
-                        {/* Yangi mahsulot qo'shish - ixcham */}
-                        <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950 dark:to-blue-950 p-4 rounded-xl border-2 border-green-200">
-                          <div className="space-y-3">
-                            {/* Mahsulot tanlash */}
-                            <div>
-                              <label className="block text-sm font-semibold text-gray-700 mb-2">Mahsulot nomi</label>
-                              <div className="text-xs text-gray-500 mb-2">
-                                📦 Mahsulotlar soni: {products.length} ta
-                              </div>
-                              <ProductSelector
-                                products={products}
-                                selectedId={newItem.productId}
-                                searchValue={productSearch}
-                                onSearchChange={setProductSearch}
-                                onSelect={(id, name, price) => {
-                                  console.log('🎯 onSelect called:', { id, name, price });
-                                  try {
-                                    const updatedItem = {
-                                      ...newItem,
-                                      productId: id, 
-                                      productName: name, 
-                                      pricePerBag: price.toString()
-                                    };
-                                    console.log('🔄 Setting newItem to:', updatedItem);
-                                    setNewItem(updatedItem);
-                                    console.log('✅ setNewItem completed');
-                                  } catch (error) {
-                                    console.error('❌ setNewItem error:', error);
-                                  }
-                                }}
-                                customerPrice={customerPrices[newItem.productId] ? parseFloat(customerPrices[newItem.productId]) : undefined}
-                                onPriceClick={(productId) => {
-                                  setSelectedProductId(productId);
-                                  setShowPriceModal(true);
-                                }}
-                              />
-                            </div>
-
-                            {/* Miqdor va Narx - bir qatorda */}
-                            <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">Qop soni</label>
-                                <input
-                                  type="number"
-                                  value={newItem.quantity}
-                                  onChange={(e) => setNewItem(prev => ({ ...prev, quantity: e.target.value }))}
-                                  placeholder="10"
-                                  min="1"
-                                  step="1"
-                                  disabled={!newItem.productId}
-                                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-base font-semibold focus:border-green-500 focus:outline-none disabled:bg-gray-100"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">Narx (USD)</label>
-                                <div className="relative">
-                                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold text-sm">$</span>
-                                  <input
-                                    type="number"
-                                    value={newItem.pricePerBag}
-                                    onChange={(e) => setNewItem(prev => ({ ...prev, pricePerBag: e.target.value }))}
-                                    placeholder="25.00"
-                                    min="0"
-                                    step="0.01"
-                                    disabled={!newItem.productId}
-                                    className="w-full pl-7 pr-3 py-2 border-2 border-gray-300 rounded-lg text-base font-semibold focus:border-green-500 focus:outline-none disabled:bg-gray-100"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Jami miqdor va summa - alohida ko'rsatish */}
-                            <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">Jami qop</label>
-                                <div className="px-3 py-2 bg-blue-50 border-2 border-blue-200 rounded-lg text-base font-bold text-blue-800">
-                                  {parseFloat(newItem.quantity) || 0} qop
-                                </div>
-                              </div>
-                              <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">Jami summa (USD)</label>
-                                <div className="px-3 py-2 bg-green-50 border-2 border-green-200 rounded-lg text-base font-bold text-green-800">
-                                  ${((parseFloat(newItem.quantity) || 0) * (parseFloat(newItem.pricePerBag) || 0)).toFixed(2)}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Qo'shish tugmasi */}
-                            <Button
-                              type="button"
-                              onClick={addProduct}
-                              className="w-full bg-green-600 hover:bg-green-700 px-6 py-3 text-base font-bold"
-                              disabled={!newItem.productId || !newItem.quantity}
-                            >
-                              <Plus className="w-4 h-4 mr-2" />
-                              Savatga qo'shish
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Qo'shilgan mahsulotlar ro'yxati */}
-                    {form.items.length > 0 && (
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <h3 className="font-bold text-xl text-blue-600 flex items-center gap-2">
-                            🛒 Savatdagi mahsulotlar ({form.items.length})
-                          </h3>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setForm(prev => ({ ...prev, items: [] }))}
-                            className="text-red-600 hover:bg-red-50"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Savatni tozalash
-                          </Button>
-                        </div>
                         
-                        <div className="space-y-2">
-                          {form.items.map((item, index) => (
-                            <div key={index} className="bg-white dark:bg-gray-800 p-4 rounded-xl border-2 border-blue-200 hover:border-blue-400 transition-all">
-                              <div className="flex items-center justify-between gap-4">
-                                <div className="flex-1">
-                                  <h4 className="font-bold text-lg text-blue-600">{item.productName}</h4>
-                                  <div className="flex gap-6 mt-2 text-sm">
-                                    <span className="font-semibold">📦 {item.quantity} qop</span>
-                                    <span className="font-semibold">💵 ${item.pricePerBag}/qop</span>
-                                    <span className="font-bold text-green-600 text-base">= ${item.subtotal.toFixed(2)}</span>
-                                  </div>
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => removeProduct(index)}
-                                  className="text-red-600 hover:bg-red-50 px-3"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Jami summa - kattaroq va ko'zga tashlanadigan */}
-                        <div className="bg-gradient-to-r from-blue-600 to-green-600 text-white p-6 rounded-xl shadow-lg mt-4">
-                          <div className="flex justify-between items-center">
-                            <span className="text-2xl font-bold flex items-center gap-2">
-                              <Calculator className="w-6 h-6" />
-                              JAMI SUMMA:
-                            </span>
-                            <span className="text-3xl font-bold">${totalAmount.toFixed(2)}</span>
-                          </div>
+                        <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                          <Package className="w-4 h-4 text-gray-400" />
+                          <p className="text-sm font-medium text-gray-600">
+                            {sale.items?.length || 0} ta mahsulot
+                          </p>
                         </div>
                       </div>
-                    )}
-
-                    {/* To'lov ma'lumotlari - yaxshilangan */}
-                    {form.items.length > 0 && (
-                      <div className="space-y-4">
-                        <label className="block text-lg font-bold text-purple-600 flex items-center gap-2">
-                          💳 To'lov ma'lumotlari
-                        </label>
-
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                          <div className="bg-white border-2 border-green-400 rounded-xl shadow-md hover:shadow-lg transition-shadow p-4">
-                            <label className="block text-base font-bold text-green-700 mb-3 flex items-center gap-2">
-                              💵 So'm
-                            </label>
-                            <div className="relative">
-                              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-green-500 font-bold text-lg">UZS</span>
-                              <input
-                                type="number"
-                                value={form.paidUZS}
-                                onChange={(e) => setForm(prev => ({ ...prev, paidUZS: e.target.value }))}
-                                placeholder="0"
-                                min="0"
-                                step="1000"
-                                className="w-full pl-12 pr-3 py-3 border-2 border-green-300 rounded-lg text-lg font-bold focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-200"
-                              />
-                            </div>
-                            <p className="text-sm text-gray-600 mt-2 font-medium">1$ = {exchangeRates.USD_TO_UZS} so'm</p>
-                          </div>
-                          
-                          <div className="bg-white border-2 border-blue-400 rounded-xl shadow-md hover:shadow-lg transition-shadow p-4">
-                            <label className="block text-base font-bold text-blue-700 mb-3 flex items-center gap-2">
-                              💵 Dollar
-                            </label>
-                            <div className="relative">
-                              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-500 font-bold text-lg">$</span>
-                              <input
-                                type="number"
-                                value={form.paidUSD}
-                                onChange={(e) => setForm(prev => ({ ...prev, paidUSD: e.target.value }))}
-                                placeholder="0"
-                                min="0"
-                                step="0.01"
-                                className="w-full pl-8 pr-3 py-3 border-2 border-blue-300 rounded-lg text-lg font-bold focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                              />
-                            </div>
-                            <p className="text-sm text-gray-600 mt-2 font-medium">AQSH dollari</p>
-                          </div>
-                          
-                          <div className="bg-white border-2 border-purple-400 rounded-xl shadow-md hover:shadow-lg transition-shadow p-4">
-                            <label className="block text-base font-bold text-purple-700 mb-3 flex items-center gap-2">
-                              💳 Kilik
-                            </label>
-                            <div className="relative">
-                              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-500 font-bold text-lg">💳</span>
-                              <input
-                                type="number"
-                                value={form.paidCLICK}
-                                onChange={(e) => setForm(prev => ({ ...prev, paidCLICK: e.target.value }))}
-                                placeholder="0"
-                                min="0"
-                                step="1000"
-                                className="w-full pl-12 pr-3 py-3 border-2 border-purple-300 rounded-lg text-lg font-bold focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-200"
-                              />
-                            </div>
-                            <p className="text-sm text-gray-600 mt-2 font-medium">1$ = {exchangeRates.USD_TO_UZS} so'm</p>
-                          </div>
-
-                          <div className="bg-gradient-to-br from-yellow-100 to-orange-100 border-2 border-yellow-400 rounded-xl shadow-md hover:shadow-lg transition-shadow p-4">
-                            <label className="block text-base font-bold text-yellow-700 mb-3 flex items-center gap-2">
-                              💰 Jami (USD)
-                            </label>
-                            <div className="bg-white border-2 border-yellow-300 rounded-lg px-4 py-3">
-                              <div className="text-2xl font-black text-yellow-800 text-center">
-                                ${paidAmount.toFixed(2)}
-                              </div>
-                            </div>
-                            <p className="text-sm text-gray-600 mt-2 font-medium text-center">⚡ Avtomatik hisoblash</p>
-                          </div>
-                        </div>
-
-                        {/* To'lov xulosasi - chiroyroq ko'rinish */}
-                        <div className="bg-gradient-to-r from-gray-800 to-gray-900 text-white p-6 rounded-xl shadow-lg">
-                          <div className="space-y-3">
-                            <div className="flex justify-between text-lg">
-                              <span>Jami summa:</span>
-                              <span className="font-bold">${totalAmount.toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between text-lg">
-                              <span>To'langan summa:</span>
-                              <span className="font-bold text-green-400">${paidAmount.toFixed(2)}</span>
-                            </div>
-                            <div className="border-t border-gray-600 pt-3">
-                              <div className="flex justify-between text-2xl font-bold">
-                                <span>Qarz:</span>
-                                <span className={debtAmount > 0 ? 'text-red-400' : 'text-green-400'}>
-                                  ${debtAmount.toFixed(2)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Tugmalar - kattaroq va aniqroq */}
-                    {form.items.length > 0 && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-6">
+                      
+                      <div className="pt-2 space-y-2">
                         <Button
-                          type="button"
                           variant="outline"
-                          onClick={() => {
-                            setShowForm(false);
-                            setForm({
-                              customerId: '',
-                              customerName: '',
-                              items: [],
-                              paidUZS: '',
-                              paidUSD: '',
-                              paidCLICK: '',
-                            });
-                          }}
-                          className="text-lg py-4 border-2 border-red-300 text-red-600 hover:bg-red-50"
                           size="lg"
+                          onClick={() => {
+                            try {
+                              const userStr = localStorage.getItem('user');
+                              const user = userStr ? JSON.parse(userStr) : { name: 'Kassir' };
+                              printSimpleReceipt(sale, sale.customer, user);
+                            } catch (error) {
+                              console.error('Chek chiqarishda xatolik:', error);
+                              alert('Chek chiqarishda xatolik yuz berdi!');
+                            }
+                          }}
+                          className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white py-3.5 rounded-xl shadow-lg shadow-emerald-500/25 transition-all hover:shadow-xl hover:shadow-emerald-500/30 border-0 font-bold"
                         >
-                          ❌ Bekor qilish
+                          <div className="flex items-center justify-center gap-2">
+                            <Printer className="w-5 h-5" />
+                            <span>Chekni chiqarish</span>
+                          </div>
                         </Button>
                         <Button
-                          type="submit"
-                          className="text-lg py-4 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 shadow-lg"
+                          variant="outline"
                           size="lg"
+                          onClick={() => {
+                            try {
+                              const userStr = localStorage.getItem('user');
+                              const user = userStr ? JSON.parse(userStr) : { name: 'Kassir' };
+                              printDeliveryReceipt(sale, sale.customer, user);
+                            } catch (error) {
+                              console.error('Yuk xati chiqarishda xatolik:', error);
+                              alert('Yuk xati chiqarishda xatolik yuz berdi!');
+                            }
+                          }}
+                          className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white py-3.5 rounded-xl shadow-lg shadow-blue-500/25 transition-all hover:shadow-xl hover:shadow-blue-500/30 border-0 font-bold"
                         >
-                          ✅ Sotuvni tasdiqlash
+                          <div className="flex items-center justify-center gap-2">
+                            <FileText className="w-5 h-5" />
+                            <span>Yuk xatini chiqarish</span>
+                          </div>
                         </Button>
                       </div>
-                    )}
-                  </form>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Narx belgilash modal */}
-      {showPriceModal && selectedCustomer && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-purple-600">
-                💰 {selectedCustomer.name} uchun narx
-              </h2>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowPriceModal(false)}
-              >
-                ❌
-              </Button>
-            </div>
-
-            {selectedProductId ? (
-              // Faqat bitta mahsulot uchun
-              (() => {
-                const product = products.find(p => p.id === selectedProductId);
-                if (!product) return null;
-                
-                return (
-                  <div className="space-y-4">
-                    <div className="p-4 border rounded-lg bg-gray-50">
-                      <h3 className="font-semibold text-lg mb-2">{product.name}</h3>
-                      <p className="text-sm text-gray-600">Asosiy narx: ${product.pricePerBag}/qop</p>
-                    </div>
-                    
-                    <div className="flex items-center gap-3">
-                      <label className="text-sm font-medium">Yangi narx:</label>
-                      <span className="text-sm font-medium">$</span>
-                      <input
-                        type="number"
-                        value={customerPrices[product.id] || ''}
-                        onChange={(e) => {
-                          const newPrices = { ...customerPrices };
-                          if (e.target.value) {
-                            newPrices[product.id] = e.target.value;
-                          } else {
-                            delete newPrices[product.id];
-                          }
-                          setCustomerPrices(newPrices);
-                        }}
-                        placeholder={product.pricePerBag.toString()}
-                        min="0"
-                        step="0.01"
-                        className="flex-1 px-3 py-2 border rounded-lg"
-                      />
-                      <span className="text-sm text-gray-600">/qop</span>
-                    </div>
-
-                    <div className="flex gap-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setShowPriceModal(false)}
-                        className="flex-1"
-                      >
-                        Bekor qilish
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={async () => {
-                          try {
-                            await api.put(`/customers/${selectedCustomer.id}`, {
-                              productPrices: JSON.stringify(customerPrices)
-                            });
-                            setShowPriceModal(false);
-                            setSelectedProductId('');
-                            // Mijozlarni qayta yuklash
-                            const customersRes = await api.get('/customers');
-                            setCustomers(customersRes.data);
-                          } catch (error) {
-                            console.error('Error saving customer price:', error);
-                          }
-                        }}
-                        className="flex-1 bg-purple-600 hover:bg-purple-700"
-                      >
-                        💾 Saqlash
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })()
-            ) : (
-              // Barcha mahsulotlar uchun
-              <div className="space-y-4 max-h-60 overflow-y-auto">
-                {products.map((product) => (
-                  <div key={product.id} className="flex items-center gap-4 p-3 border rounded-lg">
-                    <div className="flex-1">
-                      <h3 className="font-semibold">{product.name}</h3>
-                      <p className="text-sm text-gray-600">Asosiy narx: ${product.pricePerBag}/qop</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">$</span>
-                      <input
-                        type="number"
-                        value={customerPrices[product.id] || ''}
-                        onChange={(e) => {
-                          const newPrices = { ...customerPrices };
-                          if (e.target.value) {
-                            newPrices[product.id] = e.target.value;
-                          } else {
-                            delete newPrices[product.id];
-                          }
-                          setCustomerPrices(newPrices);
-                        }}
-                        placeholder={product.pricePerBag.toString()}
-                        min="0"
-                        step="0.01"
-                        className="w-24 px-2 py-1 border rounded text-sm"
-                      />
-                      <span className="text-sm text-gray-600">/qop</span>
-                    </div>
-                  </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             )}
-
-            {!selectedProductId && (
-              <div className="flex gap-3 mt-6">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowPriceModal(false)}
-                >
-                  Bekor qilish
-                </Button>
-                <Button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      await api.put(`/customers/${selectedCustomer.id}`, {
-                        productPrices: JSON.stringify(customerPrices)
-                      });
-                      setShowPriceModal(false);
-                      // Mijozlarni qayta yuklash
-                      const customersRes = await api.get('/customers');
-                      setCustomers(customersRes.data);
-                    } catch (error) {
-                      console.error('Error saving customer prices:', error);
-                    }
-                  }}
-                  className="bg-purple-600 hover:bg-purple-700"
-                >
-                  💾 Saqlash
-                </Button>
-              </div>
-            )}
-          </div>
         </div>
       )}
     </div>

@@ -33,7 +33,7 @@ export default function InventoryAlerts() {
         setIsVisible(true);
       }
     } catch (error) {
-      console.error('Inventar ogohlantirishlarini yuklashda xatolik');
+      console.error('Инвентар огohlантиришларини юклашда хатолик');
     }
   };
 
@@ -47,7 +47,7 @@ export default function InventoryAlerts() {
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-yellow-600" />
               <h3 className="font-semibold text-yellow-900 dark:text-yellow-100">
-                Kam Zaxira Ogohlantirishlari
+                Кам Захира Огohlантиришлари
               </h3>
             </div>
             <button
@@ -76,7 +76,7 @@ export default function InventoryAlerts() {
                     <p className="text-sm font-bold text-yellow-600">
                       {product.currentStock}
                     </p>
-                    <p className="text-xs text-muted-foreground">qop</p>
+                    <p className="text-xs text-muted-foreground">қоп</p>
                   </div>
                   <TrendingDown className="w-4 h-4 text-red-500" />
                 </div>
@@ -86,7 +86,7 @@ export default function InventoryAlerts() {
 
           {alerts.length > 5 && (
             <p className="text-xs text-muted-foreground mt-2 text-center">
-              +{alerts.length - 5} ta boshqa mahsulot
+              +{alerts.length - 5} та бошқа маҳсулот
             </p>
           )}
 
@@ -99,14 +99,14 @@ export default function InventoryAlerts() {
               }}
               className="flex-1"
             >
-              Mahsulotlarni Ko'rish
+              Маҳсулотларни Кўриш
             </Button>
             <Button
               size="sm"
               variant="secondary"
               onClick={() => setIsVisible(false)}
             >
-              Yopish
+              Ёпиш
             </Button>
           </div>
         </CardContent>

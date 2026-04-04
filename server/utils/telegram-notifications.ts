@@ -414,3 +414,48 @@ ${debtSection}
     throw error;
   }
 }
+
+/**
+ * Haydovchiga to'lov qabul qilindi xabari yuborish
+ */
+export async function sendDriverPaymentReceivedNotification(
+  telegramChatId: string,
+  data: {
+    saleId: string;
+    collectedAmount: number;
+    totalCollected: number;
+    remaining: number;
+    currency: string;
+  }
+) {
+  try {
+    const adminBot = botManager.getBot('admin');
+    if (!adminBot) {
+      console.log('Admin bot not available');
+      return;
+    }
+
+    const status = data.remaining <= 0 
+      ? '✅ To\'liq to\'langan!' 
+      : `⏳ Qoldiq: ${data.remaining.toFixed(2)} ${data.currency}`;
+
+    const message = `
+💰 **TO'LOV QABUL QILINDI**
+
+📋 **Sotuv:** #${data.saleId.slice(-6)}
+💵 **Yig'ilgan:** ${data.collectedAmount.toFixed(2)} ${data.currency}
+📊 **Jami yig'ilgan:** ${data.totalCollected.toFixed(2)} ${data.currency}
+${status}
+
+⏰ ${new Date().toLocaleString('uz-UZ')}
+    `;
+
+    await adminBot.sendMessage(telegramChatId, message, {
+      parse_mode: 'Markdown'
+    });
+
+    console.log(`✅ Haydovchiga to'lov xabari yuborildi: ${telegramChatId}`);
+  } catch (error) {
+    console.error('Haydovchiga xabar yuborishda xatolik:', error);
+  }
+}

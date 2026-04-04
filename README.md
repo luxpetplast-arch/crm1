@@ -1,4 +1,4 @@
-# AzizTrades ERP
+# Lux Pet Plast ERP
 
 A professional, production-ready ERP system for plastic preform manufacturing and wholesale trading.
 
@@ -112,7 +112,7 @@ A professional, production-ready ERP system for plastic preform manufacturing an
 1. Clone the repository
 ```bash
 git clone <repository-url>
-cd aziztrades-erp
+cd luxpetplast-erp
 ```
 
 2. Install dependencies
@@ -138,7 +138,7 @@ npm run db:push
 INSERT INTO "User" (id, email, password, name, role, active)
 VALUES (
   gen_random_uuid(),
-  'admin@aziztrades.com',
+  'admin@luxpetplast.uz',
   '$2a$10$YourHashedPasswordHere',
   'Admin',
   'ADMIN',
@@ -262,8 +262,8 @@ Serve the `dist` folder with nginx or similar.
 
 ## License
 
-Proprietary - AzizTrades
+Proprietary - Lux Pet Plast
 
 ## Support
 
-For support, contact: support@aziztrades.com
+For support, contact: admin@luxpetplast.uz

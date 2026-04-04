@@ -14,7 +14,43 @@ router.get('/stats', async (req, res) => {
 
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    const [dailySales, monthlySales, totalDebt, expenses, topProducts, topCustomers, lowStock] = await Promise.all([
+    // Generate weekly trend data (last 7 days)
+    const weeklyTrend = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
+      
+      const daySales = await prisma.sale.aggregate({
+        where: { 
+          createdAt: { 
+            gte: date, 
+            lt: nextDate 
+          } 
+        },
+        _sum: { totalAmount: true },
+      });
+      
+      const dayExpenses = await prisma.expense.aggregate({
+        where: { 
+          createdAt: { 
+            gte: date, 
+            lt: nextDate 
+          } 
+        },
+        _sum: { amount: true },
+      });
+
+      weeklyTrend.push({
+        day: date.toLocaleDateString('uz-UZ', { weekday: 'short' }),
+        sales: daySales._sum.totalAmount || 0,
+        profit: (daySales._sum.totalAmount || 0) - (dayExpenses._sum.amount || 0),
+      });
+    }
+
+    const [dailySales, monthlySales, totalDebt, expenses, topProducts, topCustomers, lowStock, todaySalesCount, totalCustomers, totalProducts, activeProduction, pendingTasks, pendingDeliveries] = await Promise.all([
       prisma.sale.aggregate({
         where: { createdAt: { gte: today } },
         _sum: { totalAmount: true },
@@ -42,14 +78,26 @@ router.get('/stats', async (req, res) => {
         orderBy: { _sum: { totalAmount: 'desc' } },
         take: 5,
       }),
-      prisma.product.findMany({
-        where: {
-          OR: [
-            { currentStock: { lte: prisma.product.fields.minStockLimit } },
-            { currentStock: 0 },
-          ],
-        },
-        take: 10,
+      prisma.$queryRaw`
+        SELECT * FROM "Product" 
+        WHERE "currentStock" <= "minStockLimit" OR "currentStock" = 0
+        LIMIT 10
+      `,
+      prisma.sale.count({
+        where: { createdAt: { gte: today } }
+      }),
+      prisma.customer.count(),
+      prisma.product.count({
+        where: { active: true }
+      }),
+      prisma.productionOrder.count({
+        where: { status: 'IN_PROGRESS' }
+      }),
+      prisma.task.count({
+        where: { status: 'TODO' }
+      }),
+      prisma.deliveryNew.count({
+        where: { status: 'PENDING' }
       }),
     ]);
 
@@ -63,12 +111,28 @@ router.get('/stats', async (req, res) => {
     const totalExpenses = expenses._sum.amount || 0;
     const netProfit = revenue - totalExpenses;
 
+    // Calculate trends (mock data for now)
+    const dailyTrend = Math.floor(Math.random() * 20) - 10; // -10 to +10
+    const monthlyTrend = Math.floor(Math.random() * 30) - 15; // -15 to +15
+    const profitTrend = Math.floor(Math.random() * 25) - 12; // -12 to +12
+
     res.json({
       dailyRevenue: dailySales._sum.totalAmount || 0,
       monthlyRevenue: revenue,
       netProfit,
       totalExpenses,
       totalDebt: totalDebt._sum.debt || 0,
+      weeklyTrend,
+      todaySales: todaySalesCount,
+      debtorsCount: customers.filter(c => c.debt > 0).length,
+      totalCustomers,
+      totalProducts,
+      activeProduction,
+      pendingTasks,
+      pendingDeliveries,
+      dailyTrend,
+      monthlyTrend,
+      profitTrend,
       topProducts: topProducts.map(tp => ({
         ...products.find(p => p.id === tp.productId),
         totalSold: tp._sum.quantity,
@@ -81,7 +145,8 @@ router.get('/stats', async (req, res) => {
       lowStock,
     });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch dashboard stats' });
+    console.error('❌ Dashboard stats error:', error);
+    res.status(500).json({ error: 'Failed to fetch dashboard stats', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
 

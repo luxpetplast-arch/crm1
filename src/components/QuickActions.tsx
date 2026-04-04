@@ -10,37 +10,37 @@ export default function QuickActions() {
   const actions = [
     {
       icon: ShoppingCart,
-      label: 'Yangi Sotuv',
+      label: 'Янги Сотув',
       color: 'bg-green-500 hover:bg-green-600',
       path: '/sales',
     },
     {
       icon: Package,
-      label: 'Mahsulot Qo\'shish',
+      label: 'Маҳсулот Қўшиш',
       color: 'bg-blue-500 hover:bg-blue-600',
       path: '/products',
     },
     {
       icon: Users,
-      label: 'Mijoz Qo\'shish',
+      label: 'Мижоз Қўшиш',
       color: 'bg-purple-500 hover:bg-purple-600',
       path: '/customers',
     },
     {
       icon: DollarSign,
-      label: 'Xarajat Qo\'shish',
+      label: 'Харажат Қўшиш',
       color: 'bg-red-500 hover:bg-red-600',
       path: '/expenses',
     },
     {
       icon: Factory,
-      label: 'Ishlab Chiqarish',
+      label: 'Ишлаб чиқариш',
       color: 'bg-orange-500 hover:bg-orange-600',
       path: '/production',
     },
     {
       icon: Truck,
-      label: 'Yetkazuvchi',
+      label: 'Ятказувчи',
       color: 'bg-indigo-500 hover:bg-indigo-600',
       path: '/suppliers',
     },
@@ -73,7 +73,7 @@ export default function QuickActions() {
           <div className="fixed bottom-24 right-6 z-50 animate-slide-in">
             <Card>
               <CardContent className="p-4 w-80">
-                <h3 className="font-semibold mb-4">Tezkor Amallar</h3>
+                <h3 className="font-semibold mb-4">Тезкор Амаллар</h3>
                 <div className="grid grid-cols-2 gap-3">
                   {actions.map((action) => {
                     const Icon = action.icon;

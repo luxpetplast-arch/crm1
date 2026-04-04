@@ -2,9 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Dark mode ni butunlay o'chirish */
+* {
+  color-scheme: light !important;
+}
+
+html, body, #root {
+  background-color: #ffffff !important;
+}
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 210 40% 98%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -12,18 +21,18 @@
     --popover-foreground: 222.2 84% 4.9%;
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 84% 4.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
+    --radius: 0.75rem;
   }
 
   .dark {
@@ -54,39 +63,86 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
-  
-  /* Number input spinner'larni yashirish va 0 ni oson o'chirish */
-  input[type="number"]::-webkit-inner-spin-button,
-  input[type="number"]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-  
-  input[type="number"] {
-    -moz-appearance: textfield;
-    appearance: textfield;
-  }
+}
+
+/* Glassmorphism utility */
+.glass {
+  @apply bg-white/70 dark:bg-black/70 backdrop-blur-md border border-white/20 dark:border-white/10;
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-muted;
+  @apply bg-transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-muted-foreground/30 rounded-full;
+  @apply bg-muted-foreground/20 rounded-full border-2 border-transparent bg-clip-content;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-muted-foreground/50;
+  @apply bg-muted-foreground/40;
+}
+
+/* Page transitions */
+.page-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+/* Modern Card shadows */
+.card-shadow {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+}
+
+@layer components {
+  .premium-card {
+    @apply bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-white dark:border-gray-800 transition-all duration-500 hover:shadow-[0_30px_70px_rgba(0,0,0,0.08)];
+  }
+  
+  .premium-button-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white rounded-[1.5rem] font-black text-xs tracking-widest shadow-[0_15px_40px_rgba(37,99,235,0.25)] hover:shadow-[0_20px_50px_rgba(37,99,235,0.35)] transition-all active:scale-95 flex items-center justify-center gap-3 px-8 py-4;
+  }
+
+  .premium-button-secondary {
+    @apply bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-[1.5rem] font-black text-xs tracking-widest shadow-lg border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all active:scale-95 flex items-center justify-center gap-3 px-8 py-4;
+  }
+
+  .premium-input {
+    @apply w-full h-16 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-black text-sm transition-all outline-none;
+  }
+
+  .premium-heading {
+    @apply text-5xl sm:text-7xl font-black text-gray-900 dark:text-white tracking-tighter leading-none;
+  }
+
+  .glass-header {
+    @apply bg-white/40 dark:bg-gray-950/40 backdrop-blur-2xl border border-white/40 dark:border-gray-800/40 shadow-[0_20px_50px_rgba(0,0,0,0.03)] rounded-[2.5rem];
+  }
+}
+
+/* Shimmer animation for loading */
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite linear;
 }
 
 /* Smooth transitions */

@@ -8,17 +8,20 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 export function Input({ label, icon, className, ...props }: InputProps) {
   return (
-    <div className="space-y-1.5 sm:space-y-2">
-      {label && <label className="text-xs sm:text-sm font-medium block">{label}</label>}
-      <div className="relative">
-        {icon && <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">{icon}</div>}
+    <div className="space-y-3">
+      {label && <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">{label}</label>}
+      <div className="relative group">
+        {icon && (
+          <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-600 transition-colors duration-500 pointer-events-none z-10">
+            {icon}
+          </div>
+        )}
         <input
           className={cn(
-            'w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm bg-background border-2 border-border rounded-lg',
-            'focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary',
-            'transition-all min-h-[44px] sm:min-h-[40px]',
-            'placeholder:text-muted-foreground/60',
-            icon && 'pl-10',
+            'w-full h-16 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-black text-sm transition-all outline-none',
+            'placeholder:text-gray-400 placeholder:font-bold',
+            'hover:bg-gray-100 dark:hover:bg-gray-700/50 shadow-sm focus:shadow-xl focus:shadow-blue-500/10',
+            icon ? 'pl-16 pr-6' : 'px-6',
             className
           )}
           {...props}

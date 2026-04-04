@@ -1,13 +1,18 @@
 import { ReactNode } from 'react';
 import { cn } from '../lib/utils';
 
-export function Card({ children, className, onClick }: { children: ReactNode; className?: string; onClick?: () => void }) {
+interface CardProps {
+  children: ReactNode;
+  className?: string;
+  onClick?: () => void;
+}
+
+export function Card({ children, className, onClick }: CardProps) {
   return (
     <div 
       className={cn(
-        'bg-card border border-border rounded-lg p-4 sm:p-6',
-        'transition-all duration-200',
-        onClick && 'cursor-pointer active:scale-[0.98] hover:shadow-md',
+        'bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-white dark:border-gray-800 transition-all duration-500 hover:shadow-[0_30px_70px_rgba(0,0,0,0.08)]',
+        onClick && 'cursor-pointer active:scale-[0.98]',
         className
       )} 
       onClick={onClick}
@@ -17,11 +22,11 @@ export function Card({ children, className, onClick }: { children: ReactNode; cl
   );
 }
 
-export function CardHeader({ children, className, onClick }: { children: ReactNode; className?: string; onClick?: () => void }) {
+export function CardHeader({ children, className, onClick }: CardProps) {
   return (
     <div 
       className={cn(
-        'mb-3 sm:mb-4', 
+        'p-10 border-b border-gray-100 dark:border-gray-800', 
         onClick && 'cursor-pointer', 
         className
       )} 
@@ -32,12 +37,12 @@ export function CardHeader({ children, className, onClick }: { children: ReactNo
   );
 }
 
-export function CardTitle({ children, className, onClick }: { children: ReactNode; className?: string; onClick?: () => void }) {
+export function CardTitle({ children, className, onClick }: CardProps) {
   return (
     <h3 
       className={cn(
-        'text-base sm:text-lg font-semibold leading-tight',
-        onClick && 'cursor-pointer hover:text-primary transition-colors', 
+        'text-2xl font-black tracking-tight uppercase text-gray-900 dark:text-white',
+        onClick && 'cursor-pointer hover:text-blue-600 transition-colors', 
         className
       )} 
       onClick={onClick}
@@ -47,11 +52,11 @@ export function CardTitle({ children, className, onClick }: { children: ReactNod
   );
 }
 
-export function CardContent({ children, className, onClick }: { children: ReactNode; className?: string; onClick?: () => void }) {
+export function CardContent({ children, className, onClick }: CardProps) {
   return (
     <div 
       className={cn(
-        'text-sm sm:text-base',
+        'p-10',
         onClick && 'cursor-pointer', 
         className
       )} 

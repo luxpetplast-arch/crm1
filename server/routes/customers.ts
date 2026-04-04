@@ -26,7 +26,33 @@ router.get('/', async (req, res) => {
     
     const customers = await prisma.customer.findMany({
       where,
-      include: { _count: { select: { sales: true } } },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        address: true,
+        telegramChatId: true,
+        telegramUsername: true,
+        notificationsEnabled: true,
+        category: true,
+        balance: true,
+        balanceUZS: true,
+        balanceUSD: true,
+        debt: true,
+        debtUZS: true,
+        debtUSD: true,
+        creditLimit: true,
+        paymentTermDays: true,
+        discountPercent: true,
+        pricePerBag: true,
+        productPrices: true,
+        lastPurchase: true,
+        lastPayment: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: { select: { sales: true } }
+      }
     });
     
     // Qidirish - SQLite uchun JavaScript'da filtrlash

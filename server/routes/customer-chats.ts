@@ -6,7 +6,7 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 // Get all customer chats
-router.get('/customer-chats', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     // Get all customers with telegram chat ID
     const customers = await prisma.customer.findMany({
@@ -58,7 +58,7 @@ router.get('/customer-chats', async (req, res) => {
 });
 
 // Get chat history for specific customer
-router.get('/customer-chats/:telegramChatId', async (req, res) => {
+router.get('/:telegramChatId', async (req, res) => {
   try {
     const { telegramChatId } = req.params;
     

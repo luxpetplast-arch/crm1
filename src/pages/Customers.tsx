@@ -7,8 +7,10 @@ import api from '../lib/api';
 import { getExchangeRates } from '../lib/settings';
 import { getCategoryEmoji, getCategoryText } from '../lib/stockUtils';
 import { formatCurrency } from '../lib/utils';
-import { Users, Eye, DollarSign, AlertTriangle, TrendingUp, Users2, Crown, CreditCard, Trash2 } from 'lucide-react';
+import { latinToCyrillic } from '../lib/transliterator';
+import { Users, Eye, DollarSign, AlertTriangle, TrendingUp, Users2, Crown, CreditCard, Trash2, FileSpreadsheet } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { exportToExcel } from '../lib/excelUtils';
 
 export default function Customers() {
   const navigate = useNavigate();
@@ -19,7 +21,7 @@ export default function Customers() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [exchangeRates, setExchangeRates] = useState({ USD_TO_UZS: 12500, EUR_TO_UZS: 13500 });
-  const [form, setForm] = useState({ name: '', email: '', phone: '', category: 'NORMAL', telegramId: '' });
+  const [form, setForm] = useState({ name: '', phone: '', category: 'NORMAL', telegramId: '' });
   const [paymentForm, setPaymentForm] = useState({
     paidUZS: '',
     paidUSD: '',
@@ -45,14 +47,15 @@ export default function Customers() {
 
   // Qarzdor mijozlarni filtrlash
   const filteredCustomers = customers.filter(customer => {
-    if (filter === 'debtors') return customer.debt > 0;
+    if (filter === 'debtors') return (customer.debtUSD > 0 || customer.debtUZS > 0);
     if (filter === 'vip') return customer.category === 'VIP';
     return true;
   });
 
   // Statistika
-  const debtCustomers = customers.filter(c => c.debt > 0);
-  const totalDebt = debtCustomers.reduce((sum, c) => sum + c.debt, 0);
+  const debtCustomers = customers.filter(c => (c.debtUSD > 0 || c.debtUZS > 0));
+  const totalDebtUSD = debtCustomers.reduce((sum, c) => sum + (c.debtUSD || 0), 0);
+  const totalDebtUZS = debtCustomers.reduce((sum, c) => sum + (c.debtUZS || 0), 0);
   const vipCustomers = customers.filter(c => c.category === 'VIP');
   const activeCustomers = customers.filter(c => {
     if (!c.lastPurchase) return false;
@@ -68,7 +71,6 @@ export default function Customers() {
       // Agar Telegram ID kiritilgan bo'lsa, uni yuqori registrga o'tkazish
       const submitData = {
         name: form.name,
-        email: form.email || undefined,
         phone: form.phone,
         category: form.category,
         ...(form.telegramId.trim() && { telegramId: form.telegramId.toUpperCase().trim() })
@@ -76,10 +78,23 @@ export default function Customers() {
       
       await api.post('/customers', submitData);
       setShowForm(false);
-      setForm({ name: '', email: '', phone: '', category: 'NORMAL', telegramId: '' });
+      setForm({ name: '', phone: '', category: 'NORMAL', telegramId: '' });
       loadCustomers();
     } catch (error: any) {
       alert(error.response?.data?.error || 'Mijoz qo\'shishda xatolik yuz berdi');
+    }
+  };
+
+  const deleteCustomer = async (customerId: string, customerName: string) => {
+    if (confirm(`Ростдан ҳам "${customerName}" mijozini ўчирмоқчимисиз? Бу амал бекор қилинмайди!`)) {
+      try {
+        await api.delete(`/customers/${customerId}`);
+        alert('✅ Mijoz muvaffaqiyatli o\'chirildi!');
+        loadCustomers(); // Ro'yxatni yangilash
+      } catch (error) {
+        console.error('Mijozni o\'chirishda xatolik:', error);
+        alert('❌ Xatolik yuz berdi!');
+      }
     }
   };
 
@@ -110,28 +125,35 @@ export default function Customers() {
     e.preventDefault();
     
     try {
-      const paidAmount = calculatePaidInUSD();
+      const paidUSD = parseFloat(paymentForm.paidUSD) || 0;
+      const paidUZS = parseFloat(paymentForm.paidUZS) || 0;
+      const paidCLICK = parseFloat(paymentForm.paidCLICK) || 0;
       
-      if (paidAmount <= 0) {
+      if (paidUSD <= 0 && paidUZS <= 0 && paidCLICK <= 0) {
         alert('Iltimos, to\'lov summasini kiriting');
         return;
       }
 
+      // To'lovni yuborish. Backend'da qaysi valyuta qarzini qanday tartibda yopish
+      // avtomatik hisoblanishi uchun paymentDetails va umumiy amount yuboriladi.
       await api.post(`/customers/${selectedCustomer.id}/payment`, {
-        amount: paidAmount,
-        currency: 'USD',
         description: paymentForm.description,
         paymentDetails: {
-          uzs: parseFloat(paymentForm.paidUZS) || 0,
-          usd: parseFloat(paymentForm.paidUSD) || 0,
-          click: parseFloat(paymentForm.paidCLICK) || 0,
-        }
+          usd: paidUSD,
+          uzs: paidUZS,
+          click: paidCLICK
+        },
+        // Umumiy USD ekvivalenti (Waterfall mantiqi uchun backend'ga yordam beradi)
+        amountUSD: paidUSD + ((paidUZS + paidCLICK) / exchangeRates.USD_TO_UZS),
+        currency: 'USD'
       });
 
       setShowPaymentModal(false);
       setSelectedCustomer(null);
       loadCustomers();
-      alert('To\'lov muvaffaqiyatli amalga oshirildi!');
+      
+      const totalUZS = (paidUZS + paidCLICK).toLocaleString();
+      alert(`✅ To'lov qabul qilindi!\n\nKiritilgan: ${paidUSD > 0 ? `$${paidUSD}` : ''} ${paidUZS + paidCLICK > 0 ? `${totalUZS} sum` : ''}\n\nUshbu summalar avval o'z valyutasidagi qarzni, ortiqchasi esa boshqa valyutadagi qarzni yopishga yo'naltiriladi.`);
     } catch (error: any) {
       alert(error.response?.data?.error || 'To\'lovda xatolik yuz berdi');
     }
@@ -205,252 +227,231 @@ export default function Customers() {
   const paidAmount = calculatePaidInUSD();
   const remainingDebt = selectedCustomer ? Math.max(0, selectedCustomer.debt - paidAmount) : 0;
 
+  const handleExportExcel = () => {
+    const dataToExport = filteredCustomers.map(c => ({
+      'Ism': c.name,
+      'Telefon': c.phone || '-',
+      'Kategoriya': c.category || 'NORMAL',
+      'Qarz (USD)': c.debtUSD || 0,
+      'Qarz (UZS)': c.debtUZS || 0,
+      'Balans (USD)': c.balanceUSD || 0,
+      'Balans (UZS)': c.balanceUZS || 0,
+      'Oxirgi xarid': c.lastPurchase ? new Date(c.lastPurchase).toLocaleDateString() : '-'
+    }));
+    
+    exportToExcel(dataToExport, 'Mijozlar_Ro\'yxati', 'Mijozlar');
+  };
+
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <h1 className="text-2xl sm:text-3xl font-bold">Mijozlar</h1>
-        <Button onClick={() => setShowForm(!showForm)} className="w-full sm:w-auto min-h-[44px]">
-          {showForm ? 'Bekor qilish' : 'Mijoz Qo\'shish'}
-        </Button>
-      </div>
+    <div className="space-y-10 pb-20 animate-in fade-in duration-1000">
+      {/* Premium Header Section */}
+      <div className="relative overflow-hidden bg-white dark:bg-gray-900 rounded-xl p-10 sm:p-16 shadow-[0_10px_40px_rgba(0,0,0,0.02)] border border-gray-100 dark:border-gray-800">
+        {/* Background blobs */}
+        <div className="absolute top-0 -left-10 w-64 h-64 bg-indigo-100 dark:bg-indigo-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob pointer-events-none"></div>
+        <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-purple-100 dark:bg-purple-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000 pointer-events-none"></div>
 
-      {/* Statistika Kartalari */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Jami Mijozlar</p>
-                <p className="text-2xl font-bold">{customers.length}</p>
+        <div className="relative z-10">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-10">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg border border-indigo-100 dark:border-indigo-800 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
+                <Crown className="w-3 h-3 animate-pulse" />
+                Customer Management
               </div>
-              <Users className="w-8 h-8 text-blue-500" />
+              <h1 className="text-5xl sm:text-7xl font-black text-gray-900 dark:text-white tracking-tighter leading-[0.9]">
+                {latinToCyrillic("Mijozlar")} <br />
+                <span className="text-indigo-600">{latinToCyrillic("Bazasi")}</span>
+              </h1>
+              <p className="text-gray-500 dark:text-gray-400 text-lg font-bold tracking-tight">
+                {customers.length} {latinToCyrillic("ta umumiy mijoz")} • {activeCustomers.length} {latinToCyrillic("ta faol")}
+              </p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Qarzdorlar</p>
-                <p className="text-2xl font-bold text-red-600">{debtCustomers.length}</p>
-                <p className="text-xs text-muted-foreground">
-                  {formatCurrency(totalDebt, 'USD')}
-                </p>
-              </div>
-              <CreditCard className="w-8 h-8 text-red-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">VIP Mijozlar</p>
-                <p className="text-2xl font-bold text-purple-600">{vipCustomers.length}</p>
-              </div>
-              <Crown className="w-8 h-8 text-purple-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Faol Mijozlar</p>
-                <p className="text-2xl font-bold text-green-600">{activeCustomers.length}</p>
-                <p className="text-xs text-muted-foreground">30 kun ichida</p>
-              </div>
-              <TrendingUp className="w-8 h-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filtrlash Tugmalari */}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant={filter === 'all' ? 'primary' : 'secondary'}
-          onClick={() => setFilter('all')}
-          className="min-h-[44px]"
-        >
-          <Users2 className="w-4 h-4 mr-2" />
-          Barchasi ({customers.length})
-        </Button>
-        <Button
-          variant={filter === 'debtors' ? 'primary' : 'secondary'}
-          onClick={() => setFilter('debtors')}
-          className="min-h-[44px]"
-        >
-          <CreditCard className="w-4 h-4 mr-2" />
-          Qarzdorlar ({debtCustomers.length})
-        </Button>
-        <Button
-          variant={filter === 'vip' ? 'primary' : 'secondary'}
-          onClick={() => setFilter('vip')}
-          className="min-h-[44px]"
-        >
-          <Crown className="w-4 h-4 mr-2" />
-          VIP ({vipCustomers.length})
-        </Button>
-      </div>
-
-      {showForm && (
-        <div className="max-h-[80vh] overflow-y-auto">
-        <Card>
-          <CardHeader>
-            <CardTitle>Yangi Mijoz</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Input label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-              <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-              <Input label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required />
+            
+            <div className="flex flex-wrap gap-4 w-full lg:w-auto">
+              <button 
+                onClick={handleExportExcel}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-8 py-5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl font-black text-sm transition-all active:scale-95 text-gray-900 dark:text-white shadow-sm border border-gray-200 dark:border-gray-700"
+              >
+                <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
+                {latinToCyrillic("EXCEL")}
+              </button>
               
-              {/* Telegram ID input */}
-              <div>
-                <Input 
-                  label="Telegram ID (ixtiyoriy)" 
-                  value={form.telegramId} 
-                  onChange={(e) => setForm({ ...form, telegramId: e.target.value.toUpperCase() })}
-                  placeholder="Masalan: A1B2C3D4"
-                  maxLength={8}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  💡 Mijoz Telegram botdan /start yuborgan paytda olgan 8 belgili ID raqamini kiriting
-                </p>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Category</label>
-                <select
-                  className="w-full px-3 py-2 bg-background border border-border rounded-lg"
-                  value={form.category}
-                  onChange={(e) => setForm({ ...form, category: e.target.value })}
-                >
-                  <option value="NORMAL">Normal</option>
-                  <option value="VIP">VIP</option>
-                  <option value="RISK">Risk</option>
-                </select>
-              </div>
-              <Button type="submit" className="w-full">Mijoz Yaratish</Button>
-            </form>
-          </CardContent>
-        </Card>
+              <button 
+                onClick={() => setShowForm(!showForm)} 
+                className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-10 py-5 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-black text-sm transition-all active:scale-95 text-white shadow-2xl shadow-indigo-500/30"
+              >
+                {showForm ? latinToCyrillic("BEKOR QILISH") : latinToCyrillic("YANGI MIJOZ")}
+              </button>
+            </div>
+          </div>
         </div>
-      )}
+      </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-        {filteredCustomers.map((customer) => (
-          <div
-            key={customer.id}
-            className="cursor-pointer"
-          >
-            <Card className={`hover:shadow-lg transition-all active:scale-95 ${
-              customer.debt > 0 ? 'border-2 border-red-200 dark:border-red-800' : ''
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        {[
+          { title: 'Jami Mijozlar', value: customers.length, icon: Users, color: 'blue', desc: 'Bazadagi barcha mijozlar' },
+          { title: 'Qarzdorlar', value: debtCustomers.length, icon: CreditCard, color: 'rose', desc: `${totalDebtUSD.toFixed(0)}$ + ${totalDebtUZS.toLocaleString()} UZS` },
+          { title: 'VIP Mijozlar', value: vipCustomers.length, icon: Crown, color: 'amber', desc: 'Eng ko\'p xarid qilganlar' },
+          { title: 'Faol Mijozlar', value: activeCustomers.length, icon: TrendingUp, color: 'emerald', desc: 'Oxirgi 30 kunda faol' }
+        ].map((stat, idx) => (
+          <div key={idx} className="bg-white dark:bg-gray-900 rounded-xl p-8 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-gray-100 dark:border-gray-800">
+            <div className={`w-14 h-14 rounded-lg flex items-center justify-center mb-6 shadow-2xl ${
+              stat.color === 'blue' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30' : 
+              stat.color === 'rose' ? 'bg-rose-50 text-rose-600 dark:bg-rose-900/30' : 
+              stat.color === 'amber' ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/30' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30'
             }`}>
-              <CardContent>
-                <div 
-                  onClick={() => navigate(`/customers/${customer.id}`)}
-                  className="mb-4"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-base sm:text-lg">{customer.name}</h3>
-                        {customer.telegramChatId && (
-                          <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full" title="Telegram bog'langan">
-                            📱
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs sm:text-sm text-muted-foreground">{customer.phone}</p>
-                      {customer.telegramUsername && (
-                        <p className="text-xs text-blue-600 dark:text-blue-400">@{customer.telegramUsername}</p>
-                      )}
-                      
-                      {/* Rangli Kategoriya Badge */}
-                      <div className={`mt-2 inline-flex items-center gap-1 px-3 py-1 rounded-lg ${getCategoryColor(customer.category)}`}>
-                        <span className="text-base">{getCategoryEmoji(customer.category)}</span>
-                        <span className="text-xs font-semibold">{getCategoryText(customer.category)}</span>
-                      </div>
-                    </div>
-                    <Users className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
-                  </div>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>Balans:</span>
-                      <span className="font-semibold">{formatCurrency(customer.balance, 'USD')}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span>Qarz:</span>
-                      <div className="flex items-center gap-2">
-                        {customer.debt > 0 && (
-                          <AlertTriangle className="w-4 h-4 text-red-500" />
-                        )}
-                        <span className={`font-semibold ${customer.debt > 0 ? 'text-red-500' : ''}`}>
-                          {formatCurrency(customer.debt, 'USD')}
-                        </span>
-                      </div>
-                    </div>
-                    {customer.debt > 0 && (
-                      <div className="text-xs text-red-600 dark:text-red-400">
-                        ≈ {(customer.debt * exchangeRates.USD_TO_UZS).toLocaleString()} UZS
-                      </div>
-                    )}
-                    <div className="flex justify-between">
-                      <span>Jami Sotuvlar:</span>
-                      <span className="font-semibold">{customer._count.sales}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Qarz to'lash tugmasi */}
-                {customer.debt > 0 && (
-                  <div className="pt-3 border-t border-border">
-                    <Button
-                      onClick={(e) => handlePayDebt(customer, e)}
-                      className="w-full bg-green-600 hover:bg-green-700 min-h-[44px]"
-                    >
-                      <DollarSign className="w-4 h-4 mr-2" />
-                      Qarz To'lash
-                    </Button>
-                  </div>
-                )}
-
-                <div className="mt-3 pt-3 border-t border-border">
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      onClick={() => navigate(`/customers/${customer.id}`)}
-                      className="flex items-center justify-center gap-2 text-primary text-sm font-medium hover:text-primary/80 transition-colors min-h-[44px] px-3 py-2 rounded-lg hover:bg-primary/10"
-                    >
-                      <Eye className="w-4 h-4" />
-                      <span>Batafsil</span>
-                    </button>
-                    <button
-                      onClick={(e) => handleDiscountTemplate(customer, e)}
-                      className="flex items-center justify-center gap-2 text-purple-600 dark:text-purple-400 text-sm font-medium hover:text-purple-700 dark:hover:text-purple-300 transition-colors min-h-[44px] px-3 py-2 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/20"
-                    >
-                      <span className="text-base">🎁</span>
-                      <span>Chegirma</span>
-                    </button>
-                    <button
-                      onClick={(e) => handleDeleteCustomer(customer, e)}
-                      className="flex items-center justify-center gap-2 text-red-600 dark:text-red-400 text-sm font-medium hover:text-red-700 dark:hover:text-red-300 transition-colors min-h-[44px] px-3 py-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span>O'chirish</span>
-                    </button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              <stat.icon className="w-7 h-7" />
+            </div>
+            <p className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">{stat.title}</p>
+            <h3 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight mb-2 leading-none">{stat.value}</h3>
+            <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{stat.desc}</p>
           </div>
         ))}
       </div>
 
+      {/* Filter and Content Area */}
+      <div className="space-y-8">
+        <div className="flex flex-wrap gap-4 p-2 bg-gray-100 dark:bg-gray-800 rounded-xl w-fit">
+          {[
+            { id: 'all', name: 'BARCHASI', icon: Users2, count: customers.length },
+            { id: 'debtors', name: 'QARZDORLAR', icon: CreditCard, count: debtCustomers.length },
+            { id: 'vip', name: 'VIP MIJOZLAR', icon: Crown, count: vipCustomers.length }
+          ].map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setFilter(f.id as any)}
+              className={`flex items-center gap-3 px-8 py-4 rounded-lg font-black text-xs transition-all duration-300 ${
+                filter === f.id 
+                  ? 'bg-white dark:bg-gray-900 text-indigo-600 shadow-xl scale-105' 
+                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              <f.icon className="w-4 h-4" />
+              {f.name}
+              <span className={`px-2 py-0.5 rounded-lg text-[10px] ${filter === f.id ? 'bg-indigo-50 text-indigo-600' : 'bg-gray-200 dark:bg-gray-700'}`}>{f.count}</span>
+            </button>
+          ))}
+        </div>
+
+        {showForm && (
+          <div className="animate-in slide-in-from-top-4 duration-500">
+            <Card className="rounded-xl border-2 border-indigo-100 dark:border-indigo-900/30 overflow-hidden shadow-2xl">
+              <div className="bg-indigo-600 p-8 text-white">
+                <h3 className="text-2xl font-black tracking-tight">{latinToCyrillic("Yangi Mijoz Qo'shish")}</h3>
+                <p className="text-indigo-100 text-sm font-bold opacity-80">{latinToCyrillic("Mijoz ma'lumotlarini to'ldiring")}</p>
+              </div>
+              <CardContent className="p-10">
+                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <Input label="Исм" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required className="rounded-lg h-14" />
+                  <Input label="Телефон" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required className="rounded-lg h-14" />
+                  <Input 
+                    label="Telegram ID (ixtiyoriy)" 
+                    value={form.telegramId} 
+                    onChange={(e) => setForm({ ...form, telegramId: e.target.value.toUpperCase() })}
+                    placeholder="Masalan: A1B2C3D4"
+                    maxLength={8}
+                    className="rounded-lg h-14"
+                  />
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-4">KATEGORIYA</label>
+                    <select
+                      className="w-full h-14 px-6 bg-gray-50 dark:bg-gray-800 border-none rounded-lg font-bold text-gray-900 dark:text-white focus:ring-4 focus:ring-indigo-500/10"
+                      value={form.category}
+                      onChange={(e) => setForm({ ...form, category: e.target.value })}
+                    >
+                      <option value="NORMAL">Одатий</option>
+                      <option value="VIP">VIP</option>
+                      <option value="RISK">Хавфли</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-2 pt-4">
+                    <Button type="submit" size="lg" className="w-full h-16 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-black text-lg shadow-2xl shadow-indigo-500/30 transition-all active:scale-[0.98]">
+                      {latinToCyrillic("Mijozni Saqlash")}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          {filteredCustomers.map((customer) => {
+            const isDebtor = (customer.debtUSD > 0 || customer.debtUZS > 0);
+            const isVIP = customer.category === 'VIP';
+            const isRisk = customer.category === 'RISK';
+            
+            return (
+              <div 
+                key={customer.id}
+                onClick={() => navigate(`/customers/${customer.id}`)}
+                className={`group relative bg-white dark:bg-gray-900 rounded-xl p-8 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border-2 transition-all duration-500 hover:scale-[1.03] cursor-pointer ${
+                  isRisk ? 'border-red-100 dark:border-red-900/30' : 
+                  isVIP ? 'border-amber-100 dark:border-amber-900/30' : 'border-gray-100 dark:border-gray-800'
+                }`}
+              >
+                {/* VIP Badge */}
+                {isVIP && (
+                  <div className="absolute top-6 right-6">
+                    <Crown className="w-6 h-6 text-amber-500 animate-pulse" />
+                  </div>
+                )}
+
+                <div className="flex items-center gap-4 mb-8">
+                  <div className={`w-16 h-16 rounded-lg flex items-center justify-center font-black text-xl shadow-2xl transition-all duration-500 group-hover:rotate-6 ${
+                    isVIP ? 'bg-amber-500 text-white' : 
+                    isRisk ? 'bg-red-500 text-white' : 'bg-indigo-600 text-white'
+                  }`}>
+                    {customer.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-black text-gray-900 dark:text-white truncate text-lg tracking-tight leading-none mb-1">{customer.name}</h3>
+                    <p className="text-xs font-bold text-gray-400 truncate tracking-wide">{customer.phone}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4 mb-8">
+                  <div className="flex justify-between items-end">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">QARZ (USD)</p>
+                    <p className={`font-black text-lg ${customer.debtUSD > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      ${customer.debtUSD?.toFixed(2) || '0.00'}
+                    </p>
+                  </div>
+                  <div className="flex justify-between items-end">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">QARZ (UZS)</p>
+                    <p className={`font-black text-lg ${customer.debtUZS > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      {customer.debtUZS?.toLocaleString() || '0'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button 
+                    onClick={(e) => handlePayDebt(customer, e)}
+                    className="flex-1 h-12 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+                  >
+                    {latinToCyrillic("To'lov")}
+                  </button>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); navigate(`/customers/${customer.id}`); }}
+                    className="w-12 h-12 bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-indigo-600 rounded-lg flex items-center justify-center transition-all active:scale-95"
+                  >
+                    <Eye className="w-5 h-5" />
+                  </button>
+                  <button 
+                    onClick={(e) => handleDeleteCustomer(customer, e)}
+                    className="w-12 h-12 bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-500 hover:text-white rounded-lg flex items-center justify-center transition-all active:scale-95"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Qarz To'lash Modal */}
       {/* Qarz To'lash Modal */}
       {showPaymentModal && selectedCustomer && (
         <Modal 
@@ -462,19 +463,25 @@ export default function Customers() {
           <div className="max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
             <form onSubmit={handlePaymentSubmit} className="space-y-6">
                 {/* Qarz Ma'lumoti */}
-                <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="w-5 h-5 text-red-600" />
-                      <span className="font-semibold">Jami Qarz:</span>
+                      <span className="font-semibold">USD Qarz:</span>
                     </div>
-                    <span className="text-2xl font-bold text-red-600">
-                      ${selectedCustomer.debt.toFixed(2)} USD
+                    <span className="text-xl font-bold text-red-600">
+                      ${selectedCustomer.debtUSD.toFixed(2)} USD
                     </span>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    ≈ {(selectedCustomer.debt * exchangeRates.USD_TO_UZS).toLocaleString()} UZS
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-5 h-5 text-red-600" />
+                      <span className="font-semibold">UZS Qarz:</span>
+                    </div>
+                    <span className="text-xl font-bold text-red-600">
+                      {selectedCustomer.debtUZS.toLocaleString()} UZS
+                    </span>
+                  </div>
                 </div>
 
                 {/* To'lov - 3 xil valyuta */}
@@ -485,86 +492,140 @@ export default function Customers() {
                   </h3>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* UZS */}
-                    <div>
-                      <Input
-                        label="Naqd So'm (UZS)"
-                        type="number"
-                        value={paymentForm.paidUZS}
-                        onChange={(e) => setPaymentForm({ ...paymentForm, paidUZS: e.target.value })}
-                        placeholder="0"
-                        step="1000"
-                        min="0"
-                      />
-                      {paymentForm.paidUZS && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          ≈ ${(parseFloat(paymentForm.paidUZS) / exchangeRates.USD_TO_UZS).toFixed(2)} USD
-                        </p>
-                      )}
-                    </div>
-
                     {/* USD */}
-                    <div>
+                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                       <Input
                         label="Dollar (USD)"
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         value={paymentForm.paidUSD}
-                        onChange={(e) => setPaymentForm({ ...paymentForm, paidUSD: e.target.value })}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(',', '.');
+                          if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                          setPaymentForm({ ...paymentForm, paidUSD: raw });
+                        }}
                         placeholder="0"
-                        step="0.01"
-                        min="0"
                       />
-                      {paymentForm.paidUSD && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          ≈ {(parseFloat(paymentForm.paidUSD) * exchangeRates.USD_TO_UZS).toLocaleString()} UZS
-                        </p>
-                      )}
+                      <p className="text-[10px] text-blue-600 font-bold mt-1">
+                        USD qarzni yopish uchun
+                      </p>
+                    </div>
+
+                    {/* UZS */}
+                    <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                      <Input
+                        label="Naqd So'm (UZS)"
+                        type="text"
+                        inputMode="decimal"
+                        value={paymentForm.paidUZS}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(',', '.');
+                          if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                          setPaymentForm({ ...paymentForm, paidUZS: raw });
+                        }}
+                        placeholder="0"
+                      />
+                      <p className="text-[10px] text-green-600 font-bold mt-1">
+                        UZS qarzni yopish uchun
+                      </p>
                     </div>
 
                     {/* CLICK */}
-                    <div>
+                    <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
                       <Input
                         label="Click (UZS)"
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         value={paymentForm.paidCLICK}
-                        onChange={(e) => setPaymentForm({ ...paymentForm, paidCLICK: e.target.value })}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(',', '.');
+                          if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                          setPaymentForm({ ...paymentForm, paidCLICK: raw });
+                        }}
                         placeholder="0"
-                        step="1000"
-                        min="0"
                       />
-                      {paymentForm.paidCLICK && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          ≈ ${(parseFloat(paymentForm.paidCLICK) / exchangeRates.USD_TO_UZS).toFixed(2)} USD
-                        </p>
-                      )}
+                      <p className="text-[10px] text-purple-600 font-bold mt-1">
+                        UZS qarzni yopish uchun
+                      </p>
                     </div>
                   </div>
 
                   {/* To'lov Xulosasi */}
-                  {paidAmount > 0 && (
-                    <div className="mt-4 p-4 bg-muted rounded-lg space-y-2">
-                      <div className="flex justify-between">
-                        <span className="font-medium">Jami To'lanmoqda:</span>
-                        <span className="font-bold text-green-600">
-                          ${paidAmount.toFixed(2)} USD
-                        </span>
+                  <div className="mt-4 p-4 bg-muted rounded-lg space-y-3">
+                    <div className="flex justify-between items-center border-b border-gray-200 pb-2">
+                      <span className="text-sm font-medium text-gray-600">Jami USD to'lov:</span>
+                      <div className="text-right">
+                        <span className="text-lg font-black text-blue-600">${(parseFloat(paymentForm.paidUSD) || 0).toFixed(2)}</span>
+                        <p className="text-[10px] text-blue-400 font-bold uppercase tracking-wider">USD qarz uchun</p>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="font-medium">Qolgan Qarz:</span>
-                        <span className={`font-bold ${remainingDebt > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                          ${remainingDebt.toFixed(2)} USD
-                        </span>
-                      </div>
-                      {paidAmount > selectedCustomer.debt && (
-                        <div className="flex justify-between">
-                          <span className="font-medium">Ortiqcha:</span>
-                          <span className="font-bold text-blue-600">
-                            ${(paidAmount - selectedCustomer.debt).toFixed(2)} USD
-                          </span>
-                        </div>
-                      )}
                     </div>
-                  )}
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-600">Jami UZS to'lov:</span>
+                      <div className="text-right">
+                        <span className="text-lg font-black text-green-600">{( (parseFloat(paymentForm.paidUZS) || 0) + (parseFloat(paymentForm.paidCLICK) || 0) ).toLocaleString()} sum</span>
+                        <p className="text-[10px] text-green-400 font-bold uppercase tracking-wider">UZS qarz uchun</p>
+                      </div>
+                    </div>
+                    
+                    {/* Qolgan qarz prognozi */}
+                    <div className="mt-2 pt-2 border-t-2 border-dashed border-gray-300">
+                      <p className="text-[10px] font-bold text-gray-400 mb-2 uppercase tracking-widest">To'lovdan keyingi umumiy qoldiq:</p>
+                      
+                      {/* Waterfall hisoblash mantiqi UI uchun */}
+                      {(() => {
+                        const pUSD = parseFloat(paymentForm.paidUSD) || 0;
+                        const pUZS = (parseFloat(paymentForm.paidUZS) || 0) + (parseFloat(paymentForm.paidCLICK) || 0);
+                        
+                        let remUSD = selectedCustomer.debtUSD;
+                        let remUZS = selectedCustomer.debtUZS;
+                        
+                        // 1. USD to'lov avval USD qarzni yopadi
+                        const coverUSD = Math.min(remUSD, pUSD);
+                        remUSD -= coverUSD;
+                        const extraUSD = pUSD - coverUSD;
+                        
+                        // 2. UZS to'lov avval UZS qarzni yopadi
+                        const coverUZS = Math.min(remUZS, pUZS);
+                        remUZS -= coverUZS;
+                        const extraUZS = pUZS - coverUZS;
+                        
+                        // 3. Ortiqcha USD -> UZS qarzga
+                        if (extraUSD > 0 && remUZS > 0) {
+                          const convertToUZS = extraUSD * exchangeRates.USD_TO_UZS;
+                          const useUSDforUZS = Math.min(remUZS, convertToUZS);
+                          remUZS -= useUSDforUZS;
+                        }
+                        
+                        // 4. Ortiqcha UZS -> USD qarzga
+                        if (extraUZS > 0 && remUSD > 0) {
+                          const convertToUSD = extraUZS / exchangeRates.USD_TO_UZS;
+                          const useUZSforUSD = Math.min(remUSD, convertToUSD);
+                          remUSD -= useUZSforUSD;
+                        }
+
+                        return (
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-white p-2 rounded border border-gray-100 shadow-sm">
+                              <p className="text-[9px] text-gray-500 font-bold uppercase">Qolgan USD:</p>
+                              <p className={`text-sm font-bold ${remUSD > 0.01 ? 'text-red-500' : 'text-green-500'}`}>
+                                ${remUSD.toFixed(2)}
+                              </p>
+                            </div>
+                            <div className="bg-white p-2 rounded border border-gray-100 shadow-sm">
+                              <p className="text-[9px] text-gray-500 font-bold uppercase">Qolgan UZS:</p>
+                              <p className={`text-sm font-bold ${remUZS > 100 ? 'text-red-500' : 'text-green-500'}`}>
+                                {Math.round(remUZS).toLocaleString()} sum
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      
+                      <p className="text-[9px] text-gray-400 mt-2 italic">
+                        * Ortiqcha to'lov avtomatik tarzda boshqa valyutadagi qarzni yopishga yo'naltiriladi (Kurs: 1$ = {exchangeRates.USD_TO_UZS.toLocaleString()} sum)
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Izoh */}
@@ -589,11 +650,11 @@ export default function Customers() {
                     onClick={() => setShowPaymentModal(false)}
                     className="flex-1"
                   >
-                    Bekor qilish
+                    Бекор қилиш
                   </Button>
                   <Button type="submit" className="flex-1">
                     <DollarSign className="w-4 h-4 mr-2" />
-                    To'lovni Amalga Oshirish
+                    Тўловни Амалга Ошириш
                   </Button>
                 </div>
               </form>
@@ -624,12 +685,16 @@ export default function Customers() {
                 Chegirma Miqdori (UZS)
               </label>
               <Input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={discountAmount}
-                onChange={(e) => setDiscountAmount(e.target.value)}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(',', '.');
+                  if (raw !== '' && isNaN(Number(raw)) && raw !== '.' && raw !== '-') return;
+                  setDiscountAmount(raw);
+                }}
                 placeholder="Masalan: 5000 (standart narxdan -5000 UZS)"
                 required
-                step="1"
               />
               <p className="text-xs text-gray-500 mt-1">
                 💡 Musbat son: chegirma (masalan: 5000 = -5000 UZS)<br />
@@ -651,11 +716,11 @@ export default function Customers() {
                 onClick={() => setShowDiscountModal(false)}
                 className="flex-1"
               >
-                Bekor qilish
+                Бекор қилиш
               </Button>
               <Button type="submit" className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
                 <span className="text-lg mr-2">✨</span>
-                Qo'llash
+                Қўллаш
               </Button>
             </div>
           </form>

@@ -16,6 +16,7 @@ export default function Users() {
   const [form, setForm] = useState({
     name: '',
     email: '',
+    login: '',
     password: '',
     role: 'SELLER',
   });
@@ -43,7 +44,7 @@ export default function Users() {
       }
       setShowModal(false);
       setEditingUser(null);
-      setForm({ name: '', email: '', password: '', role: 'SELLER' });
+      setForm({ name: '', email: '', login: '', password: '', role: 'SELLER' });
       loadUsers();
     } catch (error) {
       alert('Xatolik yuz berdi');
@@ -52,7 +53,7 @@ export default function Users() {
 
   const handleEdit = (user: any) => {
     setEditingUser(user);
-    setForm({ name: user.name, email: user.email, password: '', role: user.role });
+    setForm({ name: user.name, email: user.email, login: user.login || '', password: '', role: user.role });
     setShowModal(true);
   };
 
@@ -72,6 +73,7 @@ export default function Users() {
       SELLER: 'info',
       WAREHOUSE_MANAGER: 'warning',
       ACCOUNTANT: 'success',
+      CASHIER: 'primary',
     };
     return variants[role] || 'default';
   };
@@ -82,6 +84,7 @@ export default function Users() {
       SELLER: 'Sotuvchi',
       WAREHOUSE_MANAGER: 'Ombor Menejeri',
       ACCOUNTANT: 'Buxgalter',
+      CASHIER: 'Kassir',
     };
     return labels[role] || role;
   };
@@ -166,6 +169,13 @@ export default function Users() {
             required
           />
           <Input
+            label="Login (kassirlar uchun)"
+            type="text"
+            value={form.login}
+            onChange={(e) => setForm({ ...form, login: e.target.value })}
+            placeholder="kassir1"
+          />
+          <Input
             label={editingUser ? 'Yangi Parol (bo\'sh qoldiring o\'zgarmasa)' : 'Parol'}
             type="password"
             value={form.password}
@@ -182,6 +192,7 @@ export default function Users() {
               <option value="SELLER">Sotuvchi</option>
               <option value="WAREHOUSE_MANAGER">Ombor Menejeri</option>
               <option value="ACCOUNTANT">Buxgalter</option>
+              <option value="CASHIER">Kassir</option>
               <option value="ADMIN">Administrator</option>
             </select>
           </div>

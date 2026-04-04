@@ -7,7 +7,22 @@ import api from '../lib/api';
 import { formatCurrency } from '../lib/utils';
 import { getExchangeRates } from '../lib/settings';
 import { getCategoryEmoji, getCategoryText } from '../lib/stockUtils';
-import { CreditCard, AlertTriangle, DollarSign, TrendingUp, Calendar, Phone, Mail } from 'lucide-react';
+import { latinToCyrillic } from '../lib/transliterator';
+import { 
+  CreditCard, 
+  AlertTriangle, 
+  DollarSign, 
+  TrendingUp, 
+  Calendar, 
+  Phone, 
+  Mail, 
+  Users,
+  Crown,
+  ArrowLeft,
+  Sparkles,
+  Wallet,
+  Receipt
+} from 'lucide-react';
 
 export default function Debtors() {
   const navigate = useNavigate();
@@ -118,185 +133,233 @@ export default function Debtors() {
   const remainingDebt = selectedCustomer ? Math.max(0, selectedCustomer.debt - paidAmount) : 0;
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-          <CreditCard className="w-8 h-8 text-red-500" />
-          Qarzdor Mijozlar
-        </h1>
-        <Button onClick={() => navigate('/customers')} className="w-full sm:w-auto min-h-[44px]">
-          Barcha Mijozlarga Qaytish
-        </Button>
+    <div className="min-h-screen space-y-10 pb-20 animate-in fade-in duration-1000 bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+      {/* Premium Header Section */}
+      <div className="relative overflow-hidden bg-white dark:bg-gray-900 rounded-b-[3rem] p-10 sm:p-16 shadow-[0_20px_60px_rgba(0,0,0,0.08)] border-b border-gray-100 dark:border-gray-800">
+        {/* Background blobs */}
+        <div className="absolute top-0 -left-20 w-96 h-96 bg-gradient-to-br from-red-200/30 to-orange-200/30 dark:from-red-900/20 dark:to-orange-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob pointer-events-none"></div>
+        <div className="absolute -bottom-20 -right-20 w-96 h-96 bg-gradient-to-br from-purple-200/30 to-pink-200/30 dark:from-purple-900/20 dark:to-pink-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000 pointer-events-none"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-amber-100/20 to-red-100/20 dark:from-amber-900/10 dark:to-red-900/10 rounded-full mix-blend-multiply filter blur-3xl opacity-40 pointer-events-none"></div>
+
+        <div className="relative z-10">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-10">
+            <div className="space-y-6">
+              <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-red-50 dark:bg-red-900/30 rounded-full border border-red-100 dark:border-red-800 text-[10px] font-black uppercase tracking-[0.3em] text-red-600 dark:text-red-400 shadow-sm">
+                <Sparkles className="w-3 h-3 animate-pulse" />
+                DEBT MANAGEMENT
+              </div>
+              <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black text-gray-900 dark:text-white tracking-tighter leading-[0.9]">
+                {latinToCyrillic("Qarzdor")} <br />
+                <span className="bg-gradient-to-r from-red-600 via-orange-600 to-amber-600 bg-clip-text text-transparent">{latinToCyrillic("Mijozlar")}</span>
+              </h1>
+              <p className="text-gray-500 dark:text-gray-400 font-bold text-lg max-w-md">
+                {debtors.length} {latinToCyrillic("ta qarzdor mijoz")} • {latinToCyrillic("Jami qarz:")} {formatCurrency(totalDebt, 'USD')}
+              </p>
+            </div>
+            
+            <div className="flex flex-wrap gap-4 w-full lg:w-auto">
+              <button 
+                onClick={() => navigate('/customers')} 
+                className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-10 py-6 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-[2rem] font-black text-xs tracking-widest transition-all active:scale-95 shadow-[0_10px_30px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-700"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                {latinToCyrillic("MIJOZLARGA QAYTISH")}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Statistika Kartalari */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Qarzdorlar Soni</p>
-                <p className="text-2xl font-bold text-red-600">{debtors.length}</p>
+      {/* Modern Stat Cards */}
+      <div className="px-4 sm:px-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[
+            { 
+              title: latinToCyrillic('Qarzdorlar Soni'), 
+              value: debtors.length, 
+              icon: Users, 
+              color: 'red',
+              gradient: 'from-red-500 to-rose-600',
+              desc: latinToCyrillic('ta mijoz')
+            },
+            { 
+              title: latinToCyrillic('Jami Qarz'), 
+              value: formatCurrency(totalDebt, 'USD'),
+              subValue: `≈ ${(totalDebt * exchangeRates.USD_TO_UZS).toLocaleString()} UZS`,
+              icon: Wallet, 
+              color: 'orange',
+              gradient: 'from-orange-500 to-amber-600',
+              desc: latinToCyrillic('umumiy qarz')
+            },
+            { 
+              title: latinToCyrillic("O'rtacha Qarz"), 
+              value: formatCurrency(avgDebt, 'USD'),
+              icon: TrendingUp, 
+              color: 'amber',
+              gradient: 'from-amber-500 to-yellow-600',
+              desc: latinToCyrillic('har bir mijoz')
+            },
+            { 
+              title: latinToCyrillic('Katta Qarzdorlar'), 
+              value: highDebtors.length,
+              icon: Crown, 
+              color: 'purple',
+              gradient: 'from-purple-500 to-violet-600',
+              desc: latinToCyrillic('$1000 dan yuqori')
+            }
+          ].map((stat, idx) => (
+            <div key={idx} className="group relative bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 shadow-[0_15px_50px_rgba(0,0,0,0.03)] border border-gray-100 dark:border-gray-800 hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 overflow-hidden">
+              {/* Hover Glow */}
+              <div className={`absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br ${stat.gradient} opacity-0 group-hover:opacity-20 blur-3xl transition-opacity duration-500`}></div>
+              
+              <div className="relative z-10">
+                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${stat.gradient} flex items-center justify-center text-white shadow-lg mb-6 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500`}>
+                  <stat.icon className="w-7 h-7" />
+                </div>
+                
+                <p className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.25em] mb-3">{stat.title}</p>
+                <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">{stat.value}</p>
+                {stat.subValue && (
+                  <p className="text-sm font-bold text-gray-500 mt-1">{stat.subValue}</p>
+                )}
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-2 bg-gray-50 dark:bg-gray-800 px-3 py-1 rounded-lg w-fit">{stat.desc}</p>
               </div>
-              <CreditCard className="w-8 h-8 text-red-500" />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Jami Qarz</p>
-                <p className="text-2xl font-bold text-red-600">{formatCurrency(totalDebt, 'USD')}</p>
-                <p className="text-xs text-muted-foreground">
-                  ≈ {(totalDebt * exchangeRates.USD_TO_UZS).toLocaleString()} UZS
-                </p>
-              </div>
-              <TrendingUp className="w-8 h-8 text-red-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">O'rtacha Qarz</p>
-                <p className="text-2xl font-bold text-orange-600">{formatCurrency(avgDebt, 'USD')}</p>
-              </div>
-              <AlertTriangle className="w-8 h-8 text-orange-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Katta Qarzdorlar</p>
-                <p className="text-2xl font-bold text-purple-600">{highDebtors.length}</p>
-                <p className="text-xs text-muted-foreground">&gt;$1000+</p>
-              </div>
-              <DollarSign className="w-8 h-8 text-purple-500" />
-            </div>
-          </CardContent>
-        </Card>
+          ))}
+        </div>
       </div>
 
-      {/* Saralash Tugmalari */}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant={sortBy === 'amount' ? 'primary' : 'secondary'}
-          onClick={() => setSortBy('amount')}
-          className="min-h-[44px]"
-        >
-          <DollarSign className="w-4 h-4 mr-2" />
-          Qarz miqyosida
-        </Button>
-        <Button
-          variant={sortBy === 'date' ? 'primary' : 'secondary'}
-          onClick={() => setSortBy('date')}
-          className="min-h-[44px]"
-        >
-          <Calendar className="w-4 h-4 mr-2" />
-          Sana bo'yicha
-        </Button>
+      {/* Sort Buttons - Premium Style */}
+      <div className="px-4 sm:px-8">
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={() => setSortBy('amount')}
+            className={`flex items-center gap-2 px-6 py-4 rounded-2xl font-black text-xs tracking-widest transition-all duration-300 ${
+              sortBy === 'amount'
+                ? 'bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-lg shadow-red-500/25'
+                : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:border-red-300'
+            }`}
+          >
+            <DollarSign className="w-4 h-4" />
+            {latinToCyrillic("QARZ MIQYOSIDA")}
+          </button>
+          <button
+            onClick={() => setSortBy('date')}
+            className={`flex items-center gap-2 px-6 py-4 rounded-2xl font-black text-xs tracking-widest transition-all duration-300 ${
+              sortBy === 'date'
+                ? 'bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-lg shadow-red-500/25'
+                : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:border-red-300'
+            }`}
+          >
+            <Calendar className="w-4 h-4" />
+            {latinToCyrillic("SANA BO'YICHA")}
+          </button>
+        </div>
       </div>
 
-      {/* Qarzdorlar Ro'yxati */}
-      <div className="space-y-4">
+      {/* Debtors List - Premium Cards */}
+      <div className="px-4 sm:px-8 space-y-5">
         {sortedDebtors.map((debtor, index) => (
-          <Card key={debtor.id} className="border-2 border-red-200 dark:border-red-800">
-            <CardContent className="p-4">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="text-lg font-bold text-red-600">#{index + 1}</span>
-                    <h3 className="font-semibold text-lg">{debtor.name}</h3>
-                    <div className={`px-3 py-1 rounded-lg ${getCategoryColor(debtor.category)}`}>
-                      <span className="text-base">{getCategoryEmoji(debtor.category)}</span>
-                      <span className="text-xs font-semibold ml-1">{getCategoryText(debtor.category)}</span>
+          <div 
+            key={debtor.id} 
+            className="group bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-gray-100 dark:border-gray-800 hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 relative overflow-hidden"
+          >
+            {/* Gradient border on hover */}
+            <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 via-orange-500/10 to-amber-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-[2.5rem]"></div>
+            
+            <div className="relative z-10">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                {/* Left - Info */}
+                <div className="flex-1 space-y-4">
+                  {/* Header */}
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-lg">
+                      #{index + 1}
+                    </div>
+                    <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{debtor.name}</h3>
+                    <div className={`px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest ${getCategoryColor(debtor.category)}`}>
+                      <span className="mr-1">{getCategoryEmoji(debtor.category)}</span>
+                      {getCategoryText(debtor.category)}
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm mb-3">
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-muted-foreground" />
-                      <span>{debtor.phone}</span>
-                    </div>
-                    {debtor.email && (
-                      <div className="flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-muted-foreground" />
-                        <span>{debtor.email}</span>
+                  {/* Contact Info */}
+                  <div className="flex flex-wrap gap-4 text-sm">
+                    {debtor.phone && (
+                      <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 px-4 py-2 rounded-xl">
+                        <Phone className="w-4 h-4 text-gray-400" />
+                        <span className="font-bold text-gray-700 dark:text-gray-300">{debtor.phone}</span>
                       </div>
                     )}
-                    {debtor.address && (
-                      <div className="flex items-center gap-2 sm:col-span-2">
-                        <Calendar className="w-4 h-4 text-muted-foreground" />
-                        <span>{debtor.address}</span>
+                    {debtor.email && (
+                      <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 px-4 py-2 rounded-xl">
+                        <Mail className="w-4 h-4 text-gray-400" />
+                        <span className="font-bold text-gray-700 dark:text-gray-300">{debtor.email}</span>
+                      </div>
+                    )}
+                    {debtor.lastPurchase && (
+                      <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 px-4 py-2 rounded-xl">
+                        <Calendar className="w-4 h-4 text-amber-500" />
+                        <span className="font-bold text-amber-700 dark:text-amber-300">
+                          {latinToCyrillic("Oxirgi:")} {new Date(debtor.lastPurchase).toLocaleDateString('uz-UZ')}
+                        </span>
                       </div>
                     )}
                   </div>
 
-                  <div className="flex flex-wrap gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Qarz: </span>
-                      <span className="font-bold text-red-600 text-lg">
+                  {/* Stats Row */}
+                  <div className="flex flex-wrap gap-6 pt-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-gray-500">{latinToCyrillic("Qarz:")}</span>
+                      <span className="text-2xl font-black text-red-600">
                         {formatCurrency(debtor.debt, 'USD')}
                       </span>
-                      <span className="text-xs text-red-600 ml-1">
+                      <span className="text-xs font-bold text-red-400">
                         (≈ {(debtor.debt * exchangeRates.USD_TO_UZS).toLocaleString()} UZS)
                       </span>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Balans: </span>
-                      <span className="font-semibold">{formatCurrency(debtor.balance, 'USD')}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-gray-500">{latinToCyrillic("Balans:")}</span>
+                      <span className="text-lg font-black text-gray-800 dark:text-gray-200">{formatCurrency(debtor.balance, 'USD')}</span>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Sotuvlar: </span>
-                      <span className="font-semibold">{debtor._count.sales} ta</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-gray-500">{latinToCyrillic("Sotuvlar:")}</span>
+                      <span className="text-lg font-black text-blue-600">{debtor._count.sales} {latinToCyrillic("ta")}</span>
                     </div>
                   </div>
-
-                  {debtor.lastPurchase && (
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      Ohirgi xarid: {new Date(debtor.lastPurchase).toLocaleDateString('uz-UZ')}
-                    </div>
-                  )}
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <Button
+                {/* Right - Actions */}
+                <div className="flex flex-col gap-3 w-full lg:w-auto">
+                  <button
                     onClick={(e) => handlePayDebt(debtor, e)}
-                    className="bg-green-600 hover:bg-green-700 min-h-[44px]"
+                    className="flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white rounded-2xl font-black text-xs tracking-widest transition-all shadow-lg shadow-green-500/25 hover:shadow-xl hover:-translate-y-0.5"
                   >
-                    <DollarSign className="w-4 h-4 mr-2" />
-                    Qarz To'lash
-                  </Button>
-                  <Button
-                    variant="secondary"
+                    <Receipt className="w-4 h-4" />
+                    {latinToCyrillic("QARZ TO'LASH")}
+                  </button>
+                  <button
                     onClick={() => navigate(`/customers/${debtor.id}`)}
-                    className="min-h-[44px]"
+                    className="flex items-center justify-center gap-3 px-8 py-4 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-2xl font-black text-xs tracking-widest transition-all"
                   >
-                    Batafsil
-                  </Button>
+                    {latinToCyrillic("BATAFSIL")}
+                  </button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ))}
 
         {debtors.length === 0 && (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <CreditCard className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-green-600 mb-2">Qarzdorlar Yo'q!</h3>
-              <p className="text-muted-foreground">
-                Barcha mijozlar qarzlarini to'lagan. Ajoyib!
-              </p>
-            </CardContent>
-          </Card>
+          <div className="bg-white dark:bg-gray-900 rounded-[3rem] p-16 text-center shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-gray-100 dark:border-gray-800">
+            <div className="w-24 h-24 bg-gradient-to-br from-emerald-100 to-green-100 dark:from-emerald-900/30 dark:to-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CreditCard className="w-12 h-12 text-emerald-500" />
+            </div>
+            <h3 className="text-2xl font-black text-emerald-600 mb-3">{latinToCyrillic("Qarzdorlar Yo'q!")}</h3>
+            <p className="text-gray-500 font-medium">
+              {latinToCyrillic("Barcha mijozlar qarzlarini to'lagan. Ajoyib!")}
+            </p>
+          </div>
         )}
       </div>
 

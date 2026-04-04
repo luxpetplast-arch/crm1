@@ -26,9 +26,17 @@ export const authenticateToken = authenticate;
 
 export const authorize = (...roles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    if (!req.user || !roles.some(role => role.toUpperCase() === req.user?.role?.toUpperCase())) {
       return res.status(403).json({ error: 'Insufficient permissions' });
     }
     next();
   };
+};
+
+// Restrict analytics access for cashiers
+export const authorizeAnalytics = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (!req.user || req.user.role?.toLowerCase() === 'cashier') {
+    return res.status(403).json({ error: 'Cashiers cannot access analytics' });
+  }
+  next();
 };

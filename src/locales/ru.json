@@ -87,7 +87,13 @@
     "processing": "В обработке",
     "completed": "Готов",
     "cancelled": "Отменен",
-    "delivered": "Доставлен"
+    "delivered": "Доставлен",
+    "qop": "Мешок",
+    "unitsPerBag": "Шт/Мешок",
+    "totalUnits": "Всего шт",
+    "pricePerBag": "Цена за мешок",
+    "pricePerUnit": "Цена за шт",
+    "selectPriceType": "Выберите тип цены"
   },
   "cashbox": {
     "title": "Касса",
@@ -117,5 +123,20 @@
     "notifications": "Уведомления",
     "users": "Пользователи",
     "backup": "Резервная копия"
+  },
+  "production": {
+    "title": "Производство",
+    "newOrder": "Новый заказ",
+    "product": "Продукт",
+    "quantity": "Количество",
+    "date": "Дата",
+    "shift": "Смена",
+    "status": "Статус",
+    "accessories": "Аксессуары",
+    "krishka": "Крышка",
+    "ruchka": "Ручка",
+    "add": "Добавить",
+    "cancel": "Отмена",
+    "createOrder": "Создать заказ"
   }
 }

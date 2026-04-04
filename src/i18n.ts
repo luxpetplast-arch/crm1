@@ -14,7 +14,7 @@ i18n
       ru: { translation: ru }
     },
     fallbackLng: 'uz',
-    lng: 'uz', // Default til
+    lng: 'uz', // Default til (Krilcha)
     interpolation: {
       escapeValue: false
     },

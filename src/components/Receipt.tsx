@@ -1,2 +1,2 @@
 import { useEffect, useRef } from 'react';
-import { X } from 'lucide-rea
+import { X } from 'lucide-react';

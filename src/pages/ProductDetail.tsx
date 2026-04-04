@@ -46,16 +46,30 @@ export default function ProductDetail() {
     reason: '',
     notes: '',
   });
+  const [exchangeRates, setExchangeRates] = useState({ USD_TO_UZS: 12500 });
   const [settingsForm, setSettingsForm] = useState({
     unitsPerBag: '',
     minStockLimit: '',
     optimalStock: '',
     pricePerBag: '',
+    pricePerPiece: '',
   });
 
   useEffect(() => {
     loadProduct();
+    loadExchangeRate();
   }, [id]);
+
+  const loadExchangeRate = async () => {
+    try {
+      const response = await api.get('/settings');
+      if (response.data && response.data.USD_TO_UZS_RATE) {
+        setExchangeRates({ USD_TO_UZS: parseFloat(response.data.USD_TO_UZS_RATE) });
+      }
+    } catch (error) {
+      console.error('Kursni yuklashda xatolik:', error);
+    }
+  };
 
   const loadProduct = async () => {
     setLoading(true);
@@ -63,10 +77,11 @@ export default function ProductDetail() {
       const { data } = await api.get(`/products/${id}`);
       setProduct(data);
       setSettingsForm({
-        unitsPerBag: data.unitsPerBag.toString(),
-        minStockLimit: data.minStockLimit.toString(),
-        optimalStock: data.optimalStock.toString(),
-        pricePerBag: data.pricePerBag.toString(),
+        unitsPerBag: (data.unitsPerBag || 2000).toString(),
+        minStockLimit: (data.minStockLimit || 0).toString(),
+        optimalStock: (data.optimalStock || 0).toString(),
+        pricePerBag: (data.pricePerBag || 0).toString(),
+        pricePerPiece: (data.pricePerPiece || 0).toString(),
       });
       
       // Sotuv statistikasini yuklash
@@ -107,20 +122,62 @@ export default function ProductDetail() {
     }
   };
 
+  const deleteProduct = async () => {
+    try {
+      await api.delete(`/products/${id}`);
+      alert('✅ Mahsulot muvaffaqiyatli o\'chirildi!');
+      navigate('/products'); // Mahsulotlar sahifasiga qaytish
+    } catch (error) {
+      console.error('Mahsulotni o\'chirishda xatolik:', error);
+      alert('❌ Xatolik yuz berdi!');
+    }
+  };
+
   const handleUpdateSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const pBag = parseFloat(settingsForm.pricePerBag);
+      const pPiece = parseFloat(settingsForm.pricePerPiece);
+
       await api.put(`/products/${id}`, {
         unitsPerBag: parseInt(settingsForm.unitsPerBag),
         minStockLimit: parseInt(settingsForm.minStockLimit),
         optimalStock: parseInt(settingsForm.optimalStock),
-        pricePerBag: parseFloat(settingsForm.pricePerBag),
+        pricePerBag: isNaN(pBag) ? 0 : pBag,
+        pricePerPiece: isNaN(pPiece) ? 0 : pPiece,
       });
       setShowSettingsModal(false);
       loadProduct();
+      alert('✅ Sozlamalar yangilandi!');
     } catch (error) {
       alert('Sozlamalarni yangilashda xatolik');
     }
+  };
+
+  const updatePriceLogic = (type: 'bag' | 'piece', currency: 'USD' | 'UZS', value: string) => {
+    const rawVal = value.replace(',', '.');
+    if (rawVal !== '' && isNaN(Number(rawVal)) && rawVal !== '.') return;
+    
+    const numVal = rawVal === '' || rawVal === '.' ? 0 : parseFloat(rawVal);
+    const upb = parseInt(settingsForm.unitsPerBag) || 2000;
+    const rate = exchangeRates.USD_TO_UZS;
+
+    let newPricePerBag = parseFloat(settingsForm.pricePerBag) || 0;
+    let newPricePerPiece = parseFloat(settingsForm.pricePerPiece) || 0;
+
+    if (type === 'bag') {
+      newPricePerBag = currency === 'USD' ? numVal : numVal / rate;
+      newPricePerPiece = newPricePerBag / upb;
+    } else {
+      newPricePerPiece = currency === 'USD' ? numVal : numVal / rate;
+      newPricePerBag = newPricePerPiece * upb;
+    }
+
+    setSettingsForm(prev => ({
+      ...prev,
+      pricePerBag: newPricePerBag.toString(),
+      pricePerPiece: newPricePerPiece.toString()
+    }));
   };
 
   const handleAdjust = async (e: React.FormEvent) => {
@@ -197,7 +254,33 @@ export default function ProductDetail() {
           </Button>
           <div>
             <h1 className="text-3xl font-bold">{product.name}</h1>
-            <p className="text-muted-foreground">{product.bagType}</p>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded text-[10px] font-black uppercase tracking-widest">
+                {product.warehouse === 'preform' ? '📦 PREFORMA' : 
+                 product.warehouse === 'krishka' ? '⭕ QOPQOQ' : 
+                 product.warehouse === 'ruchka' ? '🎗️ RUCHKA' : '🛠️ BOSHQA'}
+              </span>
+              {product.productType && (
+                <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded text-[10px] font-black uppercase tracking-widest">
+                  {product.productType.name}
+                </span>
+              )}
+              {product.category && (
+                <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded text-[10px] font-black uppercase tracking-widest">
+                  {product.category.name}
+                </span>
+              )}
+              {product.bagType && (
+                <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 rounded text-[10px] font-black uppercase tracking-widest">
+                  {product.bagType}
+                </span>
+              )}
+              {product.subType && (
+                <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded text-[10px] font-black uppercase tracking-widest">
+                  {product.subType}
+                </span>
+              )}
+            </div>
           </div>
         </div>
         
@@ -299,18 +382,36 @@ export default function ProductDetail() {
           <CardTitle>Mahsulot Ma'lumotlari</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div>
-              <p className="text-sm text-muted-foreground">Minimal Zaxira</p>
-              <p className="font-semibold">{product.minStockLimit} qop</p>
+              <p className="text-sm text-muted-foreground mb-1">Qop Narxi (UZS)</p>
+              <p className="text-xl font-black text-emerald-600">{(product.pricePerBag || 0).toLocaleString()} UZS</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Optimal Zaxira</p>
-              <p className="font-semibold">{product.optimalStock} qop</p>
+              <p className="text-sm text-muted-foreground mb-1">Qop Narxi ($)</p>
+              <p className="text-xl font-black text-blue-600">${(product.pricePerBag / exchangeRates.USD_TO_UZS).toFixed(2)}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Qop Narxi</p>
-              <p className="font-semibold">{product.pricePerBag.toLocaleString()} UZS</p>
+              <p className="text-sm text-muted-foreground mb-1">Dona Narxi (UZS)</p>
+              <p className="text-xl font-black text-emerald-600">{(product.pricePerPiece || 0).toLocaleString()} UZS</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">Dona Narxi ($)</p>
+              <p className="text-xl font-black text-blue-600">${(product.pricePerPiece / exchangeRates.USD_TO_UZS).toFixed(4)}</p>
+            </div>
+            <div className="pt-4 border-t col-span-2 md:col-span-4 grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div>
+                <p className="text-sm text-muted-foreground">Minimal Zaxira</p>
+                <p className="font-semibold">{product.minStockLimit} qop</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Optimal Zaxira</p>
+                <p className="font-semibold">{product.optimalStock} qop</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Qopdagi dona</p>
+                <p className="font-semibold">{product.unitsPerBag} dona</p>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -576,8 +677,8 @@ export default function ProductDetail() {
       >
         <form onSubmit={handleUpdateSettings} className="space-y-4">
           <div className="bg-purple-50 dark:bg-purple-950 p-3 rounded-lg">
-            <p className="text-sm text-muted-foreground">
-              Bu sozlamalar mahsulot uchun umumiy parametrlarni belgilaydi
+            <p className="text-sm text-muted-foreground font-bold">
+              Mahsulotning asosiy parametrlarini tahrirlash
             </p>
           </div>
 
@@ -591,21 +692,56 @@ export default function ProductDetail() {
             />
             
             <Input
-              label="Qop Narxi (UZS)"
-              type="number"
-              step="0.01"
-              value={settingsForm.pricePerBag}
-              onChange={(e) => setSettingsForm({ ...settingsForm, pricePerBag: e.target.value })}
-              required
-            />
-            
-            <Input
               label="Minimal Zaxira (qop)"
               type="number"
               value={settingsForm.minStockLimit}
               onChange={(e) => setSettingsForm({ ...settingsForm, minStockLimit: e.target.value })}
               required
             />
+            
+            <div className="col-span-2 grid grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
+              <div className="col-span-2 text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Asosiy Narxlar</div>
+              
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase">Qop Narxi (UZS)</label>
+                <input
+                  type="text"
+                  value={parseFloat(settingsForm.pricePerBag).toLocaleString()}
+                  onChange={(e) => updatePriceLogic('bag', 'UZS', e.target.value.replace(/\s/g, ''))}
+                  className="w-full bg-white dark:bg-gray-900 border-2 border-emerald-500 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase">Qop Narxi ($)</label>
+                <input
+                  type="text"
+                  value={(parseFloat(settingsForm.pricePerBag) / exchangeRates.USD_TO_UZS).toFixed(2)}
+                  onChange={(e) => updatePriceLogic('bag', 'USD', e.target.value)}
+                  className="w-full bg-white dark:bg-gray-900 border-2 border-blue-500 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase">Dona Narxi (UZS)</label>
+                <input
+                  type="text"
+                  value={parseFloat(settingsForm.pricePerPiece).toLocaleString()}
+                  onChange={(e) => updatePriceLogic('piece', 'UZS', e.target.value.replace(/\s/g, ''))}
+                  className="w-full bg-white dark:bg-gray-900 border-2 border-emerald-500 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase">Dona Narxi ($)</label>
+                <input
+                  type="text"
+                  value={(parseFloat(settingsForm.pricePerPiece) / exchangeRates.USD_TO_UZS).toFixed(4)}
+                  onChange={(e) => updatePriceLogic('piece', 'USD', e.target.value)}
+                  className="w-full bg-white dark:bg-gray-900 border-2 border-blue-500 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none"
+                />
+              </div>
+            </div>
             
             <Input
               label="Optimal Zaxira (qop)"
@@ -616,7 +752,7 @@ export default function ProductDetail() {
             />
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 pt-4">
             <Button type="submit" className="flex-1">
               Saqlash
             </Button>
@@ -627,6 +763,21 @@ export default function ProductDetail() {
               className="flex-1"
             >
               Bekor qilish
+            </Button>
+          </div>
+
+          <div className="pt-4 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                if (confirm(`Ростдан ҳам "${product.name}" маҳсулотни ўчирмоқчимисиз? Бу амал бекор қилинмайdi!`)) {
+                  deleteProduct();
+                }
+              }}
+              className="w-full bg-red-50 text-red-600 border-red-100 hover:bg-red-600 hover:text-white"
+            >
+              Mahsulotni butunlay o'chirish
             </Button>
           </div>
         </form>

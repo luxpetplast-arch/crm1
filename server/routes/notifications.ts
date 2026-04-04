@@ -18,7 +18,8 @@ router.get('/', authenticate, async (req, res) => {
 
     res.json(notifications);
   } catch (error) {
-    res.status(500).json({ error: 'Bildirishnomalarni yuklashda xatolik' });
+    console.error('❌ Get notifications error:', error);
+    res.status(500).json({ error: 'Bildirishnomalarni yuklashda xatolik', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
 

@@ -17,68 +17,235 @@ router.use(authenticate);
 
 router.get('/', async (req, res) => {
   try {
-    const { lowStock, search } = req.query;
+    const { lowStock, search, includeVariants } = req.query;
+    
+    // Include variants if requested
+    const includeOptions: any = {
+      batches: { orderBy: { productionDate: 'desc' }, take: 1 }
+    };
+    
+    // Always include variants
+    includeOptions.variants = {
+      where: { active: true },
+      orderBy: { variantName: 'asc' }
+    };
     
     // Kam qolgan mahsulotlar filtri
     if (lowStock === 'true') {
       const allProducts = await prisma.product.findMany({
-        include: { batches: { orderBy: { productionDate: 'desc' }, take: 1 } },
+        include: includeOptions,
       });
       
-      const lowStockProducts = allProducts.filter(p => p.currentStock < p.minStockLimit);
-      return res.json(lowStockProducts);
+      const lowStockProducts = allProducts.filter(p => {
+        if (p.isParent && p.variants) {
+          // Check if any variant is low stock
+          return p.variants.some((v: any) => v.currentStock < p.minStockLimit);
+        }
+        return p.currentStock < p.minStockLimit;
+      });
+      
+      // Calculate total stock for parent products
+      const productsWithTotals = lowStockProducts.map(p => {
+        if (p.isParent && p.variants) {
+          const totalStock = p.variants.reduce((sum: number, v: any) => sum + v.currentStock, 0);
+          return { ...p, totalStock };
+        }
+        return p;
+      });
+      
+      return res.json(productsWithTotals);
     }
     
     // Qidirish - SQLite uchun case-insensitive qidirish
     if (search) {
       const allProducts = await prisma.product.findMany({
-        include: { batches: { orderBy: { productionDate: 'desc' }, take: 1 } },
+        include: includeOptions,
       });
       
       const searchLower = (search as string).toLowerCase();
-      const filtered = allProducts.filter(p => 
-        p.name.toLowerCase().includes(searchLower) ||
-        p.bagType.toLowerCase().includes(searchLower)
-      );
-      return res.json(filtered);
+      const filtered = allProducts.filter(p => {
+        const nameMatch = p.name.toLowerCase().includes(searchLower);
+        const bagTypeMatch = p.bagType.toLowerCase().includes(searchLower);
+        
+        // Search in variants too
+        let variantMatch = false;
+        if (p.variants) {
+          variantMatch = p.variants.some((v: any) => 
+            v.variantName.toLowerCase().includes(searchLower)
+          );
+        }
+        
+        return nameMatch || bagTypeMatch || variantMatch;
+      });
+      
+      // Calculate total stock for parent products
+      const productsWithTotals = filtered.map(p => {
+        if (p.isParent && p.variants) {
+          const totalStock = p.variants.reduce((sum: number, v: any) => sum + v.currentStock, 0);
+          return { ...p, totalStock };
+        }
+        return p;
+      });
+      
+      return res.json(productsWithTotals);
     }
     
     const products = await prisma.product.findMany({
-      include: { batches: { orderBy: { productionDate: 'desc' }, take: 1 } },
+      include: includeOptions,
     });
-    res.json(products);
+    
+    // Variantlarni qo'shish (15g preform uchun)
+    const productsWithVariants = await Promise.all(
+      products.map(async (p: any) => {
+        if (p.name.toLowerCase().includes('15g') && p.isParent) {
+          try {
+            // SQL orqali variantlarni olish
+            const variants = await prisma.$queryRaw`
+              SELECT 
+                id, variantName, cardType, currentStock, currentUnits, 
+                pricePerBag, active, parentId
+              FROM ProductVariant 
+              WHERE parentId = ${p.id} AND active = true
+              ORDER BY variantName
+            `;
+            
+            return { ...p, variants };
+          } catch (error) {
+            console.error('Error fetching variants for 15g preform:', error);
+            return { ...p, variants: [] };
+          }
+        }
+        return p;
+      })
+    );
+    
+    // Calculate total stock for parent products
+    const productsWithTotals = productsWithVariants.map(p => {
+      if (p.isParent && p.variants) {
+        const totalStock = p.variants.reduce((sum: number, v: any) => sum + (v.currentStock || 0), 0);
+        return { ...p, totalStock };
+      }
+      return p;
+    });
+    
+    res.json(productsWithTotals);
   } catch (error) {
-    console.error('Get products error:', error);
-    res.status(500).json({ error: 'Failed to fetch products' });
+    console.error('❌ Get products error:', error);
+    res.status(500).json({ error: 'Failed to fetch products', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
 
 router.post('/', authorize('ADMIN', 'WAREHOUSE_MANAGER'), async (req: AuthRequest, res) => {
   try {
     console.log('Creating product with data:', req.body);
-    const product = await prisma.product.create({ data: req.body });
-
-    // Audit log
-    await logInventoryAction({
-      userId: req.user!.id,
-      userName: (req.user as any).name || req.user!.email,
-      action: 'MAHSULOT_YARATISH',
-      entity: 'INVENTORY',
-      entityId: product.id,
-      productId: product.id,
-      productName: product.name,
-      details: {
-        type: 'ADD',
-        notes: 'Yangi mahsulot yaratildi',
-      },
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
+    const { productTypeId, categoryId, sizeId, ...productData } = req.body;
+    
+    // 1. Ism takrorlanmasligini tekshirish
+    const existingProduct = await prisma.product.findUnique({
+      where: { name: productData.name }
     });
 
+    if (existingProduct) {
+      return res.status(400).json({ 
+        error: 'Failed to create product', 
+        details: `"${productData.name}" номли маҳсулот аллақачон мавжуд. Илтимос, бошқа ном танланг.` 
+      });
+    }
+
+    // 2. Mahsulotni Prisma orqali yaratish (Raw SQL o'rniga)
+    const product = await prisma.product.create({
+      data: {
+        name: productData.name,
+        bagType: productData.bagType,
+        warehouse: productData.warehouse || 'preform',
+        unitsPerBag: parseFloat(productData.unitsPerBag) || 1000,
+        minStockLimit: parseFloat(productData.minStockLimit) || 0,
+        optimalStock: parseFloat(productData.optimalStock) || 0,
+        maxCapacity: parseFloat(productData.maxCapacity) || 0,
+        currentStock: parseFloat(productData.currentStock) || 0,
+        currentUnits: (parseFloat(productData.currentStock) || 0) * (parseFloat(productData.unitsPerBag) || 0),
+        pricePerBag: parseFloat(productData.pricePerBag) || 0,
+        pricePerPiece: parseFloat(productData.pricePerPiece) || 0,
+        productionCost: parseFloat(productData.productionCost) || 0,
+        isParent: productData.isParent || false,
+        productTypeId: productTypeId || null,
+        categoryId: categoryId || null,
+        sizeId: sizeId || null,
+        subType: productData.subType || null,
+        active: productData.active !== false,
+      }
+    });
+
+    // 3. Mahsulot turiga qarab avtomatik kartga qo'shish
+    if (productTypeId) {
+      try {
+        const productType = await prisma.productType.findUnique({
+          where: { id: productTypeId },
+          select: { defaultCard: true }
+        });
+
+        if (productType?.defaultCard) {
+          // Standart kartni topish
+          const card = await prisma.$queryRaw`
+            SELECT id FROM Card WHERE name = ${productType.defaultCard} AND active = true
+          ` as any[];
+
+          if (card.length > 0) {
+            // Mahsulotni kartga qo'shish
+            await prisma.$executeRaw`
+              INSERT OR REPLACE INTO CardProduct (id, cardId, productId, quantity, active, createdAt)
+              VALUES (
+                lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6))),
+                ${card[0].id},
+                ${product.id},
+                1,
+                true,
+                datetime('now')
+              )
+            `;
+            console.log(`✅ ${product.name} mahsuloti ${productType.defaultCard} kartiga avtomatik qo'shildi`);
+          }
+        }
+      } catch (cardError) {
+        console.error('Error adding product to card:', cardError);
+        // Xatolik bo'lsa ham mahsulot yaratilishi kerak
+      }
+    }
+
+    // Audit log
+    try {
+      await logInventoryAction({
+        userId: req.user!.id,
+        userName: (req.user as any).name || req.user!.email,
+        action: 'MAHSULOT_YARATISH',
+        entity: 'INVENTORY',
+        entityId: String(product.id),
+        productId: String(product.id),
+        productName: product.name,
+        details: {
+          type: 'ADD',
+          notes: 'Yangi mahsulot yaratildi',
+        },
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      });
+    } catch (auditError) {
+      console.error('Audit log error:', auditError);
+      // Audit log xatoligi mahsulot yaratishiga to'sqin bo'lmasin
+    }
+
     res.json(product);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Product creation error:', error);
-    res.status(500).json({ error: 'Failed to create product' });
+    let details = '';
+    if (error.code === 'P2002') {
+      details = 'Bu nomli mahsulot allaqachon mavjud';
+    } else if (error.code === 'P2003') {
+      details = 'Tegishli kategoriya yoki o\'lcham topilmadi';
+    } else {
+      details = error.message;
+    }
+    res.status(500).json({ error: 'Failed to create product', details });
   }
 });
 
@@ -88,33 +255,59 @@ router.put('/:id', authorize('ADMIN', 'WAREHOUSE_MANAGER'), async (req: AuthRequ
       where: { id: req.params.id },
     });
 
+    if (!oldProduct) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    // Prepare update data
+    const updateData = { ...req.body };
+    
+    // Ensure numeric fields are correctly typed if they come as strings
+    if (updateData.unitsPerBag) updateData.unitsPerBag = parseFloat(updateData.unitsPerBag);
+    if (updateData.pricePerBag) updateData.pricePerBag = parseFloat(updateData.pricePerBag);
+    if (updateData.pricePerPiece) updateData.pricePerPiece = parseFloat(updateData.pricePerPiece);
+    if (updateData.currentStock) updateData.currentStock = parseFloat(updateData.currentStock);
+    if (updateData.minStockLimit) updateData.minStockLimit = parseFloat(updateData.minStockLimit);
+    if (updateData.optimalStock) updateData.optimalStock = parseFloat(updateData.optimalStock);
+    if (updateData.maxCapacity) updateData.maxCapacity = parseFloat(updateData.maxCapacity);
+    if (updateData.sizeValue) updateData.sizeValue = parseFloat(updateData.sizeValue);
+
     const product = await prisma.product.update({
       where: { id: req.params.id },
-      data: req.body,
+      data: updateData,
     });
 
     // Audit log
-    await logInventoryAction({
-      userId: req.user!.id,
-      userName: (req.user as any).name || req.user!.email,
-      action: 'MAHSULOT_TAHRIRLASH',
-      entity: 'INVENTORY',
-      entityId: product.id,
-      productId: product.id,
-      productName: product.name,
-      details: {
-        type: 'EDIT',
-        oldValue: oldProduct,
-        newValue: product,
-        notes: 'Mahsulot ma\'lumotlari tahrirlandi',
-      },
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
-    });
+    try {
+      await logInventoryAction({
+        userId: req.user!.id,
+        userName: (req.user as any).name || req.user!.email,
+        action: 'MAHSULOT_TAHRIRLASH',
+        entity: 'INVENTORY',
+        entityId: product.id,
+        productId: product.id,
+        productName: product.name,
+        details: {
+          type: 'EDIT',
+          oldValue: oldProduct,
+          newValue: product,
+          notes: 'Mahsulot ma\'lumotlari tahrirlandi',
+        },
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      });
+    } catch (auditError) {
+      console.error('Audit log error during update:', auditError);
+    }
 
     res.json(product);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update product' });
+  } catch (error: any) {
+    console.error('Product update error:', error);
+    let details = error.message;
+    if (error.code === 'P2002') {
+      details = 'Bu nomli mahsulot allaqachon mavjud';
+    }
+    res.status(500).json({ error: 'Failed to update product', details });
   }
 });
 
@@ -284,11 +477,31 @@ router.get('/:id', async (req, res) => {
       include: {
         batches: { orderBy: { productionDate: 'desc' }, take: 10 },
         stockMovements: { orderBy: { createdAt: 'desc' }, take: 20 },
+        variants: {
+          where: { active: true },
+          include: {
+            stockMovements: { orderBy: { createdAt: 'desc' }, take: 10 },
+            priceHistory: { orderBy: { createdAt: 'desc' }, take: 5 }
+          },
+          orderBy: { variantName: 'asc' }
+        }
       },
     });
     
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    // Calculate total stock for parent products
+    if (product.isParent && product.variants) {
+      const totalStock = product.variants.reduce((sum, v) => sum + v.currentStock, 0);
+      const totalUnits = product.variants.reduce((sum, v) => sum + v.currentUnits, 0);
+      
+      return res.json({
+        ...product,
+        totalStock,
+        totalUnits
+      });
     }
     
     res.json(product);

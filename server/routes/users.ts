@@ -15,6 +15,7 @@ router.get('/', async (req, res) => {
       select: {
         id: true,
         email: true,
+        login: true,
         name: true,
         role: true,
         active: true,
@@ -29,8 +30,8 @@ router.get('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const { name, email, password, role, active } = req.body;
-    const data: any = { name, email, role, active };
+    const { name, email, password, role, active, login } = req.body;
+    const data: any = { name, email, role, active, login };
 
     if (password) {
       data.password = await bcrypt.hash(password, 10);
@@ -42,6 +43,7 @@ router.put('/:id', async (req, res) => {
       select: {
         id: true,
         email: true,
+        login: true,
         name: true,
         role: true,
         active: true,

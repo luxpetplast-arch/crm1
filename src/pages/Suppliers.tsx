@@ -6,10 +6,15 @@ import Modal from '../components/Modal';
 import Badge from '../components/Badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/Table';
 import api from '../lib/api';
-import { Truck, Phone, Mail, MapPin, Plus } from 'lucide-react';
+import { Truck, Phone, Mail, MapPin, Plus, Sparkles, RefreshCw, FileText, Search, User, CreditCard } from 'lucide-react';
+import { latinToCyrillic } from '../lib/transliterator';
+import { exportToExcel } from '../lib/excelUtils';
 
 export default function Suppliers() {
   const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<any>(null);
   const [form, setForm] = useState({
@@ -31,7 +36,28 @@ export default function Suppliers() {
       setSuppliers(data);
     } catch (error) {
       console.error('Failed to load suppliers');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadSuppliers();
+  };
+
+  const handleExport = () => {
+    const dataToExport = filteredSuppliers.map(s => ({
+      'Kompaniya': s.name,
+      'Mas\'ul shaxs': s.contactPerson,
+      'Telefon': s.phone,
+      'Email': s.email || '-',
+      'Manzil': s.address || '-',
+      'To\'lov muddati': s.paymentTerms,
+      'Status': s.active ? 'Faol' : 'Nofaol'
+    }));
+    exportToExcel(dataToExport, 'Taminotchilar', 'Taminotchilar');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -80,202 +106,303 @@ export default function Suppliers() {
     }
   };
 
+  const filteredSuppliers = suppliers.filter(s => 
+    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.contactPerson.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.phone.includes(searchTerm)
+  );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
+          <Sparkles className="w-6 h-6 text-blue-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold">Yetkazuvchilar</h1>
-        <Button onClick={() => { setEditingSupplier(null); setShowModal(true); }} className="w-full sm:w-auto">
-          <Plus className="w-4 h-4 mr-2" />
-          Yetkazuvchi Qo'shish
-        </Button>
+    <div className="space-y-12 pb-20 animate-in fade-in duration-700">
+      {/* Premium Header */}
+      <div className="relative overflow-hidden bg-white dark:bg-gray-900 rounded-[3rem] p-8 sm:p-12 shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white dark:border-gray-800">
+        <div className="absolute top-0 -left-10 w-64 h-64 bg-blue-100 dark:bg-blue-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob pointer-events-none"></div>
+        <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-purple-100 dark:bg-purple-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000 pointer-events-none"></div>
+
+        <div className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8">
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-full border border-blue-100 dark:border-blue-800 text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">
+              <Truck className="w-3 h-3" />
+              Logistics & Supply
+            </div>
+            <h1 className="text-4xl sm:text-6xl font-black text-gray-900 dark:text-white tracking-tighter leading-none">
+              {latinToCyrillic("Ta'minotchilar")} <br />
+              <span className="text-blue-600">{latinToCyrillic("Boshqaruvi")}</span>
+            </h1>
+          </div>
+
+          <div className="flex flex-wrap gap-3 w-full lg:w-auto">
+            <button 
+              onClick={handleRefresh}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-4 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-2xl font-black text-xs transition-all active:scale-95 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              {latinToCyrillic("YANGILASH")}
+            </button>
+            <button 
+              onClick={handleExport}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-4 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded-2xl font-black text-xs transition-all active:scale-95 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800"
+            >
+              <FileText className="w-4 h-4" />
+              EXCEL
+            </button>
+            <button 
+              onClick={() => { setEditingSupplier(null); setShowModal(true); }}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-8 py-4 bg-blue-600 hover:bg-blue-700 rounded-2xl font-black text-xs transition-all active:scale-95 text-white shadow-xl shadow-blue-500/20"
+            >
+              <Plus className="w-4 h-4" />
+              {latinToCyrillic("YANGI TA'MINOTCHI")}
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-        <Card>
-          <CardContent>
+      {/* KPI Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        {[
+          { label: "Jami Ta'minotchilar", value: suppliers.length, icon: Truck, color: 'blue' },
+          { label: "Faol", value: suppliers.filter(s => s.active).length, icon: Truck, color: 'emerald' },
+          { label: "Nofaol", value: suppliers.filter(s => !s.active).length, icon: Truck, color: 'rose' }
+        ].map((stat, i) => (
+          <div key={i} className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-gray-100 dark:border-gray-800 group hover:scale-[1.02] transition-all duration-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Jami Yetkazuvchilar</p>
-                <p className="text-xl sm:text-2xl font-bold">{suppliers.length}</p>
+                <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">{latinToCyrillic(stat.label)}</p>
+                <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">{stat.value}</p>
               </div>
-              <Truck className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Faol</p>
-                <p className="text-xl sm:text-2xl font-bold text-green-500">
-                  {suppliers.filter(s => s.active).length}
-                </p>
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl group-hover:rotate-12 transition-all duration-500 ${
+                stat.color === 'blue' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30' : 
+                stat.color === 'emerald' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30' : 
+                'bg-rose-50 text-rose-600 dark:bg-rose-900/30'
+              }`}>
+                <stat.icon className="w-7 h-7" />
               </div>
-              <Truck className="w-6 h-6 sm:w-8 sm:h-8 text-green-500" />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Nofaol</p>
-                <p className="text-xl sm:text-2xl font-bold text-red-500">
-                  {suppliers.filter(s => !s.active).length}
-                </p>
-              </div>
-              <Truck className="w-6 h-6 sm:w-8 sm:h-8 text-red-500" />
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">Yetkazuvchilar Ro'yxati</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs sm:text-sm">Kompaniya</TableHead>
-                  <TableHead className="text-xs sm:text-sm">Aloqa Shaxsi</TableHead>
-                  <TableHead className="text-xs sm:text-sm">Telefon</TableHead>
-                  <TableHead className="text-xs sm:text-sm hidden md:table-cell">Email</TableHead>
-                  <TableHead className="text-xs sm:text-sm hidden lg:table-cell">To'lov Muddati</TableHead>
-                  <TableHead className="text-xs sm:text-sm">Status</TableHead>
-                  <TableHead className="text-xs sm:text-sm">Harakatlar</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {suppliers.map((supplier) => (
-                  <TableRow key={supplier.id}>
-                    <TableCell>
+      {/* Main Table Card */}
+      <div className="bg-white dark:bg-gray-900 rounded-[3rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-800 overflow-hidden">
+        <div className="p-8 border-b border-gray-50 dark:border-gray-800 flex flex-col md:flex-row justify-between items-center gap-6 bg-gray-50/30 dark:bg-gray-800/10">
+          <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{latinToCyrillic("Ro'yxat")}</h3>
+          
+          <div className="relative w-full md:w-96 group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+            <input 
+              type="text"
+              placeholder={latinToCyrillic("Qidirish...")}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-12 pr-6 py-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
+            />
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-gray-50/50 dark:bg-gray-800/50">
+                <th className="px-8 py-6 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">{latinToCyrillic("Kompaniya")}</th>
+                <th className="px-8 py-6 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">{latinToCyrillic("Mas'ul Shaxs")}</th>
+                <th className="px-8 py-6 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">{latinToCyrillic("Aloqa")}</th>
+                <th className="px-8 py-6 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">{latinToCyrillic("To'lov Muddati")}</th>
+                <th className="px-8 py-6 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">{latinToCyrillic("Status")}</th>
+                <th className="px-8 py-6 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">{latinToCyrillic("Harakatlar")}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+              {filteredSuppliers.map((supplier) => (
+                <tr key={supplier.id} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors group">
+                  <td className="px-8 py-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+                        <Truck className="w-6 h-6" />
+                      </div>
                       <div>
-                        <p className="text-xs sm:text-sm font-semibold">{supplier.name}</p>
+                        <p className="font-black text-gray-900 dark:text-white text-sm">{supplier.name}</p>
                         {supplier.address && (
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <p className="text-[10px] text-gray-400 font-bold flex items-center gap-1 mt-0.5">
                             <MapPin className="w-3 h-3" />
-                            <span className="truncate max-w-[150px]">{supplier.address}</span>
+                            {supplier.address}
                           </p>
                         )}
                       </div>
-                    </TableCell>
-                    <TableCell className="text-xs sm:text-sm">{supplier.contactPerson}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1 text-xs sm:text-sm">
-                        <Phone className="w-3 h-3" />
+                    </div>
+                  </td>
+                  <td className="px-8 py-6">
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-blue-500" />
+                      <span className="font-bold text-sm text-gray-700 dark:text-gray-300">{supplier.contactPerson}</span>
+                    </div>
+                  </td>
+                  <td className="px-8 py-6">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-xs font-black text-gray-900 dark:text-white">
+                        <Phone className="w-3.5 h-3.5 text-emerald-500" />
                         {supplier.phone}
                       </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
                       {supplier.email && (
-                        <div className="flex items-center gap-1 text-xs sm:text-sm">
-                          <Mail className="w-3 h-3" />
+                        <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400">
+                          <Mail className="w-3.5 h-3.5" />
                           {supplier.email}
                         </div>
                       )}
-                    </TableCell>
-                    <TableCell className="text-xs sm:text-sm hidden lg:table-cell">{supplier.paymentTerms}</TableCell>
-                    <TableCell>
-                      <Badge variant={supplier.active ? 'success' : 'danger'}>
-                        <span className="text-xs">{supplier.active ? 'Faol' : 'Nofaol'}</span>
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => handleEdit(supplier)}
-                          className="text-xs"
-                        >
-                          Tahrirlash
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={supplier.active ? 'destructive' : 'primary'}
-                          onClick={() => toggleActive(supplier.id, supplier.active)}
-                          className="text-xs whitespace-nowrap"
-                        >
-                          {supplier.active ? 'O\'chirish' : 'Faollashtirish'}
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </div>
+                  </td>
+                  <td className="px-8 py-6">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg text-[10px] font-black text-gray-600 dark:text-gray-400 uppercase tracking-tighter">
+                      <CreditCard className="w-3.5 h-3.5" />
+                      {supplier.paymentTerms}
+                    </div>
+                  </td>
+                  <td className="px-8 py-6">
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                      supplier.active 
+                        ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                        : 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400'
+                    }`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${supplier.active ? 'bg-emerald-500' : 'bg-rose-500'} animate-pulse`} />
+                      {supplier.active ? latinToCyrillic("Faol") : latinToCyrillic("Nofaol")}
+                    </span>
+                  </td>
+                  <td className="px-8 py-6 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => handleEdit(supplier)}
+                        className="p-3 bg-gray-100 dark:bg-gray-800 hover:bg-blue-600 hover:text-white rounded-xl transition-all duration-300"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => toggleActive(supplier.id, supplier.active)}
+                        className={`p-3 rounded-xl transition-all duration-300 ${
+                          supplier.active 
+                            ? 'bg-rose-100 text-rose-600 hover:bg-rose-600 hover:text-white dark:bg-rose-900/20' 
+                            : 'bg-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white dark:bg-emerald-900/20'
+                        }`}
+                      >
+                        {supplier.active ? <RefreshCw className="w-4 h-4 rotate-180" /> : <Plus className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Premium Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xl flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-gray-900 w-full max-w-2xl rounded-[3rem] overflow-hidden shadow-2xl border border-white/20 animate-in zoom-in-95 duration-300">
+            <div className="p-10 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center bg-blue-50/30 dark:bg-blue-900/10">
+              <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600">
+                  <Truck className="w-6 h-6" />
+                </div>
+                {latinToCyrillic(editingSupplier ? "TAHRIRLASH" : "YANGI TA'MINOTCHI")}
+              </h3>
+              <button onClick={() => setShowModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors">
+                <Plus className="w-6 h-6 rotate-45" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-10 space-y-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Kompaniya Nomi")}</label>
+                  <input
+                    required
+                    className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Mas'ul Shaxs")}</label>
+                  <input
+                    required
+                    className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
+                    value={form.contactPerson}
+                    onChange={(e) => setForm({ ...form, contactPerson: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Telefon")}</label>
+                  <input
+                    required
+                    className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Email")}</label>
+                  <input
+                    type="email"
+                    className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Manzil")}</label>
+                <input
+                  className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
+                  value={form.address}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("To'lov Muddati")}</label>
+                <select
+                  className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all appearance-none cursor-pointer"
+                  value={form.paymentTerms}
+                  onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })}
+                >
+                  <option value="15 days">15 kun</option>
+                  <option value="30 days">30 kun</option>
+                  <option value="45 days">45 kun</option>
+                  <option value="60 days">60 kun</option>
+                  <option value="Cash">Naqd</option>
+                </select>
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 px-8 py-5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-[2rem] font-black text-sm transition-all active:scale-95 text-gray-900 dark:text-white"
+                >
+                  {latinToCyrillic("BEKOR QILISH")}
+                </button>
+                <button
+                  type="submit"
+                  className="flex-[2] px-8 py-5 bg-blue-600 hover:bg-blue-700 rounded-[2rem] font-black text-sm transition-all active:scale-95 text-white shadow-2xl shadow-blue-500/30"
+                >
+                  {latinToCyrillic(editingSupplier ? "SAQLASH" : "YARATISH")}
+                </button>
+              </div>
+            </form>
           </div>
-        </CardContent>
-      </Card>
-
-      <Modal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        title={editingSupplier ? 'Yetkazuvchini Tahrirlash' : 'Yangi Yetkazuvchi'}
-        size="lg"
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            label="Kompaniya Nomi"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-          />
-
-          <Input
-            label="Aloqa Shaxsi"
-            value={form.contactPerson}
-            onChange={(e) => setForm({ ...form, contactPerson: e.target.value })}
-            required
-          />
-
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Telefon"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              required
-            />
-
-            <Input
-              label="Email"
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-          </div>
-
-          <Input
-            label="Manzil"
-            value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })}
-          />
-
-          <div>
-            <label className="text-sm font-medium">To'lov Muddati</label>
-            <select
-              className="w-full px-3 py-2 bg-background border border-border rounded-lg"
-              value={form.paymentTerms}
-              onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })}
-            >
-              <option value="15 days">15 kun</option>
-              <option value="30 days">30 kun</option>
-              <option value="45 days">45 kun</option>
-              <option value="60 days">60 kun</option>
-              <option value="Cash">Naqd</option>
-            </select>
-          </div>
-
-          <Button type="submit" className="w-full">
-            {editingSupplier ? 'Saqlash' : 'Yaratish'}
-          </Button>
-        </form>
-      </Modal>
+        </div>
+      )}
     </div>
   );
 }

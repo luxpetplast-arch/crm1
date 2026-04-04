@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './Card';
 import { Button } from './Button';
 import { Badge } from './Badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './Tabs';
+import { Progress } from './Progress';
 import { 
   ShoppingCart, 
   Wallet, 
@@ -9,11 +11,8 @@ import {
   User, 
   TrendingUp, 
   Package, 
-  Star, 
-  Crown,
   Trophy,
   CreditCard,
-  Truck,
   HelpCircle,
   Settings,
   Bell,

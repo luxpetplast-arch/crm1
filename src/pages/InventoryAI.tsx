@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
 import Badge from '../components/Badge';
+import BagLabelPrinter from '../components/BagLabelPrinter';
 import api from '../lib/api';
 import { formatCurrency, formatNumber } from '../lib/utils';
 import { 
@@ -17,7 +18,9 @@ import {
   Calendar,
   Target,
   Zap,
-  RefreshCw
+  RefreshCw,
+  Printer,
+  Barcode
 } from 'lucide-react';
 
 export default function InventoryAI() {
@@ -27,6 +30,8 @@ export default function InventoryAI() {
   const [risks, setRisks] = useState<any>(null);
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [showLabelPrinter, setShowLabelPrinter] = useState(false);
+  const [labelPrinterProduct, setLabelPrinterProduct] = useState<any>(null);
 
   useEffect(() => {
     loadData();
@@ -61,6 +66,20 @@ export default function InventoryAI() {
       </div>
     );
   }
+
+  const handlePrintLabels = async (analysis: any) => {
+    try {
+      // Mahsulot ma'lumotlarini olish
+      const response = await api.get(`/products/${analysis.productId}`);
+      const product = response.data;
+      
+      setLabelPrinterProduct(product);
+      setShowLabelPrinter(true);
+    } catch (error) {
+      console.error('Mahsulot ma\'lumotlarini yuklashda xatolik:', error);
+      alert('Mahsulot ma\'lumotlarini yuklashda xatolik yuz berdi');
+    }
+  };
 
   const getTrendIcon = (trend: string) => {
     if (trend === 'INCREASING') return <TrendingUp className="w-4 h-4 text-green-600" />;
@@ -103,7 +122,13 @@ export default function InventoryAI() {
       {/* Xavflar Statistikasi */}
       {risks && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <Card className="border-red-500 bg-red-50 dark:bg-red-900/20">
+          <Card className="border-red-500 bg-red-50 dark:bg-red-900/20 relative overflow-hidden rounded-none">
+            {/* Yuqori yuk xati */}
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-600 via-red-400 to-red-600 opacity-80"></div>
+            <div className="absolute top-1 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-red-300 to-transparent opacity-60"></div>
+            <div className="absolute top-2 left-4 w-12 h-0.5 bg-gradient-to-r from-red-400 to-transparent opacity-50"></div>
+            <div className="absolute top-2 right-4 w-12 h-0.5 bg-gradient-to-l from-red-400 to-transparent opacity-50"></div>
+            
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -117,7 +142,13 @@ export default function InventoryAI() {
             </CardContent>
           </Card>
 
-          <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20">
+          <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 relative overflow-hidden rounded-none">
+            {/* Yuqori yuk xati */}
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-600 via-yellow-400 to-yellow-600 opacity-80"></div>
+            <div className="absolute top-1 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-yellow-300 to-transparent opacity-60"></div>
+            <div className="absolute top-2 left-4 w-12 h-0.5 bg-gradient-to-r from-yellow-400 to-transparent opacity-50"></div>
+            <div className="absolute top-2 right-4 w-12 h-0.5 bg-gradient-to-l from-yellow-400 to-transparent opacity-50"></div>
+            
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -131,7 +162,13 @@ export default function InventoryAI() {
             </CardContent>
           </Card>
 
-          <Card className="border-orange-500 bg-orange-50 dark:bg-orange-900/20">
+          <Card className="border-orange-500 bg-orange-50 dark:bg-orange-900/20 relative overflow-hidden rounded-none">
+            {/* Yuqori yuk xati */}
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-600 via-orange-400 to-orange-600 opacity-80"></div>
+            <div className="absolute top-1 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-orange-300 to-transparent opacity-60"></div>
+            <div className="absolute top-2 left-4 w-12 h-0.5 bg-gradient-to-r from-orange-400 to-transparent opacity-50"></div>
+            <div className="absolute top-2 right-4 w-12 h-0.5 bg-gradient-to-l from-orange-400 to-transparent opacity-50"></div>
+            
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -145,7 +182,13 @@ export default function InventoryAI() {
             </CardContent>
           </Card>
 
-          <Card className="border-blue-500 bg-blue-50 dark:bg-blue-900/20">
+          <Card className="border-blue-500 bg-blue-50 dark:bg-blue-900/20 relative overflow-hidden rounded-none">
+            {/* Yuqori yuk xati */}
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-blue-400 to-blue-600 opacity-80"></div>
+            <div className="absolute top-1 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-blue-300 to-transparent opacity-60"></div>
+            <div className="absolute top-2 left-4 w-12 h-0.5 bg-gradient-to-r from-blue-400 to-transparent opacity-50"></div>
+            <div className="absolute top-2 right-4 w-12 h-0.5 bg-gradient-to-l from-blue-400 to-transparent opacity-50"></div>
+            
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -175,7 +218,7 @@ export default function InventoryAI() {
               {recommendations.map((rec, index) => (
                 <div 
                   key={index}
-                  className={`p-3 sm:p-4 rounded-lg border-l-4 ${
+                  className={`p-3 sm:p-4 border-l-4 rounded-none ${
                     rec.urgency === 'HIGH' 
                       ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
                       : rec.urgency === 'MEDIUM'
@@ -221,7 +264,7 @@ export default function InventoryAI() {
             {analyses.map((analysis) => (
               <div 
                 key={analysis.productId}
-                className="p-3 sm:p-4 bg-muted rounded-lg hover:bg-accent transition-colors cursor-pointer"
+                className="p-3 sm:p-4 bg-muted border-2 border-gray-300 hover:border-blue-500 transition-all cursor-pointer rounded-none"
                 onClick={() => setSelectedProduct(analysis)}
               >
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -257,17 +300,31 @@ export default function InventoryAI() {
                     </div>
                   </div>
                   
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedProduct(analysis);
-                    }}
-                    className="w-full sm:w-auto"
-                  >
-                    Batafsil
-                  </Button>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button 
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePrintLabels(analysis);
+                      }}
+                      className="w-full sm:w-auto flex items-center gap-2"
+                    >
+                      <Barcode className="w-4 h-4" />
+                      Barkod
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedProduct(analysis);
+                      }}
+                      className="w-full sm:w-auto"
+                    >
+                      Batafsil
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -466,6 +523,18 @@ export default function InventoryAI() {
             </CardContent>
           </Card>
         </div>
+      )}
+      {/* Bag Label Printer Modal */}
+      {showLabelPrinter && labelPrinterProduct && (
+        <BagLabelPrinter
+          product={labelPrinterProduct}
+          productCode="12"
+          typeCode="34"
+          onClose={() => {
+            setShowLabelPrinter(false);
+            setLabelPrinterProduct(null);
+          }}
+        />
       )}
     </div>
   );

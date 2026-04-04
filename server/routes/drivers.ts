@@ -428,4 +428,40 @@ router.delete('/:id', authorize('ADMIN'), async (req: AuthRequest, res) => {
   }
 });
 
+// Haydovchini tekshirish va yaratish (savdadan foydalanish uchun)
+router.post('/check-or-create', async (req, res) => {
+  try {
+    const { name, phone, vehicleNumber } = req.body;
+
+    // Validatsiya
+    if (!name || !phone) {
+      return res.status(400).json({ error: 'Ism va telefon raqami majburiy' });
+    }
+
+    // Telefon raqami bo'yicha haydovchini qidirish
+    let driver = await prisma.driver.findFirst({
+      where: { phone }
+    });
+
+    if (driver) {
+      // Haydovchi mavjud, qaytarish
+      res.json(driver);
+    } else {
+      // Yangi haydovchi yaratish
+      driver = await prisma.driver.create({
+        data: {
+          name,
+          phone,
+          vehicleNumber: vehicleNumber || '',
+          status: 'AVAILABLE'
+        }
+      });
+      res.json(driver);
+    }
+  } catch (error) {
+    console.error('Check or create driver error:', error);
+    res.status(500).json({ error: 'Failed to check or create driver' });
+  }
+});
+
 export default router;

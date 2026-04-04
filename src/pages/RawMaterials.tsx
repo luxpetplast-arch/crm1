@@ -1,16 +1,27 @@
 import { useEffect, useState } from 'react';
-import { Card, CardContent } from '../components/Card';
-import Button from '../components/Button';
-import Input from '../components/Input';
-import Modal from '../components/Modal';
-import Badge from '../components/Badge';
 import api from '../lib/api';
-import { Package2, AlertTriangle, TrendingUp, Truck } from 'lucide-react';
+import { 
+  Package2, 
+  AlertTriangle, 
+  TrendingUp, 
+  Truck, 
+  Plus, 
+  MoreHorizontal, 
+  Layers, 
+  DollarSign,
+  Scale,
+  RefreshCw,
+  FileText
+} from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { exportToExcel } from '../lib/excelUtils';
 
 export default function RawMaterials() {
+  const { t } = useTranslation();
   const [materials, setMaterials] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     name: '',
     unit: 'kg',
@@ -25,12 +36,28 @@ export default function RawMaterials() {
   }, []);
 
   const loadMaterials = async () => {
+    setLoading(true);
     try {
       const { data } = await api.get('/raw-materials');
       setMaterials(data);
     } catch (error) {
       console.error('Failed to load raw materials');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleExport = () => {
+    const dataToExport = materials.map(m => ({
+      'Xom ashyo': m.name,
+      'Birlik': m.unit,
+      'Joriy zaxira': m.currentStock,
+      'Min limit': m.minStockLimit,
+      'Birlik narxi': m.unitPrice,
+      'Jami qiymat': m.currentStock * m.unitPrice,
+      'Yetkazuvchi': m.supplier?.name || 'Noma\'lum'
+    }));
+    exportToExcel(dataToExport, 'Xom_ashyolar', 'Xom ashyolar');
   };
 
   const loadSuppliers = async () => {
@@ -65,191 +92,269 @@ export default function RawMaterials() {
   };
 
   const getStockStatus = (material: any) => {
-    if (material.currentStock === 0) return { color: 'text-red-500', label: 'Tugagan', variant: 'danger' };
-    if (material.currentStock < material.minStockLimit) return { color: 'text-yellow-500', label: 'Kam', variant: 'warning' };
-    return { color: 'text-green-500', label: 'Yaxshi', variant: 'success' };
+    if (material.currentStock === 0) return { color: 'text-rose-600', bg: 'bg-rose-50 dark:bg-rose-900/20', label: t('Tugagan'), border: 'border-rose-100 dark:border-rose-800' };
+    if (material.currentStock < material.minStockLimit) return { color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20', label: t('Kam qolgan'), border: 'border-amber-100 dark:border-amber-800' };
+    return { color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20', label: t('Yetarli'), border: 'border-emerald-100 dark:border-emerald-800' };
   };
 
   const totalValue = materials.reduce((sum, m) => sum + (m.currentStock * m.unitPrice), 0);
   const lowStockCount = materials.filter(m => m.currentStock < m.minStockLimit).length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold">Xom Ashyo</h1>
-        <Button onClick={() => setShowModal(true)} className="w-full sm:w-auto">
-          <Package2 className="w-4 h-4 mr-2" />
-          Xom Ashyo Qo'shish
-        </Button>
+    <div className="space-y-12 pb-20 animate-in fade-in duration-1000">
+      {/* Premium Header Section */}
+      <div className="relative overflow-hidden bg-white dark:bg-gray-900 rounded-3xl p-10 sm:p-16 shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white dark:border-gray-800">
+        <div className="absolute top-0 -left-10 w-64 h-64 bg-indigo-100 dark:bg-indigo-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob pointer-events-none"></div>
+        <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-blue-100 dark:bg-blue-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000 pointer-events-none"></div>
+
+        <div className="relative z-10">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-10">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-full border border-indigo-100 dark:border-indigo-800 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
+                <Layers className="w-3 h-3 animate-pulse" />
+                Raw Materials Management
+              </div>
+              <h1 className="text-5xl sm:text-7xl font-black text-gray-900 dark:text-white tracking-tighter leading-[0.9]">
+                {t("Xom")}<br />
+                <span className="text-indigo-600">{t("Ashyo")}</span>
+              </h1>
+              <p className="text-gray-500 dark:text-gray-400 font-bold max-w-md text-sm sm:text-base">
+                {t("Ishlab chiqarish uchun zarur bo'lgan barcha xom ashyolar zaxirasi va narxlari")}
+              </p>
+            </div>
+            
+            <div className="flex flex-wrap gap-4 w-full lg:w-auto">
+              <button 
+                onClick={handleExport}
+                className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-8 py-5 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-[2rem] font-black text-xs transition-all active:scale-95 border border-emerald-100 dark:border-emerald-800"
+              >
+                <FileText className="w-5 h-5" />
+                EXCEL
+              </button>
+              <button 
+                onClick={() => setShowModal(true)} 
+                className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-10 py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[2rem] font-black text-xs shadow-2xl shadow-indigo-500/30 transition-all hover:scale-105 active:scale-95"
+              >
+                <Plus className="w-5 h-5" />
+                {t("YANGI XOM ASHYO")}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-        <Card>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Jami Turlar</p>
-                <p className="text-xl sm:text-2xl font-bold">{materials.length}</p>
-              </div>
-              <Package2 className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 px-4">
+        {[
+          { label: t("Jami Turlar"), value: materials.length, icon: Package2, color: 'blue' },
+          { label: t("Kam Zaxira"), value: lowStockCount, icon: AlertTriangle, color: lowStockCount > 0 ? 'rose' : 'emerald' },
+          { 
+            label: t("Jami Qiymat"), 
+            value: totalValue.toLocaleString(), 
+            icon: TrendingUp, 
+            color: 'emerald',
+            suffix: 'UZS'
+          },
+          { label: t("Yetkazuvchilar"), value: suppliers.length, icon: Truck, color: 'indigo' }
+        ].map((stat, i) => (
+          <div key={i} className="group bg-white dark:bg-gray-900 p-8 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm transition-all duration-500 hover:shadow-2xl hover:-translate-y-2">
+            <div className={`w-14 h-14 bg-${stat.color}-50 dark:bg-${stat.color}-900/20 rounded-xl flex items-center justify-center text-${stat.color}-600 mb-8 transition-transform group-hover:rotate-12`}>
+              <stat.icon className="w-7 h-7" />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Kam Zaxira</p>
-                <p className="text-xl sm:text-2xl font-bold text-yellow-500">{lowStockCount}</p>
-              </div>
-              <AlertTriangle className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500" />
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">{stat.label}</p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-2xl sm:text-3xl font-black tracking-tight text-gray-900 dark:text-white">
+                {stat.value}
+              </p>
+              {stat.suffix && <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{stat.suffix}</span>}
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Jami Qiymat</p>
-                <p className="text-lg sm:text-2xl font-bold text-green-500">
-                  {totalValue.toLocaleString()} UZS
-                </p>
-              </div>
-              <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-muted-foreground">Yetkazuvchilar</p>
-                <p className="text-xl sm:text-2xl font-bold">{suppliers.length}</p>
-              </div>
-              <Truck className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Materials Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-4">
         {materials.map((material) => {
           const status = getStockStatus(material);
           return (
-            <Card key={material.id}>
-              <CardContent>
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="font-semibold text-lg">{material.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {material.supplier?.name || 'Yetkazuvchi yo\'q'}
+            <div key={material.id} className="group bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 p-8 shadow-sm transition-all duration-500 hover:shadow-2xl overflow-hidden relative">
+              <div className="absolute top-0 right-0 p-8">
+                <div className={`w-12 h-12 ${status.bg} rounded-2xl flex items-center justify-center ${status.color} shadow-sm group-hover:rotate-12 transition-transform`}>
+                  <Package2 className="w-6 h-6" />
+                </div>
+              </div>
+
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight uppercase mb-1">{material.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <Truck className="w-3.5 h-3.5 text-gray-400" />
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                      {material.supplier?.name || t('Yetkazuvchi yo\'q')}
                     </p>
                   </div>
-                  <Package2 className="w-6 h-6 text-primary" />
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs sm:text-sm">
-                    <span>Joriy Zaxira:</span>
-                    <span className={`font-semibold ${status.color}`}>
-                      {material.currentStock} {material.unit}
-                    </span>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-end p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50">
+                    <div>
+                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">{t("JORIY ZAXIRA")}</p>
+                      <p className={`text-2xl font-black ${status.color} tracking-tighter`}>{material.currentStock} <span className="text-xs uppercase ml-1">{material.unit}</span></p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">{t("MIN LIMIT")}</p>
+                      <p className="text-sm font-black text-gray-900 dark:text-white">{material.minStockLimit} {material.unit}</p>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-xs sm:text-sm">
-                    <span>Minimal Limit:</span>
-                    <span className="font-semibold">{material.minStockLimit} {material.unit}</span>
-                  </div>
-                  <div className="flex justify-between text-xs sm:text-sm">
-                    <span>Birlik Narxi:</span>
-                    <span className="font-semibold">{material.unitPrice.toLocaleString()} UZS</span>
-                  </div>
-                  <div className="flex justify-between text-xs sm:text-sm">
-                    <span>Jami Qiymat:</span>
-                    <span className="font-semibold">
-                      {(material.currentStock * material.unitPrice).toLocaleString()} UZS
-                    </span>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">{t("BIRLIK NARXI")}</p>
+                      <p className="text-sm font-black text-emerald-600">{material.unitPrice.toLocaleString()} UZS</p>
+                    </div>
+                    <div className="p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">{t("JAMI QIYMAT")}</p>
+                      <p className="text-sm font-black text-blue-600">{(material.currentStock * material.unitPrice).toLocaleString()} UZS</p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="mt-4">
-                  <Badge variant={status.variant as any}>{status.label}</Badge>
+                <div className="flex justify-between items-center pt-4 border-t border-gray-50 dark:border-gray-800">
+                  <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm ${status.bg} ${status.color}`}>
+                    {status.label}
+                  </span>
+                  <button className="w-10 h-10 bg-gray-50 dark:bg-gray-800 text-gray-400 rounded-xl flex items-center justify-center hover:bg-indigo-600 hover:text-white transition-all">
+                    <MoreHorizontal className="w-5 h-5" />
+                  </button>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           );
         })}
       </div>
 
-      <Modal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        title="Yangi Xom Ashyo"
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            label="Nomi"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-          />
+      {/* New Material Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xl flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-gray-900 w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl border border-white/20 animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
+            <div className="p-10 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center bg-indigo-50/30 dark:bg-indigo-900/10 shrink-0">
+              <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-4">
+                <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center text-indigo-600">
+                  <Plus className="w-6 h-6" />
+                </div>
+                {t("YANGI")} <span className="text-indigo-600">{t("XOM ASHYO")}</span>
+              </h3>
+              <button onClick={() => setShowModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors">
+                <MoreHorizontal className="w-5 h-5 rotate-45" />
+              </button>
+            </div>
 
-          <div>
-            <label className="text-sm font-medium">O'lchov Birligi</label>
-            <select
-              className="w-full px-3 py-2 bg-background border border-border rounded-lg"
-              value={form.unit}
-              onChange={(e) => setForm({ ...form, unit: e.target.value })}
-            >
-              <option value="kg">Kilogram (kg)</option>
-              <option value="ton">Tonna (ton)</option>
-              <option value="litr">Litr (l)</option>
-              <option value="dona">Dona</option>
-            </select>
+            <form onSubmit={handleSubmit} className="p-10 sm:p-16 space-y-10 overflow-y-auto custom-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("XOM ASHYO NOMI")}</label>
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    className="w-full h-16 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-indigo-500 rounded-2xl font-black text-sm outline-none transition-all"
+                    placeholder={t("Masalan: Granula...")}
+                    required
+                  />
+                </div>
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("O'LCHOV BIRLIGI")}</label>
+                  <select
+                    value={form.unit}
+                    onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                    className="w-full h-16 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-indigo-500 rounded-2xl font-black text-sm outline-none transition-all appearance-none"
+                  >
+                    <option value="kg">{t("Kilogram (kg)")}</option>
+                    <option value="ton">{t("Tonna (ton)")}</option>
+                    <option value="litr">{t("Litr (l)")}</option>
+                    <option value="dona">{t("Dona")}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("MINIMAL ZAXIRA LIMITI")}</label>
+                  <div className="relative group">
+                    <Scale className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-indigo-600 transition-colors" />
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={form.minStockLimit}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(',', '.');
+                        if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                        setForm({ ...form, minStockLimit: raw });
+                      }}
+                      className="w-full h-16 pl-16 pr-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-indigo-500 rounded-2xl font-black text-sm outline-none transition-all"
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("BIRLIK NARXI (UZS)")}</label>
+                  <div className="relative group">
+                    <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-emerald-600 transition-colors" />
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={form.unitPrice}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(',', '.');
+                        if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
+                        setForm({ ...form, unitPrice: raw });
+                      }}
+                      className="w-full h-16 pl-16 pr-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-indigo-500 rounded-2xl font-black text-sm outline-none transition-all"
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("YETKAZUVCHI")}</label>
+                <select
+                  value={form.supplierId}
+                  onChange={(e) => setForm({ ...form, supplierId: e.target.value })}
+                  className="w-full h-16 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-indigo-500 rounded-2xl font-black text-sm outline-none transition-all appearance-none"
+                  required
+                >
+                  <option value="">{t("Yetkazuvchini tanlang")}</option>
+                  {suppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4 pt-10 border-t border-gray-50 dark:border-gray-800">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 h-16 rounded-2xl border-2 border-gray-100 dark:border-gray-800 font-black text-xs tracking-[0.2em] text-gray-400 hover:bg-gray-50 transition-all active:scale-95"
+                >
+                  {t("BEKOR QILISH")}
+                </button>
+                <button
+                  type="submit"
+                  className="flex-[2] h-16 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-xs tracking-[0.2em] shadow-2xl shadow-indigo-500/30 transition-all active:scale-95 flex items-center justify-center gap-3"
+                >
+                  <Package2 className="w-5 h-5" />
+                  {t("XOM ASHYONI QO'SHISH")}
+                </button>
+              </div>
+            </form>
           </div>
-
-          <Input
-            label="Minimal Zaxira Limiti"
-            type="number"
-            step="0.01"
-            value={form.minStockLimit}
-            onChange={(e) => setForm({ ...form, minStockLimit: e.target.value })}
-            required
-          />
-
-          <Input
-            label="Birlik Narxi (UZS)"
-            type="number"
-            step="0.01"
-            value={form.unitPrice}
-            onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
-            required
-          />
-
-          <div>
-            <label className="text-sm font-medium">Yetkazuvchi</label>
-            <select
-              className="w-full px-3 py-2 bg-background border border-border rounded-lg"
-              value={form.supplierId}
-              onChange={(e) => setForm({ ...form, supplierId: e.target.value })}
-              required
-            >
-              <option value="">Yetkazuvchini tanlang</option>
-              {suppliers.map((supplier) => (
-                <option key={supplier.id} value={supplier.id}>
-                  {supplier.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <Button type="submit" className="w-full">
-            Xom Ashyo Qo'shish
-          </Button>
-        </form>
-      </Modal>
+        </div>
+      )}
     </div>
   );
 }

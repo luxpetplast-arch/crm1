@@ -87,7 +87,13 @@
     "processing": "Ишланмоқда",
     "completed": "Тайёр",
     "cancelled": "Бекор қилинган",
-    "delivered": "Етказилган"
+    "delivered": "Етказилган",
+    "qop": "Қоп",
+    "unitsPerBag": "Дona/Қоп",
+    "totalUnits": "Жами Дона",
+    "pricePerBag": "Қопга нарх",
+    "pricePerUnit": "Донага нарх",
+    "selectPriceType": "Нарх турини танланг"
   },
   "cashbox": {
     "title": "Касса",
@@ -117,5 +123,20 @@
     "notifications": "Билдиришномалар",
     "users": "Фойдаланувчилар",
     "backup": "Заҳира нусха"
+  },
+  "production": {
+    "title": "Ишлаб чиқариш",
+    "newOrder": "Янги буюртма",
+    "product": "Маҳсулот",
+    "quantity": "Миқдор",
+    "date": "Сана",
+    "shift": "Смена",
+    "status": "Ҳолат",
+    "accessories": "Акссесуарлар",
+    "krishka": "Қопқоқ",
+    "ruchka": "Ручка",
+    "add": "Қўшиш",
+    "cancel": "Бекор қилиш",
+    "createOrder": "Буюртма яратиш"
   }
 }

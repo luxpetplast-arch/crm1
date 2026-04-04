@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
@@ -17,12 +18,27 @@ import {
   Lock,
   CreditCard,
   Factory,
-  Percent
+  Percent,
+  Package,
+  Pencil,
+  Sparkles,
+  Save,
+  RefreshCw,
+  ChevronRight,
+  User,
+  Globe,
+  Settings as SettingsIcon,
+  Cloud,
+  Plus
 } from 'lucide-react';
+import { latinToCyrillic } from '../lib/transliterator';
 
 export default function Settings() {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState('general');
   const [settings, setSettings] = useState({
     // Valyuta kurslari
     USD_TO_UZS_RATE: '12500',
@@ -30,11 +46,11 @@ export default function Settings() {
     RUB_TO_UZS_RATE: '135',
     
     // Kompaniya ma'lumotlari
-    COMPANY_NAME: 'AzizTrades ERP',
+    COMPANY_NAME: 'LUX PET PLAST ZAVOD',
     COMPANY_ADDRESS: 'Toshkent, O\'zbekiston',
     COMPANY_PHONE: '+998901234567',
-    COMPANY_EMAIL: 'info@aziztrades.com',
-    COMPANY_WEBSITE: 'www.aziztrades.com',
+    COMPANY_EMAIL: 'info@luxpet.uz',
+    COMPANY_WEBSITE: 'www.luxpet.uz',
     COMPANY_INN: '123456789',
     COMPANY_BANK_ACCOUNT: '20208000000000000000',
     COMPANY_BANK_NAME: 'Milliy Bank',
@@ -42,7 +58,7 @@ export default function Settings() {
     
     // Soliq va faktura
     TAX_RATE: '12',
-    INVOICE_PREFIX: 'INV',
+    INVOICE_PREFIX: 'LUX',
     INVOICE_START_NUMBER: '1',
     PAYMENT_TERMS_DAYS: '30',
     
@@ -82,7 +98,7 @@ export default function Settings() {
     EMAIL_SMTP_PORT: '587',
     EMAIL_USERNAME: '',
     EMAIL_PASSWORD: '',
-    EMAIL_FROM_NAME: 'AzizTrades ERP',
+    EMAIL_FROM_NAME: 'LUX PET Plast',
     EMAIL_NOTIFICATIONS_ENABLED: 'false',
     
     // Tizim
@@ -104,7 +120,7 @@ export default function Settings() {
     
     // Hisobotlar
     REPORT_LOGO_URL: '',
-    REPORT_FOOTER_TEXT: 'AzizTrades ERP - Biznesingiz uchun',
+    REPORT_FOOTER_TEXT: 'LUX PET Plast Zavod - Sifat va Ishonch',
     REPORT_SHOW_WATERMARK: 'false',
     
     // Integratsiyalar
@@ -124,17 +140,24 @@ export default function Settings() {
       const { data } = await api.get('/settings');
       setSettings(data);
     } catch (error) {
-      console.error('Sozlamalarni yuklashda xatolik');
+      console.error('Settings loading error');
+    } finally {
+      setRefreshing(false);
     }
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadSettings();
   };
 
   const handleSave = async () => {
     setLoading(true);
     try {
       await api.put('/settings', settings);
-      alert('Sozlamalar muvaffaqiyatli saqlandi!');
+      alert(latinToCyrillic('Sozlamalar muvaffaqiyatli saqlandi!'));
     } catch (error) {
-      alert('Sozlamalarni saqlashda xatolik yuz berdi');
+      alert(latinToCyrillic('Sozlamalarni saqlashda xatolik yuz berdi'));
     } finally {
       setLoading(false);
     }
@@ -144,537 +167,421 @@ export default function Settings() {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
+  const tabs = [
+    { id: 'general', name: 'Umumiy', icon: SettingsIcon },
+    { id: 'business', name: 'Biznes', icon: Factory },
+    { id: 'notifications', name: 'Bildirishnomalar', icon: Bell },
+    { id: 'security', name: 'Xavfsizlik', icon: Lock },
+    { id: 'backup', name: 'Backup', icon: Database }
+  ];
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl sm:text-3xl font-bold">Tizim Sozlamalari</h1>
+    <div className="space-y-12 pb-20 animate-in fade-in duration-700">
+      {/* Premium Header */}
+      <div className="relative overflow-hidden bg-white dark:bg-gray-900 rounded-[3rem] p-8 sm:p-12 shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white dark:border-gray-800">
+        <div className="absolute top-0 -left-10 w-64 h-64 bg-blue-100 dark:bg-blue-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob pointer-events-none"></div>
+        <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-purple-100 dark:bg-purple-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000 pointer-events-none"></div>
 
-      {/* Valyuta Kurslari */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-            <CardTitle className="text-lg sm:text-xl">Valyuta Kurslari</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Input
-              label="USD → UZS Kursi"
-              type="number"
-              value={settings.USD_TO_UZS_RATE}
-              onChange={(e) => updateSetting('USD_TO_UZS_RATE', e.target.value)}
-            />
-            <Input
-              label="EUR → UZS Kursi"
-              type="number"
-              value={settings.EUR_TO_UZS_RATE}
-              onChange={(e) => updateSetting('EUR_TO_UZS_RATE', e.target.value)}
-            />
-            <Input
-              label="RUB → UZS Kursi"
-              type="number"
-              value={settings.RUB_TO_UZS_RATE}
-              onChange={(e) => updateSetting('RUB_TO_UZS_RATE', e.target.value)}
-            />
-          </div>
-          <div className="mt-4 p-3 bg-muted rounded-lg">
-            <p className="text-xs sm:text-sm">
-              <strong>Joriy kurslar:</strong> 1 USD = {settings.USD_TO_UZS_RATE} UZS, 
-              1 EUR = {settings.EUR_TO_UZS_RATE} UZS, 
-              1 RUB = {settings.RUB_TO_UZS_RATE} UZS
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Kompaniya Ma'lumotlari */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Building className="w-5 h-5 text-primary" />
-            <CardTitle>Kompaniya Ma'lumotlari</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Kompaniya Nomi"
-              value={settings.COMPANY_NAME}
-              onChange={(e) => updateSetting('COMPANY_NAME', e.target.value)}
-            />
-            <Input
-              label="Telefon Raqami"
-              value={settings.COMPANY_PHONE}
-              onChange={(e) => updateSetting('COMPANY_PHONE', e.target.value)}
-            />
-            <Input
-              label="Email Manzili"
-              type="email"
-              value={settings.COMPANY_EMAIL}
-              onChange={(e) => updateSetting('COMPANY_EMAIL', e.target.value)}
-            />
-            <Input
-              label="Manzil"
-              value={settings.COMPANY_ADDRESS}
-              onChange={(e) => updateSetting('COMPANY_ADDRESS', e.target.value)}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Soliq va Faktura */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-primary" />
-            <CardTitle>Soliq va Faktura Sozlamalari</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="QQS Foizi (%)"
-              type="number"
-              value={settings.TAX_RATE}
-              onChange={(e) => updateSetting('TAX_RATE', e.target.value)}
-            />
-            <Input
-              label="Faktura Prefiksi"
-              value={settings.INVOICE_PREFIX}
-              onChange={(e) => updateSetting('INVOICE_PREFIX', e.target.value)}
-            />
-          </div>
-          <div className="mt-4 p-3 bg-muted rounded-lg">
-            <p className="text-sm">
-              <strong>Misol:</strong> Faktura raqami: {settings.INVOICE_PREFIX}-2024-001, QQS: {settings.TAX_RATE}%
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Biznes Sozlamalari */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Bell className="w-5 h-5 text-primary" />
-            <CardTitle>Biznes Sozlamalari</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Kam Zaxira Chegarasi (qop)"
-              type="number"
-              value={settings.LOW_STOCK_THRESHOLD}
-              onChange={(e) => updateSetting('LOW_STOCK_THRESHOLD', e.target.value)}
-            />
-            <Input
-              label="Qarz Ogohlantirish (kun)"
-              type="number"
-              value={settings.DEBT_ALERT_DAYS}
-              onChange={(e) => updateSetting('DEBT_ALERT_DAYS', e.target.value)}
-            />
-          </div>
-          <div className="mt-4 p-3 bg-muted rounded-lg">
-            <p className="text-sm">
-              Zaxira {settings.LOW_STOCK_THRESHOLD} qopdan kam bo'lsa ogohlantirish, qarz {settings.DEBT_ALERT_DAYS} kundan oshsa eslatma
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Telegram Sozlamalari */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <MessageSquare className="w-5 h-5 text-primary" />
-            <CardTitle>Telegram Integratsiyasi</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4">
-            <Input
-              label="Bot Token"
-              type="password"
-              value={settings.TELEGRAM_BOT_TOKEN}
-              onChange={(e) => updateSetting('TELEGRAM_BOT_TOKEN', e.target.value)}
-              placeholder="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz"
-            />
-            <Input
-              label="Admin Chat ID"
-              value={settings.TELEGRAM_ADMIN_CHAT_ID}
-              onChange={(e) => updateSetting('TELEGRAM_ADMIN_CHAT_ID', e.target.value)}
-              placeholder="123456789"
-            />
-          </div>
-          <div className="mt-4 p-3 bg-muted rounded-lg">
-            <p className="text-sm">
-              <strong>Qo'llanma:</strong> @BotFather dan bot yarating va tokenni oling. Chat ID ni @userinfobot dan bilib oling.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* SMS Sozlamalari */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <MessageSquare className="w-5 h-5 text-primary" />
-            <CardTitle>SMS Sozlamalari</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Input
-            label="SMS API Kaliti"
-            type="password"
-            value={settings.SMS_API_KEY}
-            onChange={(e) => updateSetting('SMS_API_KEY', e.target.value)}
-            placeholder="SMS xizmati API kaliti"
-          />
-          <div className="mt-4 p-3 bg-muted rounded-lg">
-            <p className="text-sm">
-              SMS xizmati (Eskiz.uz, Playmobile.uz) dan API kalitini oling
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Email Sozlamalari */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Mail className="w-5 h-5 text-primary" />
-            <CardTitle>Email Sozlamalari</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="SMTP Host"
-              value={settings.EMAIL_SMTP_HOST}
-              onChange={(e) => updateSetting('EMAIL_SMTP_HOST', e.target.value)}
-              placeholder="smtp.gmail.com"
-            />
-            <Input
-              label="SMTP Port"
-              type="number"
-              value={settings.EMAIL_SMTP_PORT}
-              onChange={(e) => updateSetting('EMAIL_SMTP_PORT', e.target.value)}
-            />
-            <Input
-              label="Email"
-              type="email"
-              value={settings.EMAIL_USERNAME}
-              onChange={(e) => updateSetting('EMAIL_USERNAME', e.target.value)}
-            />
-            <Input
-              label="Parol"
-              type="password"
-              value={settings.EMAIL_PASSWORD}
-              onChange={(e) => updateSetting('EMAIL_PASSWORD', e.target.value)}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tizim Sozlamalari */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Database className="w-5 h-5 text-primary" />
-            <CardTitle>Tizim Sozlamalari</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm font-medium">Backup Chastotasi</label>
-              <select
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg mt-2"
-                value={settings.BACKUP_FREQUENCY}
-                onChange={(e) => updateSetting('BACKUP_FREQUENCY', e.target.value)}
-              >
-                <option value="daily">Har kuni</option>
-                <option value="weekly">Haftada bir marta</option>
-                <option value="monthly">Oyda bir marta</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Til</label>
-              <select
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg mt-2"
-                value={settings.LANGUAGE}
-                onChange={(e) => updateSetting('LANGUAGE', e.target.value)}
-              >
-                <option value="uz">O'zbek</option>
-                <option value="ru">Русский</option>
-                <option value="en">English</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Vaqt Zonasi</label>
-              <select
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg mt-2"
-                value={settings.TIMEZONE}
-                onChange={(e) => updateSetting('TIMEZONE', e.target.value)}
-              >
-                <option value="Asia/Tashkent">Toshkent</option>
-                <option value="Asia/Samarkand">Samarqand</option>
-                <option value="UTC">UTC</option>
-              </select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Narxlash Strategiyalari */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Percent className="w-5 h-5 text-primary" />
-            <CardTitle>Narxlash Strategiyalari</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Standart Foyda Marjasi (%)"
-              type="number"
-              value={settings.DEFAULT_PROFIT_MARGIN}
-              onChange={(e) => updateSetting('DEFAULT_PROFIT_MARGIN', e.target.value)}
-            />
-            <Input
-              label="VIP Mijozlar Chegirmasi (%)"
-              type="number"
-              value={settings.VIP_DISCOUNT}
-              onChange={(e) => updateSetting('VIP_DISCOUNT', e.target.value)}
-            />
-            <Input
-              label="Ulgurji Chegirma Chegarasi (qop)"
-              type="number"
-              value={settings.BULK_DISCOUNT_THRESHOLD}
-              onChange={(e) => updateSetting('BULK_DISCOUNT_THRESHOLD', e.target.value)}
-            />
-            <Input
-              label="Ulgurji Chegirma Foizi (%)"
-              type="number"
-              value={settings.BULK_DISCOUNT_PERCENT}
-              onChange={(e) => updateSetting('BULK_DISCOUNT_PERCENT', e.target.value)}
-            />
-          </div>
-          <div className="mt-4 p-3 bg-muted rounded-lg text-sm">
-            <p>
-              Standart foyda: {settings.DEFAULT_PROFIT_MARGIN}%, VIP chegirma: {settings.VIP_DISCOUNT}%, 
-              {settings.BULK_DISCOUNT_THRESHOLD}+ qop uchun {settings.BULK_DISCOUNT_PERCENT}% chegirma
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Ishlab Chiqarish Sozlamalari */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Factory className="w-5 h-5 text-primary" />
-            <CardTitle>Ishlab Chiqarish Sozlamalari</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Input
-              label="Smena Soatlari"
-              type="number"
-              value={settings.PRODUCTION_SHIFT_HOURS}
-              onChange={(e) => updateSetting('PRODUCTION_SHIFT_HOURS', e.target.value)}
-            />
-            <div>
-              <label className="text-sm font-medium">Sifat Nazorati</label>
-              <select
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg mt-2"
-                value={settings.QUALITY_CHECK_FREQUENCY}
-                onChange={(e) => updateSetting('QUALITY_CHECK_FREQUENCY', e.target.value)}
-              >
-                <option value="every_batch">Har partiya</option>
-                <option value="daily">Kunlik</option>
-                <option value="weekly">Haftalik</option>
-              </select>
-            </div>
-            <Input
-              label="Nuqson Tolerantligi (%)"
-              type="number"
-              value={settings.DEFECT_TOLERANCE_PERCENT}
-              onChange={(e) => updateSetting('DEFECT_TOLERANCE_PERCENT', e.target.value)}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* To'lov Tizimi Integratsiyalari */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-primary" />
-            <CardTitle>To'lov Tizimi Integratsiyalari</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
+        <div className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8">
           <div className="space-y-4">
-            <div className="p-4 bg-muted rounded-lg">
-              <p className="font-semibold mb-3">Click</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <Input
-                  label="Merchant ID"
-                  value={settings.CLICK_MERCHANT_ID}
-                  onChange={(e) => updateSetting('CLICK_MERCHANT_ID', e.target.value)}
-                  placeholder="12345"
-                />
-                <Input
-                  label="Service ID"
-                  value={settings.CLICK_SERVICE_ID}
-                  onChange={(e) => updateSetting('CLICK_SERVICE_ID', e.target.value)}
-                  placeholder="67890"
-                />
-                <Input
-                  label="Secret Key"
-                  type="password"
-                  value={settings.CLICK_SECRET_KEY}
-                  onChange={(e) => updateSetting('CLICK_SECRET_KEY', e.target.value)}
-                />
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-full border border-blue-100 dark:border-blue-800 text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">
+              <Shield className="w-3 h-3" />
+              System Administration
+            </div>
+            <h1 className="text-4xl sm:text-6xl font-black text-gray-900 dark:text-white tracking-tighter leading-none">
+              {latinToCyrillic("Tizim")} <br />
+              <span className="text-blue-600">{latinToCyrillic("Sozlamalari")}</span>
+            </h1>
+          </div>
+
+          <div className="flex flex-wrap gap-3 w-full lg:w-auto">
+            <button 
+              onClick={handleRefresh}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-4 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-2xl font-black text-xs transition-all active:scale-95 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              {latinToCyrillic("YANGILASH")}
+            </button>
+            <button 
+              onClick={handleSave}
+              disabled={loading}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-10 py-4 bg-blue-600 hover:bg-blue-700 rounded-2xl font-black text-xs transition-all active:scale-95 text-white shadow-xl shadow-blue-500/20 disabled:opacity-50"
+            >
+              <Save className="w-4 h-4" />
+              {loading ? '...' : latinToCyrillic("SAQLASH")}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-10">
+        {/* Navigation Sidebar */}
+        <div className="w-full lg:w-80 space-y-2">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`w-full flex items-center gap-4 px-6 py-5 rounded-[1.5rem] transition-all duration-300 group ${
+                activeTab === tab.id
+                  ? 'bg-blue-600 text-white shadow-xl shadow-blue-500/20 translate-x-2'
+                  : 'bg-white dark:bg-gray-900 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 border border-transparent'
+              }`}
+            >
+              <div className={`p-2.5 rounded-xl ${
+                activeTab === tab.id ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 group-hover:text-blue-600'
+              }`}>
+                <tab.icon className="w-5 h-5" />
+              </div>
+              <span className="font-black text-[10px] uppercase tracking-[0.2em]">{latinToCyrillic(tab.name)}</span>
+              {activeTab === tab.id && <ChevronRight className="w-4 h-4 ml-auto" />}
+            </button>
+          ))}
+        </div>
+
+        {/* Content Area */}
+        <div className="flex-1 space-y-10">
+          {activeTab === 'general' && (
+            <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-500">
+              {/* Company Info */}
+              <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-10 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-gray-100 dark:border-gray-800">
+                <div className="flex items-center gap-4 mb-10">
+                  <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600">
+                    <Building className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">{latinToCyrillic("Kompaniya Ma'lumotlari")}</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Kompaniya Nomi")}</label>
+                    <input
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
+                      value={settings.COMPANY_NAME}
+                      onChange={(e) => updateSetting('COMPANY_NAME', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Telefon")}</label>
+                    <input
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
+                      value={settings.COMPANY_PHONE}
+                      onChange={(e) => updateSetting('COMPANY_PHONE', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Email")}</label>
+                    <input
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
+                      value={settings.COMPANY_EMAIL}
+                      onChange={(e) => updateSetting('COMPANY_EMAIL', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Manzil")}</label>
+                    <input
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
+                      value={settings.COMPANY_ADDRESS}
+                      onChange={(e) => updateSetting('COMPANY_ADDRESS', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Currency Rates */}
+              <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-10 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-gray-100 dark:border-gray-800">
+                <div className="flex items-center gap-4 mb-10">
+                  <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center text-emerald-600">
+                    <DollarSign className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">{latinToCyrillic("Valyuta Kurslari")}</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">USD → UZS</label>
+                    <input
+                      type="number"
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-black text-sm transition-all"
+                      value={settings.USD_TO_UZS_RATE}
+                      onChange={(e) => updateSetting('USD_TO_UZS_RATE', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">EUR → UZS</label>
+                    <input
+                      type="number"
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-black text-sm transition-all"
+                      value={settings.EUR_TO_UZS_RATE}
+                      onChange={(e) => updateSetting('EUR_TO_UZS_RATE', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">RUB → UZS</label>
+                    <input
+                      type="number"
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-black text-sm transition-all"
+                      value={settings.RUB_TO_UZS_RATE}
+                      onChange={(e) => updateSetting('RUB_TO_UZS_RATE', e.target.value)}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="p-4 bg-muted rounded-lg">
-              <p className="font-semibold mb-3">Payme</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <Input
-                  label="Merchant ID"
-                  value={settings.PAYME_MERCHANT_ID}
-                  onChange={(e) => updateSetting('PAYME_MERCHANT_ID', e.target.value)}
-                />
-                <Input
-                  label="Secret Key"
-                  type="password"
-                  value={settings.PAYME_SECRET_KEY}
-                  onChange={(e) => updateSetting('PAYME_SECRET_KEY', e.target.value)}
-                />
+          )}
+
+          {activeTab === 'business' && (
+            <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-500">
+              {/* Business Limits */}
+              <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-10 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-gray-100 dark:border-gray-800">
+                <div className="flex items-center gap-4 mb-10">
+                  <div className="w-12 h-12 bg-amber-50 dark:bg-amber-900/30 rounded-2xl flex items-center justify-center text-amber-600">
+                    <Percent className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">{latinToCyrillic("Biznes va Narxlash")}</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Foyda Marjasi (%)")}</label>
+                    <input
+                      type="number"
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none font-bold text-sm transition-all"
+                      value={settings.DEFAULT_PROFIT_MARGIN}
+                      onChange={(e) => updateSetting('DEFAULT_PROFIT_MARGIN', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("VIP Chegirma (%)")}</label>
+                    <input
+                      type="number"
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none font-bold text-sm transition-all"
+                      value={settings.VIP_DISCOUNT}
+                      onChange={(e) => updateSetting('VIP_DISCOUNT', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Kam qolgan qoldiq")}</label>
+                    <input
+                      type="number"
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none font-bold text-sm transition-all"
+                      value={settings.LOW_STOCK_THRESHOLD}
+                      onChange={(e) => updateSetting('LOW_STOCK_THRESHOLD', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Qarz muddati (kun)")}</label>
+                    <input
+                      type="number"
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none font-bold text-sm transition-all"
+                      value={settings.DEBT_ALERT_DAYS}
+                      onChange={(e) => updateSetting('DEBT_ALERT_DAYS', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Links */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <button
+                  onClick={() => navigate('/products')}
+                  className="flex items-center gap-6 p-8 bg-white dark:bg-gray-900 rounded-[2rem] shadow-sm border border-gray-100 dark:border-gray-800 hover:scale-[1.02] transition-all group"
+                >
+                  <div className="w-14 h-14 bg-blue-50 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600 group-hover:rotate-6 transition-all">
+                    <Package className="w-7 h-7" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-black text-gray-900 dark:text-white uppercase tracking-tight">{latinToCyrillic("Mahsulotlar")}</p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">{latinToCyrillic("Boshqarish")}</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => navigate('/add-product')}
+                  className="flex items-center gap-6 p-8 bg-white dark:bg-gray-900 rounded-[2rem] shadow-sm border border-gray-100 dark:border-gray-800 hover:scale-[1.02] transition-all group"
+                >
+                  <div className="w-14 h-14 bg-emerald-50 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center text-emerald-600 group-hover:rotate-6 transition-all">
+                    <Plus className="w-7 h-7" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-black text-gray-900 dark:text-white uppercase tracking-tight">{latinToCyrillic("Yangi Mahsulot")}</p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">{latinToCyrillic("Qo'shish")}</p>
+                  </div>
+                </button>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          )}
 
-      {/* Xavfsizlik Sozlamalari */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Lock className="w-5 h-5 text-primary" />
-            <CardTitle>Xavfsizlik Sozlamalari</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Sessiya Vaqti (daqiqa)"
-              type="number"
-              value={settings.SESSION_TIMEOUT_MINUTES}
-              onChange={(e) => updateSetting('SESSION_TIMEOUT_MINUTES', e.target.value)}
-            />
-            <Input
-              label="Parol Minimal Uzunligi"
-              type="number"
-              value={settings.PASSWORD_MIN_LENGTH}
-              onChange={(e) => updateSetting('PASSWORD_MIN_LENGTH', e.target.value)}
-            />
-            <Input
-              label="Login Urinishlar Limiti"
-              type="number"
-              value={settings.LOGIN_ATTEMPTS_LIMIT}
-              onChange={(e) => updateSetting('LOGIN_ATTEMPTS_LIMIT', e.target.value)}
-            />
-            <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-              <input
-                type="checkbox"
-                checked={settings.TWO_FACTOR_ENABLED === 'true'}
-                onChange={(e) => updateSetting('TWO_FACTOR_ENABLED', e.target.checked ? 'true' : 'false')}
-                className="w-4 h-4"
-              />
-              <label className="text-sm font-medium">Ikki Faktorli Autentifikatsiya</label>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          {activeTab === 'notifications' && (
+            <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-10 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-gray-100 dark:border-gray-800">
+                <div className="flex items-center gap-4 mb-10">
+                  <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600">
+                    <MessageSquare className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Telegram Bot</h3>
+                </div>
+                
+                <div className="space-y-8">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Bot Token</label>
+                    <input
+                      type="password"
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
+                      value={settings.TELEGRAM_BOT_TOKEN}
+                      onChange={(e) => updateSetting('TELEGRAM_BOT_TOKEN', e.target.value)}
+                      placeholder="1234567890:ABC..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Admin Chat ID</label>
+                    <input
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
+                      value={settings.TELEGRAM_ADMIN_CHAT_ID}
+                      onChange={(e) => updateSetting('TELEGRAM_ADMIN_CHAT_ID', e.target.value)}
+                      placeholder="123456789"
+                    />
+                  </div>
+                </div>
+              </div>
 
-      {/* Hisobot Sozlamalari */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-primary" />
-            <CardTitle>Hisobot Sozlamalari</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4">
-            <Input
-              label="Hisobot Logo URL"
-              value={settings.REPORT_LOGO_URL}
-              onChange={(e) => updateSetting('REPORT_LOGO_URL', e.target.value)}
-              placeholder="https://example.com/logo.png"
-            />
-            <Input
-              label="Hisobot Footer Matni"
-              value={settings.REPORT_FOOTER_TEXT}
-              onChange={(e) => updateSetting('REPORT_FOOTER_TEXT', e.target.value)}
-            />
-            <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-              <input
-                type="checkbox"
-                checked={settings.REPORT_SHOW_WATERMARK === 'true'}
-                onChange={(e) => updateSetting('REPORT_SHOW_WATERMARK', e.target.checked ? 'true' : 'false')}
-                className="w-4 h-4"
-              />
-              <label className="text-sm font-medium">Hisobotlarda Watermark Ko'rsatish</label>
+              <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-10 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-gray-100 dark:border-gray-800">
+                <div className="flex items-center gap-4 mb-10">
+                  <div className="w-12 h-12 bg-rose-50 dark:bg-rose-900/30 rounded-2xl flex items-center justify-center text-rose-600">
+                    <Mail className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Email SMTP</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">SMTP Host</label>
+                    <input
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none font-bold text-sm transition-all"
+                      value={settings.EMAIL_SMTP_HOST}
+                      onChange={(e) => updateSetting('EMAIL_SMTP_HOST', e.target.value)}
+                      placeholder="smtp.gmail.com"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">SMTP Port</label>
+                    <input
+                      type="number"
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none font-bold text-sm transition-all"
+                      value={settings.EMAIL_SMTP_PORT}
+                      onChange={(e) => updateSetting('EMAIL_SMTP_PORT', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          )}
 
-      {/* Foydalanuvchi Ma'lumotlari */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-primary" />
-            <CardTitle>Foydalanuvchi Ma'lumotlari</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Ism</p>
-              <p className="font-semibold">{user?.name}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Email</p>
-              <p className="font-semibold">{user?.email}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Rol</p>
-              <p className="font-semibold">{user?.role}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          {activeTab === 'security' && (
+            <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-10 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-gray-100 dark:border-gray-800">
+                <div className="flex items-center gap-4 mb-10">
+                  <div className="w-12 h-12 bg-violet-50 dark:bg-violet-900/30 rounded-2xl flex items-center justify-center text-violet-600">
+                    <Lock className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">{latinToCyrillic("Xavfsizlik Sozlamalari")}</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Sessiya Vaqti (daqiqa)")}</label>
+                    <input
+                      type="number"
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-violet-500 outline-none font-bold text-sm transition-all"
+                      value={settings.SESSION_TIMEOUT_MINUTES}
+                      onChange={(e) => updateSetting('SESSION_TIMEOUT_MINUTES', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Parol Minimal Uzunligi")}</label>
+                    <input
+                      type="number"
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-violet-500 outline-none font-bold text-sm transition-all"
+                      value={settings.PASSWORD_MIN_LENGTH}
+                      onChange={(e) => updateSetting('PASSWORD_MIN_LENGTH', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
 
-      {/* Data Backup - Only for Admins */}
-      {user?.role === 'ADMIN' && <DataBackup />}
+              {/* User Profile Summary */}
+              <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-10 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-gray-100 dark:border-gray-800">
+                <div className="flex items-center gap-4 mb-10">
+                  <div className="w-12 h-12 bg-gray-50 dark:bg-gray-800 rounded-2xl flex items-center justify-center text-gray-600">
+                    <User className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">{latinToCyrillic("Mening Profilim")}</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{latinToCyrillic("Ism")}</p>
+                    <p className="font-black text-gray-900 dark:text-white mt-1">{user?.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Email</p>
+                    <p className="font-black text-gray-900 dark:text-white mt-1">{user?.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{latinToCyrillic("Rol")}</p>
+                    <span className="inline-flex mt-1 px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-wider rounded-full">
+                      {user?.role}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
-      {/* Saqlash Tugmasi */}
-      <div className="flex justify-end">
-        <Button 
-          onClick={handleSave} 
-          disabled={loading}
-          className="w-full sm:w-auto px-6 sm:px-8"
-        >
-          {loading ? 'Saqlanmoqda...' : 'Barcha Sozlamalarni Saqlash'}
-        </Button>
+          {activeTab === 'backup' && (
+            <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-10 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-gray-100 dark:border-gray-800">
+                <div className="flex items-center gap-4 mb-10">
+                  <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center text-emerald-600">
+                    <Cloud className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Cloud Backup</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Backup Chastotasi")}</label>
+                    <select
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-sm transition-all appearance-none cursor-pointer"
+                      value={settings.BACKUP_FREQUENCY}
+                      onChange={(e) => updateSetting('BACKUP_FREQUENCY', e.target.value)}
+                    >
+                      <option value="daily">{latinToCyrillic("Har kuni")}</option>
+                      <option value="weekly">{latinToCyrillic("Haftada bir marta")}</option>
+                      <option value="monthly">{latinToCyrillic("Oyda bir marta")}</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Til")}</label>
+                    <select
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-sm transition-all appearance-none cursor-pointer"
+                      value={settings.LANGUAGE}
+                      onChange={(e) => updateSetting('LANGUAGE', e.target.value)}
+                    >
+                      <option value="uz">O'zbek</option>
+                      <option value="ru">Русский</option>
+                      <option value="en">English</option>
+                    </select>
+                  </div>
+                </div>
+
+                {user?.role === 'ADMIN' && (
+                  <div className="pt-6 border-t border-gray-50 dark:border-gray-800">
+                    <DataBackup />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
