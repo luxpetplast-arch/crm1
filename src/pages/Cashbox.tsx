@@ -54,7 +54,7 @@ import { exportToExcel } from '../lib/excelUtils';
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b'];
 
 export default function Cashbox() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'expenses'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'expenses' | 'budget' | 'loans'>('overview');
   const [cashbox, setCashbox] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -566,7 +566,9 @@ export default function Cashbox() {
           {[
             { id: 'overview', name: t('UMUMIY'), icon: PieChartIcon },
             { id: 'history', name: t('TARIX'), icon: History },
-            { id: 'expenses', name: t('XARAJATLAR'), icon: Receipt }
+            { id: 'expenses', name: t('XARAJATLAR'), icon: Receipt },
+            { id: 'budget', name: t('BYUDJET'), icon: Wallet },
+            { id: 'loans', name: t('QARZLAR'), icon: Users }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -740,6 +742,76 @@ export default function Cashbox() {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      ) : activeTab === 'budget' ? (
+        <div className="space-y-12 animate-in slide-in-from-bottom-10 duration-700">
+          {/* Budget Section Header */}
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm">
+            <div>
+              <h2 className="text-3xl font-black flex items-center gap-4 text-gray-900 dark:text-white tracking-tight">
+                <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600">
+                  <Wallet className="w-6 h-6" />
+                </div>
+                {t("Byudjet")} <span className="text-blue-600">{t("Nazorati")}</span>
+              </h2>
+              <p className="text-gray-500 dark:text-gray-400 mt-2 font-bold text-sm">
+                {t("Har kategoriya uchun oylik byudjet va xarajat nazorati")}
+              </p>
+            </div>
+            <button 
+              onClick={() => {}}
+              className="flex items-center justify-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs shadow-xl shadow-blue-500/20 transition-all active:scale-95"
+            >
+              <Wallet className="w-4 h-4" />
+              {t("YANGI BYUDJET")}
+            </button>
+          </div>
+
+          {/* Budget Placeholder */}
+          <div className="bg-white dark:bg-gray-900 rounded-[3rem] p-20 border border-gray-100 dark:border-gray-800 shadow-sm text-center">
+            <div className="w-24 h-24 bg-blue-50 dark:bg-blue-900/20 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
+              <Wallet className="w-12 h-12 text-blue-500" />
+            </div>
+            <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-2">{t("Byudjet boshqaruvi")}</h3>
+            <p className="text-gray-500 dark:text-gray-400 font-bold max-w-md mx-auto">
+              {t("Bu bo'limda har bir xarajat kategoriyasi uchun oylik byudjet belgilash va nazorat qilish mumkin. API integratsiyasi tez orada qo'shiladi.")}
+            </p>
+          </div>
+        </div>
+      ) : activeTab === 'loans' ? (
+        <div className="space-y-12 animate-in slide-in-from-bottom-10 duration-700">
+          {/* Loans Section Header */}
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm">
+            <div>
+              <h2 className="text-3xl font-black flex items-center gap-4 text-gray-900 dark:text-white tracking-tight">
+                <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center text-purple-600">
+                  <Users className="w-6 h-6" />
+                </div>
+                {t("Xodim")} <span className="text-purple-600">{t("Qarzlari")}</span>
+              </h2>
+              <p className="text-gray-500 dark:text-gray-400 mt-2 font-bold text-sm">
+                {t("Xodimlarga berilgan avans va qarzlarni boshqarish")}
+              </p>
+            </div>
+            <button 
+              onClick={() => {}}
+              className="flex items-center justify-center gap-3 px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-black text-xs shadow-xl shadow-purple-500/20 transition-all active:scale-95"
+            >
+              <Users className="w-4 h-4" />
+              {t("YANGI QARZ")}
+            </button>
+          </div>
+
+          {/* Loans Placeholder */}
+          <div className="bg-white dark:bg-gray-900 rounded-[3rem] p-20 border border-gray-100 dark:border-gray-800 shadow-sm text-center">
+            <div className="w-24 h-24 bg-purple-50 dark:bg-purple-900/20 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
+              <Users className="w-12 h-12 text-purple-500" />
+            </div>
+            <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-2">{t("Xodim qarzlari")}</h3>
+            <p className="text-gray-500 dark:text-gray-400 font-bold max-w-md mx-auto">
+              {t("Bu bo'limda xodimlarga berilgan avans va qarzlarni kuzatish, qaytarish jadvalini boshqarish mumkin. API integratsiyasi tez orada qo'shiladi.")}
+            </p>
           </div>
         </div>
       ) : (
