@@ -42,6 +42,8 @@ import exportRoutes from './routes/export';
 import printRoutes from './routes/print';
 import bagLabelRoutes from './routes/bag-labels';
 import businessAIRoutes from './routes/business-ai';
+import budgetRoutes from './routes/budgets';
+import loanRoutes from './routes/loans';
 import { botManager } from './bot/bot-manager';
 
 const app = express();
@@ -101,6 +103,8 @@ app.use('/api/statistics', statisticsRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/print', printRoutes);
 app.use('/api/bag-labels', bagLabelRoutes);
+app.use('/api/budgets', budgetRoutes);
+app.use('/api/loans', loanRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
