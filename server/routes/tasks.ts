@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { prisma } from '../utils/prisma';
+import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.use(authenticate);
 
@@ -55,6 +54,47 @@ router.put('/:id/status', async (req, res) => {
     res.json(task);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update task status' });
+  }
+});
+
+router.put('/:id', async (req, res) => {
+  try {
+    const { title, description, status, priority, dueDate, assignedTo } = req.body;
+    const updateData: any = {};
+    
+    if (title) updateData.title = title;
+    if (description) updateData.description = description;
+    if (status) {
+      updateData.status = status;
+      if (status === 'COMPLETED') {
+        updateData.completedDate = new Date();
+      }
+    }
+    if (priority) updateData.priority = priority;
+    if (dueDate) updateData.dueDate = new Date(dueDate);
+    if (assignedTo) updateData.assignedTo = assignedTo;
+
+    const task = await prisma.task.update({
+      where: { id: req.params.id },
+      data: updateData,
+    });
+
+    res.json(task);
+  } catch (error) {
+    console.error('Update task error:', error);
+    res.status(500).json({ error: 'Failed to update task' });
+  }
+});
+
+router.delete('/:id', async (req, res) => {
+  try {
+    await prisma.task.delete({
+      where: { id: req.params.id },
+    });
+    res.json({ success: true, message: 'Task deleted' });
+  } catch (error) {
+    console.error('Delete task error:', error);
+    res.status(500).json({ error: 'Failed to delete task' });
   }
 });
 

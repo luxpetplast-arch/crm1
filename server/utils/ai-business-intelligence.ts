@@ -1,6 +1,4 @@
-﻿import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+﻿import { prisma } from './prisma';
 
 export async function generateBusinessIntelligence(days: number = 30) {
   const startDate = new Date();
@@ -16,7 +14,7 @@ export async function generateBusinessIntelligence(days: number = 30) {
     prisma.product.findMany({ include: { sales: { where: { createdAt: { gte: startDate } } } } }),
     prisma.customer.findMany({ include: { sales: { where: { createdAt: { gte: startDate } } } } }),
     prisma.task.findMany({ where: { createdAt: { gte: startDate } } }),
-    prisma.productionBatch.findMany({ where: { createdAt: { gte: startDate } } }),
+    prisma.batch.findMany({ where: { createdAt: { gte: startDate } } }),
     prisma.qualityCheck.findMany({ where: { createdAt: { gte: startDate } } }),
     prisma.rawMaterial.findMany(),
     prisma.supplier.findMany()
@@ -60,11 +58,11 @@ export async function generateBusinessIntelligence(days: number = 30) {
 
   return {
     overview: {
-      totalRevenue: sales.reduce((sum, s) => sum + s.totalAmount, 0),
-      totalExpenses: expenses.reduce((sum, e) => sum + e.amount, 0),
-      netProfit: sales.reduce((sum, s) => sum + s.totalAmount, 0) - expenses.reduce((sum, e) => sum + e.amount, 0),
-      activeTasks: tasks.filter(t => t.status === 'IN_PROGRESS').length,
-      completedTasks: tasks.filter(t => t.status === 'COMPLETED').length,
+      totalRevenue: sales.reduce((sum: number, s: any) => sum + s.totalAmount, 0),
+      totalExpenses: expenses.reduce((sum: number, e: any) => sum + e.amount, 0),
+      netProfit: sales.reduce((sum: number, s: any) => sum + s.totalAmount, 0) - expenses.reduce((sum: number, e: any) => sum + e.amount, 0),
+      activeTasks: tasks.filter((t: any) => t.status === 'IN_PROGRESS').length,
+      completedTasks: tasks.filter((t: any) => t.status === 'COMPLETED').length,
       productionBatches: productionBatches.length,
       qualityScore: calculateQualityScore(qualityChecks),
     },
@@ -128,28 +126,29 @@ function analyzeTasksPerformance(tasks: any[]) {
     insights: generateTaskInsights(completionRate, overdueRate, avgCompletionTime)
   };
 }
-
 function analyzeProductionEfficiency(batches: any[], qualityChecks: any[]) {
   const totalBatches = batches.length;
   const completedBatches = batches.filter(b => b.status === 'COMPLETED').length;
   const inProgressBatches = batches.filter(b => b.status === 'IN_PROGRESS').length;
 
-  const totalProduced = batches.reduce((sum, b) => sum + (b.actualQuantity || 0), 0);
-  const totalPlanned = batches.reduce((sum, b) => sum + b.plannedQuantity, 0);
+  const totalProduced = batches.reduce((sum: number, b: any) => sum + (b.actualQuantity || 0), 0 as number);
+  const totalPlanned = batches.reduce((sum: number, b: any) => sum + (b.plannedQuantity || 0), 0 as number);
   const efficiencyRate = totalPlanned > 0 ? (totalProduced / totalPlanned) * 100 : 0;
 
   // Sifat ko'rsatkichlari
   const passedChecks = qualityChecks.filter(q => q.status === 'PASSED').length;
   const failedChecks = qualityChecks.filter(q => q.status === 'FAILED').length;
+  // ... rest of the code remains the same ...
   const qualityRate = qualityChecks.length > 0 ? (passedChecks / qualityChecks.length) * 100 : 0;
 
   // O'rtacha ishlab chiqarish vaqti
-  const avgProductionTime = completedBatches.length > 0
-    ? batches.filter(b => b.status === 'COMPLETED' && b.endDate).reduce((sum, b) => {
+  const completedWithEndDate = batches.filter((b: any) => b.status === 'COMPLETED' && b.endDate);
+  const avgProductionTime = completedBatches > 0 && completedWithEndDate.length > 0
+    ? completedWithEndDate.reduce((sum: number, b: any) => {
         const start = new Date(b.startDate).getTime();
         const end = new Date(b.endDate).getTime();
         return sum + (end - start);
-      }, 0) / completedBatches.length / (1000 * 60 * 60) // soatlarda
+      }, 0) / completedWithEndDate.length / (1000 * 60 * 60) // soatlarda
     : 0;
 
   return {

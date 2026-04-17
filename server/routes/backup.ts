@@ -1,12 +1,11 @@
-import express from 'express';
-import { PrismaClient } from '@prisma/client';
-import { authenticate } from '../middleware/auth';
+import { Router } from 'express';
+import { prisma } from '../utils/prisma';
+import { authenticate, AuthRequest } from '../middleware/auth';
 
-const router = express.Router();
-const prisma = new PrismaClient();
+const router = Router();
 
 // Export all data
-router.get('/export', authenticate, async (req: any, res) => {
+router.get('/export', authenticate, async (req: AuthRequest, res) => {
   try {
     // Only admins can export data
     if (req.user?.role !== 'ADMIN') {

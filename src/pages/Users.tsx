@@ -3,19 +3,20 @@ import { Card, CardContent } from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Modal from '../components/Modal';
-import Badge from '../components/Badge';
+import Badge, { type BadgeVariant } from '../components/Badge';
 import api from '../lib/api';
 import { Users as UsersIcon, Shield, Edit, Trash2 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
+import type { User } from '../types';
+
 export default function Users() {
   const { user: currentUser } = useAuthStore();
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [showModal, setShowModal] = useState(false);
-  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [form, setForm] = useState({
     name: '',
-    email: '',
     login: '',
     password: '',
     role: 'SELLER',
@@ -44,16 +45,16 @@ export default function Users() {
       }
       setShowModal(false);
       setEditingUser(null);
-      setForm({ name: '', email: '', login: '', password: '', role: 'SELLER' });
+      setForm({ name: '', login: '', password: '', role: 'SELLER' });
       loadUsers();
     } catch (error) {
       alert('Xatolik yuz berdi');
     }
   };
 
-  const handleEdit = (user: any) => {
+  const handleEdit = (user: User) => {
     setEditingUser(user);
-    setForm({ name: user.name, email: user.email, login: user.login || '', password: '', role: user.role });
+    setForm({ name: user.name, login: user.login || '', password: '', role: user.role });
     setShowModal(true);
   };
 
@@ -67,8 +68,8 @@ export default function Users() {
     }
   };
 
-  const getRoleBadge = (role: string) => {
-    const variants: any = {
+  const getRoleBadge = (role: string): BadgeVariant => {
+    const variants: Record<string, BadgeVariant> = {
       ADMIN: 'danger',
       SELLER: 'info',
       WAREHOUSE_MANAGER: 'warning',
@@ -78,8 +79,8 @@ export default function Users() {
     return variants[role] || 'default';
   };
 
-  const getRoleLabel = (role: string) => {
-    const labels: any = {
+  const getRoleLabel = (role: string): string => {
+    const labels: Record<string, string> = {
       ADMIN: 'Administrator',
       SELLER: 'Sotuvchi',
       WAREHOUSE_MANAGER: 'Ombor Menejeri',
@@ -162,18 +163,12 @@ export default function Users() {
             required
           />
           <Input
-            label="Email"
-            type="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            required
-          />
-          <Input
-            label="Login (kassirlar uchun)"
+            label="Login (foydalanuvchi nomi)"
             type="text"
             value={form.login}
             onChange={(e) => setForm({ ...form, login: e.target.value })}
-            placeholder="kassir1"
+            placeholder="admin123"
+            required
           />
           <Input
             label={editingUser ? 'Yangi Parol (bo\'sh qoldiring o\'zgarmasa)' : 'Parol'}

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 import { authenticate, authorizeAnalytics } from '../middleware/auth';
 import {
   calculateAdvancedMetrics,
@@ -12,7 +12,6 @@ import {
 } from '../ai/advanced-analytics';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.use(authenticate);
 router.use(authorizeAnalytics);

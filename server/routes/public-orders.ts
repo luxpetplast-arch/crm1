@@ -1,8 +1,7 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // GET - Public mahsulotlar ro'yxati (autentifikatsiya kerak emas)
 router.get('/products', async (req, res) => {

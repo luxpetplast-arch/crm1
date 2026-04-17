@@ -1,0 +1,107 @@
+import { Router } from 'express';
+import { prisma } from '../utils/prisma';
+import { redis } from '../utils/redis';
+import { queues } from '../queues/config';
+
+const router = Router();
+
+interface HealthStatus {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  timestamp: string;
+  version: string;
+  checks: {
+    database: { status: string; latency: number };
+    redis: { status: string; latency: number };
+    queues: Record<string, { status: string; waiting: number; failed: number }>;
+  };
+}
+
+router.get('/', async (req, res) => {
+  const checks: HealthStatus['checks'] = {
+    database: { status: 'unknown', latency: 0 },
+    redis: { status: 'unknown', latency: 0 },
+    queues: {},
+  };
+
+  let overallStatus: HealthStatus['status'] = 'healthy';
+
+  // Database check
+  try {
+    const dbStart = Date.now();
+    await prisma.$queryRaw`SELECT 1`;
+    checks.database = {
+      status: 'ok',
+      latency: Date.now() - dbStart,
+    };
+  } catch (error) {
+    checks.database.status = 'error';
+    overallStatus = 'unhealthy';
+  }
+
+  // Redis check
+  try {
+    const redisStart = Date.now();
+    await redis.ping();
+    checks.redis = {
+      status: 'ok',
+      latency: Date.now() - redisStart,
+    };
+  } catch (error) {
+    checks.redis.status = 'error';
+    overallStatus = 'degraded';
+  }
+
+  // Queue checks
+  for (const [name, queue] of Object.entries(queues)) {
+    try {
+      const [waiting, failed] = await Promise.all([
+        queue.getWaitingCount(),
+        queue.getFailedCount(),
+      ]);
+      
+      checks.queues[name] = {
+        status: failed > 100 ? 'warning' : 'ok',
+        waiting,
+        failed,
+      };
+      
+      if (failed > 1000) overallStatus = 'degraded';
+    } catch (error) {
+      checks.queues[name] = {
+        status: 'error',
+        waiting: -1,
+        failed: -1,
+      };
+    }
+  }
+
+  const health: HealthStatus = {
+    status: overallStatus,
+    timestamp: new Date().toISOString(),
+    version: process.env.npm_package_version || '1.0.0',
+    checks,
+  };
+
+  const statusCode = overallStatus === 'healthy' ? 200 : 
+                     overallStatus === 'degraded' ? 200 : 503;
+
+  res.status(statusCode).json(health);
+});
+
+// Readiness probe
+router.get('/ready', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    await redis.ping();
+    res.json({ ready: true });
+  } catch (error) {
+    res.status(503).json({ ready: false });
+  }
+});
+
+// Liveness probe
+router.get('/live', (req, res) => {
+  res.json({ alive: true, uptime: process.uptime() });
+});
+
+export default router;

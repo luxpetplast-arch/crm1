@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Barcha mahsulot variantlarini olish
 router.get('/', authenticateToken, async (req, res) => {
@@ -80,7 +79,7 @@ router.post('/', authenticateToken, async (req, res) => {
       WHERE pv.id = ${variantId}
     `;
 
-    res.status(201).json(variant[0]);
+    res.status(201).json((variant as any[])[0]);
   } catch (error) {
     console.error('Error creating product variant:', error);
     res.status(500).json({ error: 'Internal server error' });

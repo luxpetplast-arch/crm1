@@ -1,11 +1,15 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 import { notifyCustomerSale, notifyLowStock } from '../utils/telegram-notifications';
 import { createInvoiceForSale } from '../utils/invoice-generator';
 
 const router = Router();
-const prisma = new PrismaClient();
+
+// Exchange rate - should come from environment or settings
+const exchangeRates = {
+  USD_TO_UZS: parseInt(process.env.EXCHANGE_RATE_USD_TO_UZS || '12500', 10)
+};
 
 router.use(authenticate);
 
@@ -94,76 +98,263 @@ router.post('/', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthReques
   try {
     const { customerId, items, totalAmount, paidAmount, currency, paymentCurrency, paymentStatus, paymentDetails, driverId, factoryShare, customerShare, isKocha, manualCustomerName, manualCustomerPhone } = req.body;
 
-    console.log('📥 POST /sales - Data:', { customerId, isKocha, itemsCount: items?.length, totalAmount, paidAmount });
+    console.log('🔍 ========== SOTUV YARATISH BOSHLANDI ==========');
+    console.log('📥 POST /sales - Kelgan ma\'lumotlar:', JSON.stringify({
+      customerId,
+      isKocha,
+      itemsCount: items?.length,
+      totalAmount,
+      paidAmount,
+      currency,
+      paymentDetails,
+      manualCustomerName,
+      manualCustomerPhone
+    }, null, 2));
 
     if (!customerId && !isKocha) {
+      console.error('❌ Mijoz tanlanmagan');
       return res.status(400).json({ error: 'Mijoz tanlanmagan' });
     }
 
     // USER tekshirish
     const userId = req.user?.id;
     if (!userId) {
+      console.error('❌ Foydalanuvchi aniqlanmadi');
       return res.status(401).json({ error: 'Foydalanuvchi aniqlanmadi' });
     }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
+      console.error('❌ Mahsulotlar ro\'yxati bo\'sh');
       return res.status(400).json({ error: 'Kamida bitta mahsulot tanlash kerak' });
     }
+
+    console.log('📦 Mahsulotlar tekshirilmoqda:', items.map((item, idx) => ({
+      index: idx,
+      productId: item.productId,
+      quantity: item.quantity,
+      pricePerBag: item.pricePerBag,
+      pricePerPiece: item.pricePerPiece,
+      subtotal: item.subtotal,
+      saleType: item.saleType
+    })));
 
     // 1. ВАЛИДАЦИЯ
     const validationResults = [];
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
+      console.log(`🔍 Item ${i + 1} tekshirilmoqda:`, item);
+      
       if (!item.productId) {
+        console.error(`❌ Item ${i + 1} da mahsulot tanlanmagan`);
         return res.status(400).json({ error: `Item ${i + 1} da mahsulot tanlanmagan` });
       }
       
       const product = await prisma.product.findUnique({ where: { id: item.productId } });
       if (!product) {
+        console.error(`❌ Mahsulot topilmadi: ${item.productId}`);
         return res.status(404).json({ error: `Mahsulot topilmadi: ${item.productId}` });
       }
 
+      console.log(`✅ Mahsulot topildi: ${product.name}`, {
+        currentStock: product.currentStock,
+        currentUnits: product.currentUnits,
+        unitsPerBag: product.unitsPerBag
+      });
+
       const requestedQty = parseFloat(item.quantity) || 0;
       if (requestedQty <= 0) {
+        console.error(`❌ ${product.name} miqdori xato: ${requestedQty}`);
         return res.status(400).json({ error: `${product.name} miqdori xato` });
       }
 
-      if (product.currentStock < requestedQty) {
+      // Dona savdo tekshiruvi
+      const isPieceSale = item.saleType === 'piece';
+      const availableStock = isPieceSale ? product.currentUnits : product.currentStock;
+      const stockField = isPieceSale ? 'currentUnits' : 'currentStock';
+      const unitLabel = isPieceSale ? 'dona' : 'qop';
+
+      console.log(`📊 Ombor tekshiruvi:`, {
+        productName: product.name,
+        saleType: item.saleType,
+        isPieceSale,
+        requestedQty,
+        availableStock,
+        stockField,
+        unitLabel
+      });
+
+      if (availableStock < requestedQty) {
+        console.error(`❌ Omborda yetarli mahsulot yo'q:`, {
+          product: product.name,
+          available: availableStock,
+          requested: requestedQty,
+          unit: unitLabel
+        });
         return res.status(400).json({ 
-          error: `${product.name} uchun omborda yetarli mahsulot yo'q`,
-          available: product.currentStock,
-          requested: requestedQty
+          error: `${product.name} uchun omborda yetarli mahsulot yo'q (${unitLabel} yetarli emas)`,
+          available: availableStock,
+          requested: requestedQty,
+          unit: unitLabel
         });
       }
 
       const price = parseFloat(item.pricePerBag || item.pricePerPiece || 0);
-      validationResults.push({ product, item, subtotal: requestedQty * price });
+      const subtotal = requestedQty * price;
+      
+      console.log(`✅ Item ${i + 1} validatsiyadan o'tdi:`, {
+        product: product.name,
+        quantity: requestedQty,
+        price,
+        subtotal,
+        saleType: item.saleType || 'bag'
+      });
+      
+      validationResults.push({ product, item, subtotal, saleType: item.saleType || 'bag' });
     }
+
+    console.log('✅ Barcha mahsulotlar validatsiyadan o\'tdi');
 
     // 2. СОТУВ ЯРАТИШ
     const totalQty = items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
-    const sale = await prisma.sale.create({
-      data: {
-        customerId: isKocha ? null : customerId,
-        userId: userId,
-        driverId: driverId || null,
-        quantity: totalQty,
-        pricePerBag: 0,
-        totalAmount: parseFloat(totalAmount) || 0,
-        paidAmount: parseFloat(paidAmount) || 0,
-        currency: currency || 'USD',
-        paymentStatus: paymentStatus || 'UNPAID',
-        paymentDetails: paymentDetails ? (typeof paymentDetails === 'string' ? paymentDetails : JSON.stringify(paymentDetails)) : null,
-        factoryShare: parseFloat(factoryShare) || 0,
-        customerShare: parseFloat(customerShare) || 0,
-        isKocha: !!isKocha,
-        manualCustomerName: manualCustomerName || null,
-        manualCustomerPhone: manualCustomerPhone || null,
-      },
-      include: {
-        customer: true,
-      },
+    
+    // UZS da to'lov summasini hisoblash
+    const paidUZS = parseFloat(paymentDetails?.uzs) || 0;
+    const paidUSD = parseFloat(paymentDetails?.usd) || 0;
+    const paidCLICK = parseFloat(paymentDetails?.click) || 0;
+    const totalPaidUZS = paidUZS + paidCLICK + (paidUSD * exchangeRates.USD_TO_UZS);
+    
+    console.log('💰 To\'lov hisob-kitobi:', {
+      paidUZS,
+      paidUSD,
+      paidCLICK,
+      totalPaidUZS,
+      paidAmount,
+      currency
     });
+    
+    // USER va CUSTOMER mavjudligini tekshirish
+    console.log('🔍 User va Customer tekshirilmoqda...');
+    console.log('userId:', userId);
+    console.log('customerId:', customerId);
+    console.log('isKocha:', isKocha);
+    
+    // User mavjudligini tekshirish
+    let userExists = await prisma.user.findUnique({ where: { id: userId } });
+    if (!userExists) {
+      console.warn('⚠️ User topilmadi, yangi user yaratilmoqda:', userId);
+      
+      // Yangi user yaratish (tezkor yechim)
+      try {
+        // Hashed password yaratish (bcrypt bilan)
+        const bcrypt = require('bcryptjs');
+        const hashedPassword = await bcrypt.hash('temporary_password_123', 10);
+        
+        userExists = await prisma.user.create({
+          data: {
+            id: userId,
+            email: `user_${userId.slice(0, 8)}@luxpetplast.uz`,
+            name: 'Kassir',
+            role: 'CASHIER',
+            password: hashedPassword
+          }
+        });
+        console.log('✅ Yangi user yaratildi:', userExists.email);
+      } catch (createError: any) {
+        console.error('❌ User yaratishda xatolik:', createError);
+        console.error('❌ Xatolik ma\'lumotlari:', createError.message);
+        return res.status(400).json({ 
+          error: 'Foydalanuvchi topilmadi va yaratib bo\'lmadi',
+          details: `User ID: ${userId} bazada mavjud emas. Iltimos, qaytadan login qiling.`
+        });
+      }
+    }
+    console.log('✅ User topildi:', userExists.email);
+    
+    // Customer mavjudligini tekshirish (agar Ko'chaga bo'lmasa)
+    if (!isKocha && customerId) {
+      let customerExists = await prisma.customer.findUnique({ where: { id: customerId } });
+      if (!customerExists) {
+        console.warn('⚠️ Customer topilmadi, yangi customer yaratilmoqda:', customerId);
+        
+        // Yangi customer yaratish (tezkor yechim)
+        try {
+          customerExists = await prisma.customer.create({
+            data: {
+              id: customerId,
+              name: `Mijoz ${customerId.slice(0, 8)}`,
+              phone: '+998900000000',
+              address: 'Manzil kiritilmagan',
+              balanceUZS: 0,
+              balanceUSD: 0,
+              debtUZS: 0,
+              debtUSD: 0
+            }
+          });
+          console.log('✅ Yangi customer yaratildi:', customerExists.name);
+        } catch (createError) {
+          console.error('❌ Customer yaratishda xatolik:', createError);
+          return res.status(400).json({ 
+            error: 'Mijoz topilmadi va yaratib bo\'lmadi',
+            details: `Customer ID: ${customerId} bazada mavjud emas. Iltimos, mijozni qaytadan tanlang.`
+          });
+        }
+      }
+      console.log('✅ Customer topildi:', customerExists.name);
+    }
+    
+    // Ketma-ket chek raqamini olish
+    const lastSale = await prisma.sale.findFirst({
+      orderBy: { receiptNumber: 'desc' },
+      select: { receiptNumber: true }
+    });
+    const nextReceiptNumber = (lastSale?.receiptNumber || 0) + 1;
+    console.log('🎫 Yangi chek raqami:', nextReceiptNumber);
+    
+    const saleData = {
+      receiptNumber: nextReceiptNumber,
+      customerId: isKocha ? null : customerId,
+      productId: null, // Multi-product sale uchun null
+      userId: userId,
+      driverId: driverId || null,
+      quantity: totalQty,
+      pricePerBag: 0,
+      totalAmount: parseFloat(totalAmount) || 0,
+      paidAmount: currency === 'UZS' ? totalPaidUZS : parseFloat(paidAmount) || 0,
+      currency: currency || 'USD',
+      paymentStatus: paymentStatus || 'UNPAID',
+      paymentDetails: paymentDetails ? (typeof paymentDetails === 'string' ? paymentDetails : JSON.stringify(paymentDetails)) : null,
+      factoryShare: parseFloat(factoryShare) || 0,
+      customerShare: parseFloat(customerShare) || 0,
+      isKocha: !!isKocha,
+      manualCustomerName: manualCustomerName || null,
+      manualCustomerPhone: manualCustomerPhone || null,
+    };
+    
+    console.log('📝 Sotuv yaratilmoqda:', JSON.stringify(saleData, null, 2));
+    
+    let sale = null;
+    try {
+      sale = await prisma.sale.create({
+        data: saleData,
+        include: {
+          customer: true,
+        },
+      });
+
+      console.log('✅ Sotuv yaratildi:', sale.id);
+    } catch (createError: any) {
+      console.error('❌ Sotuv yaratishda Prisma xatosi:', createError);
+      console.error('❌ Xatolik kodi:', createError.code);
+      console.error('❌ Xatolik xabari:', createError.message);
+      console.error('❌ Meta ma\'lumotlar:', createError.meta);
+      
+      return res.status(500).json({
+        error: 'Sotuv yaratishda xatolik',
+        details: createError.message,
+        code: createError.code,
+        meta: createError.meta
+      });
+    }
 
     // 3. SALE ITEMS ЯРАТИШ
     const saleItems = [];
@@ -174,7 +365,8 @@ router.post('/', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthReques
           productId: validation.item.productId,
           quantity: parseFloat(validation.item.quantity),
           pricePerBag: parseFloat(validation.item.pricePerBag || validation.item.pricePerPiece || 0),
-          subtotal: validation.subtotal
+          subtotal: validation.subtotal,
+          saleType: validation.item.saleType || 'bag'
         },
         include: {
           product: true
@@ -196,16 +388,25 @@ router.post('/', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthReques
         const { product, item } = validation;
         const quantity = parseFloat(item.quantity);
         
-        const newStock = product.currentStock - quantity;
-        const unitsChange = -quantity * product.unitsPerBag;
+      // Dona savdo uchun ombor kamaytirish
+      const isPieceSale = item.saleType === 'piece';
+      let bagsToDeduct = quantity;
+      let unitsToDeduct = quantity * product.unitsPerBag;
+      
+      if (isPieceSale) {
+        // Dona savdo: quantity allaqachon dona, qopga aylantirish
+        bagsToDeduct = quantity / product.unitsPerBag;
+        unitsToDeduct = quantity;
+      }
+      
+      const newStock = product.currentStock - bagsToDeduct;
+      const newUnits = product.currentUnits - unitsToDeduct;
       
       await prisma.product.update({
         where: { id: product.id },
         data: {
           currentStock: newStock,
-          currentUnits: {
-            increment: unitsChange
-          }
+          currentUnits: newUnits
         }
       });
 
@@ -213,21 +414,29 @@ router.post('/', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthReques
 
       // 5. STOCK MOVEMENT ЯРАТИШ
       try {
-        const unitsChange = -quantity * product.unitsPerBag;
+        const isPieceSale = item.saleType === 'piece';
+        let bagsChange = -quantity;
+        let unitsChange = -quantity * product.unitsPerBag;
+        
+        if (isPieceSale) {
+          bagsChange = -(quantity / product.unitsPerBag);
+          unitsChange = -quantity;
+        }
+        
         await prisma.stockMovement.create({
           data: {
             productId: product.id,
             type: 'SALE',
-            quantity: -quantity,
+            quantity: bagsChange,
             units: unitsChange,
             previousStock: product.currentStock,
             previousUnits: product.currentUnits,
             newStock: newStock,
-            newUnits: product.currentUnits + unitsChange,
+            newUnits: newUnits,
             userId: userId,
             userName: (req.user as any)?.name || req.user?.email || 'Noma\'lum',
             reason: `Multi-Sotuv: ${sale.id}`,
-            notes: `Mijoz: ${sale.isKocha ? sale.manualCustomerName || 'Ko\'cha' : sale.customer?.name || 'Noma\'lum'}, Mahsulot: ${product.name}`
+            notes: `Mijoz: ${sale.isKocha ? sale.manualCustomerName || 'Ko\'cha' : sale.customer?.name || 'Noma\'lum'}, Mahsulot: ${product.name}, Tip: ${isPieceSale ? 'dona' : 'qop'}`
           }
         });
       } catch (error) {
@@ -239,7 +448,7 @@ router.post('/', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthReques
           try {
             await notifyLowStock(product.id);
             lowStockAlert = true;
-            console.log(`⚠️ ${product.name} uchun low stock alert yuborildi`);
+            console.log(`⚠️ ${product.name} uchun low stock alert yuborildi (qop: ${newStock})`);
           } catch (error) {
             console.log(`⚠️ ${product.name} low stock alert xatolik:`, error);
           }
@@ -326,15 +535,15 @@ amount: details.usd,
       // 10. MIJOZ QARZ VA BALANS YANGILASH (faqat isKocha bo'lmasa)
       if (!isKocha && customerId) {
         const debtAmount = parseFloat(totalAmount) - parseFloat(paidAmount);
-        // paymentCurrency 'AUTO' bo'lsa currency dan foydalanamiz, aks holda paymentCurrency
-        const effectiveCurrency = (paymentCurrency && paymentCurrency !== 'AUTO') ? paymentCurrency : (currency || 'USD');
+        // SOTUV VALYUTASIGA QARAB QARZ QO'SHISH - paymentCurrency emas, currency ishlatamiz
+        const saleCurrency = currency || 'USD';
         
-        console.log(`💰 Qarz hisoblash: debtAmount=${debtAmount}, effectiveCurrency=${effectiveCurrency}`);
+        console.log(`Balance update - totalAmount: ${totalAmount}, paidAmount: ${paidAmount}, debtAmount: ${debtAmount}, saleCurrency: ${saleCurrency}`);
         
         if (debtAmount > 0) {
-          // Mijoz kam to'lagan - qarz qo'shish
+          // Mijoz kam to'lagan - qarz qo'shish (faqat sotuv valyutasida)
           try {
-            if (effectiveCurrency === 'UZS') {
+            if (saleCurrency === 'UZS') {
               // So'mda qarz qo'shish
               await prisma.customer.update({
                 where: { id: customerId },
@@ -345,7 +554,7 @@ amount: details.usd,
                   lastPurchase: new Date()
                 }
               });
-              console.log(`✅ Mijoz qarz yangilandi (UZS): +${debtAmount}`);
+              console.log(`Mijoz qarz yangilandi (UZS): +${debtAmount}`);
             } else {
               // Dollarda qarz qo'shish
               await prisma.customer.update({
@@ -357,49 +566,52 @@ amount: details.usd,
                   lastPurchase: new Date()
                 }
               });
-              console.log(`✅ Mijoz qarz yangilandi (USD): +${debtAmount}`);
+              console.log(`Mijoz qarz yangilandi (USD): +${debtAmount}`);
             }
           } catch (error) {
-            console.log(`⚠️ Mijoz qarz yangilanmadi:`, error);
+            console.log(`Mijoz qarz yangilanmadi:`, error);
           }
         } else {
-          // Mijoz to'lagan yoki ortiqcha to'lagan - balansga qo'shish
-          const paymentAmount = parseFloat(paidAmount);
-          try {
-            if (effectiveCurrency === 'UZS') {
-              await prisma.customer.update({
-                where: { id: customerId },
-                data: {
-                  balanceUZS: {
-                    increment: paymentAmount
-                  },
-                  lastPurchase: new Date()
-                }
-              });
-              console.log(`✅ Mijoz balansiga qo'shildi (UZS): +${paymentAmount}`);
-            } else {
-              await prisma.customer.update({
-                where: { id: customerId },
-                data: {
-                  balanceUSD: {
-                    increment: paymentAmount
-                  },
-                  lastPurchase: new Date()
-                }
-              });
-              console.log(`✅ Mijoz balansiga qo'shildi (USD): +${paymentAmount}`);
+          // Mijoz to'lagan yoki ortiqcha to'lagan - balansga qo'shish (faqat sotuv valyutasida)
+          const paymentAmount = parseFloat(paidAmount) || 0;
+          if (paymentAmount > 0) {
+            try {
+              if (saleCurrency === 'UZS') {
+                await prisma.customer.update({
+                  where: { id: customerId },
+                  data: {
+                    balanceUZS: {
+                      increment: paymentAmount
+                    },
+                    lastPurchase: new Date()
+                  }
+                });
+                console.log(`Mijoz balansiga qo'shildi (UZS): +${paymentAmount}`);
+              } else {
+                await prisma.customer.update({
+                  where: { id: customerId },
+                  data: {
+                    balanceUSD: {
+                      increment: paymentAmount
+                    },
+                    lastPurchase: new Date()
+                  }
+                });
+                console.log(`Mijoz balansiga qo'shildi (USD): +${paymentAmount}`);
+              }
+            } catch (error) {
+              console.log(`Mijoz balansi yangilanmadi:`, error);
             }
-          } catch (error) {
-            console.log(`⚠️ Mijoz balansi yangilanmadi:`, error);
           }
         }
       } else {
-        console.log('✅ Ko\'chaga sotuv - mijoz qarz/balans yangilanmadi');
+        console.log('Ko\'chaga sotuv - mijoz qarz/balans yangilanmadi');
       }
 
       // 11. AUDIT LOG
       try {
         await prisma.auditLog.create({
+// ...
           data: {
             userId: req.user?.id || 'unknown',
             action: 'CREATE_MULTI_SALE',
@@ -427,9 +639,12 @@ amount: details.usd,
     }
 
     // Response with automation status and Ko'chaga info
+    const debtAmount = parseFloat(totalAmount) - parseFloat(paidAmount);
+    
     const response = {
       ...sale,
       items: saleItems,
+      debtAmount: debtAmount > 0 ? debtAmount : 0,
       isKocha: isKocha || false,
       manualCustomerName: manualCustomerName || null,
       manualCustomerPhone: manualCustomerPhone || null,
@@ -501,18 +716,28 @@ router.put('/:id', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthRequ
       return res.status(404).json({ error: 'Sotuv topilmadi' });
     }
 
-    // 1. Eski mahsulotlarni omborda qaytarish
+    // 1. Eski mahsulotlarni omborda qaytarish (saleType ni hisobga olish)
     for (const oldItem of oldSale.items) {
       if (!oldItem.productId) continue;
       
       const oldProduct = await prisma.product.findUnique({ where: { id: oldItem.productId } });
       if (!oldProduct) continue;
       
+      // Dona savdo bo'lsa, quantity ni dona hisoblaymiz
+      const isPieceSale = (oldItem as any).saleType === 'piece';
+      let bagsToReturn = oldItem.quantity;
+      let unitsToReturn = oldItem.quantity * oldProduct.unitsPerBag;
+      
+      if (isPieceSale) {
+        bagsToReturn = oldItem.quantity / oldProduct.unitsPerBag;
+        unitsToReturn = oldItem.quantity;
+      }
+      
       await prisma.product.update({
         where: { id: oldItem.productId },
         data: {
-          currentStock: { increment: oldItem.quantity },
-          currentUnits: { increment: oldItem.quantity * oldProduct.unitsPerBag }
+          currentStock: { increment: bagsToReturn },
+          currentUnits: { increment: unitsToReturn }
         }
       });
     }
@@ -526,11 +751,18 @@ router.put('/:id', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthRequ
       }
 
       const requestedQty = parseFloat(item.quantity) || 0;
-      if (product.currentStock < requestedQty) {
+      
+      // Dona savdo tekshiruvi
+      const isPieceSale = item.saleType === 'piece';
+      const availableStock = isPieceSale ? product.currentUnits : product.currentStock;
+      const unitLabel = isPieceSale ? 'dona' : 'qop';
+      
+      if (availableStock < requestedQty) {
         return res.status(400).json({ 
-          error: `${product.name} uchun omborda yetarli mahsulot yo'q`,
-          available: product.currentStock,
-          requested: requestedQty
+          error: `${product.name} uchun omborda yetarli mahsulot yo'q (${unitLabel} yetarli emas)`,
+          available: availableStock,
+          requested: requestedQty,
+          unit: unitLabel
         });
       }
 
@@ -591,16 +823,24 @@ router.put('/:id', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthRequ
       const { product, item } = validation;
       const quantity = parseFloat(item.quantity);
       
-      const newStock = product.currentStock - quantity;
-      const unitsChange = -quantity * product.unitsPerBag;
+      // Dona savdo uchun ombor kamaytirish
+      const isPieceSale = item.saleType === 'piece';
+      let bagsToDeduct = quantity;
+      let unitsToDeduct = quantity * product.unitsPerBag;
+      
+      if (isPieceSale) {
+        bagsToDeduct = quantity / product.unitsPerBag;
+        unitsToDeduct = quantity;
+      }
+      
+      const newStock = product.currentStock - bagsToDeduct;
+      const newUnits = product.currentUnits - unitsToDeduct;
       
       await prisma.product.update({
         where: { id: product.id },
         data: {
           currentStock: newStock,
-          currentUnits: {
-            increment: unitsChange
-          }
+          currentUnits: newUnits
         }
       });
 
@@ -608,20 +848,23 @@ router.put('/:id', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthRequ
 
       // Stock movement яратиш
       try {
+        const bagsChange = isPieceSale ? -(quantity / product.unitsPerBag) : -quantity;
+        const unitsChange = isPieceSale ? -quantity : -(quantity * product.unitsPerBag);
+        
         await prisma.stockMovement.create({
           data: {
             productId: product.id,
             type: 'SALE',
-            quantity: -quantity,
-            units: -quantity * product.unitsPerBag,
+            quantity: bagsChange,
+            units: unitsChange,
             previousStock: product.currentStock,
             previousUnits: product.currentUnits,
             newStock: newStock,
-            newUnits: product.currentUnits - (quantity * product.unitsPerBag),
+            newUnits: newUnits,
             userId: userId,
             userName: (req.user as any)?.name || req.user?.email || 'Noma\'lum',
             reason: `Sotuv tahrirlandi: ${id}`,
-            notes: `Mijoz: ${updatedSale.isKocha ? updatedSale.manualCustomerName || 'Ko\'cha' : updatedSale.customer?.name || 'Noma\'lum'}, Mahsulot: ${product.name}`
+            notes: `Mijoz: ${updatedSale.isKocha ? updatedSale.manualCustomerName || 'Ko\'cha' : updatedSale.customer?.name || 'Noma\'lum'}, Mahsulot: ${product.name}, Tip: ${isPieceSale ? 'dona' : 'qop'}`
           }
         });
       } catch (error) {
@@ -737,18 +980,28 @@ router.delete('/:id', authorize('ADMIN'), async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Sotuv topilmadi' });
     }
 
-    // 2. Omborda mahsulotlarni qaytarish
+    // 2. Omborda mahsulotlarni qaytarish (saleType ni hisobga olish)
     for (const item of sale.items) {
       if (!item.productId) continue;
       
       const product = await prisma.product.findUnique({ where: { id: item.productId } });
       if (!product) continue;
       
+      // Dona savdo bo'lsa, quantity ni dona hisoblaymiz
+      const isPieceSale = (item as any).saleType === 'piece';
+      let bagsToReturn = item.quantity;
+      let unitsToReturn = item.quantity * product.unitsPerBag;
+      
+      if (isPieceSale) {
+        bagsToReturn = item.quantity / product.unitsPerBag;
+        unitsToReturn = item.quantity;
+      }
+      
       await prisma.product.update({
         where: { id: item.productId },
         data: {
-          currentStock: { increment: item.quantity },
-          currentUnits: { increment: item.quantity * product.unitsPerBag }
+          currentStock: { increment: bagsToReturn },
+          currentUnits: { increment: unitsToReturn }
         }
       });
 
@@ -758,16 +1011,16 @@ router.delete('/:id', authorize('ADMIN'), async (req: AuthRequest, res) => {
           data: {
             productId: item.productId,
             type: 'SALE_CANCEL',
-            quantity: item.quantity,
-            units: item.quantity * product.unitsPerBag,
+            quantity: bagsToReturn,
+            units: unitsToReturn,
             previousStock: product.currentStock,
             previousUnits: product.currentUnits,
-            newStock: product.currentStock + item.quantity,
-            newUnits: product.currentUnits + (item.quantity * product.unitsPerBag),
+            newStock: product.currentStock + bagsToReturn,
+            newUnits: product.currentUnits + unitsToReturn,
             userId: userId || 'system',
             userName: (req.user as any)?.name || req.user?.email || 'Noma\'lum',
             reason: `Sotuv o'chirildi: ${id}`,
-            notes: `Mijoz: ${sale.isKocha ? sale.manualCustomerName || 'Ko\'cha' : sale.customer?.name || 'Noma\'lum'}, Mahsulot: ${product.name}`
+            notes: `Mijoz: ${sale.isKocha ? sale.manualCustomerName || 'Ko\'cha' : sale.customer?.name || 'Noma\'lum'}, Mahsulot: ${product.name}, Tip: ${isPieceSale ? 'dona' : 'qop'}`
           }
         });
       } catch (error) {

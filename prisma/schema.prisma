@@ -4,15 +4,14 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.db"
+  url      = env("DATABASE_URL")
 }
 
-// SQLite doesn't support enums, using String instead
+// PostgreSQL supports enums, but using String for consistency
 
 model User {
   id        String   @id @default(uuid())
-  email     String   @unique
-  login     String?  @unique  // Yangi: Login username
+  login     String   @unique  // Primary login username
   password  String
   name      String
   role      String   @default("SELLER") // ADMIN, SELLER, WAREHOUSE_MANAGER, ACCOUNTANT, DRIVER, CASHIER
@@ -68,6 +67,15 @@ model Product {
   size            ProductSize? @relation(fields: [sizeId], references: [id])
   cardProducts    CardProduct[]
   bagLabels       BagLabel[]  // Qop yorliqlari
+  qualityChecks   QualityCheck[]
+  kitItems        KitItem[]   // Komplekt tarkibidagi mahsulotlar
+
+  @@index([name])
+  @@index([active])
+  @@index([warehouse])
+  @@index([categoryId])
+  @@index([productTypeId])
+  @@index([createdAt])
 }
 
 model Batch {
@@ -120,6 +128,7 @@ model Customer {
 
 model Sale {
   id             String   @id @default(uuid())
+  receiptNumber  Int      @default(0) // Ketma-ket chek raqami
   customerId     String?
   customer       Customer? @relation(fields: [customerId], references: [id])
   productId      String?
@@ -166,6 +175,7 @@ model SaleItem {
   quantity    Float
   pricePerBag Float
   subtotal    Float
+  saleType    String?         // 'bag' or 'piece'
 
   @@index([saleId])
   @@index([productId])
@@ -198,6 +208,21 @@ model Payment {
   createdAt      DateTime @default(now())
 
   @@index([customerId])
+}
+
+// Mijoz to'lovlari alohida model
+model CustomerPayment {
+  id          String   @id @default(uuid())
+  customerId  String
+  amount      Float
+  currency    String   @default("UZS")
+  type        String   @default("CASH") // CASH, CARD, CLICK, TRANSFER
+  notes       String?
+  createdBy   String?  // User ID
+  createdAt   DateTime @default(now())
+
+  @@index([customerId])
+  @@index([createdAt])
 }
 
 model Expense {
@@ -507,6 +532,7 @@ model ProductionUsage {
 model QualityCheck {
   id              String   @id @default(uuid())
   productId       String
+  product         Product  @relation(fields: [productId], references: [id])
   batchId         String?
   checkType       String   // INCOMING, PRODUCTION, OUTGOING
   status          String   // PASSED, FAILED, PENDING
@@ -1163,6 +1189,7 @@ model Employee {
   applications    EmployeeApplication[]
   messages        EmployeeMessage[]
   attestations    Attestation[]
+  loans           EmployeeLoan[]
 
   @@index([employeeCode])
   @@index([departmentId])
@@ -1428,4 +1455,184 @@ model EmployeeTelegram {
 
   @@index([telegramChatId])
   @@index([employeeId])
+}
+
+// ============ HODIM QARZLARI TIZIMI ============
+
+// Hodimlarga berilgan qarzlar
+model EmployeeLoan {
+  id              String   @id @default(uuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id])
+  
+  // Qarz ma'lumotlari
+  amount          Float    // Qarz summasi
+  currency        String   @default("UZS") // UZS, USD
+  purpose         String   // Maqsad
+  description     String?  // Qo'shimcha izoh
+  
+  // Qaytarish
+  dueDate         DateTime? // Qaytarish muddati
+  interestRate    Float    @default(0) // Foiz stavkasi
+  
+  // Hisob-kitob
+  remainingAmount Float    // Qolgan summa
+  totalRepaid     Float    @default(0) // Jami to'langan
+  
+  // Status: ACTIVE, PARTIAL, REPAID, CANCELLED
+  status          String   @default("ACTIVE")
+  
+  // Kim tomondan berilgan
+  issuedBy        String   // User ID
+  issuedByName    String   // User ismi
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  repayments      LoanRepayment[]
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+// Qarz to'lovlari
+model LoanRepayment {
+  id              String   @id @default(uuid())
+  loanId          String
+  loan            EmployeeLoan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  
+  // To'lov ma'lumotlari
+  amount          Float    // To'langan summa
+  currency        String   // UZS, USD
+  paymentMethod   String   @default("CASH") // CASH, CARD, BANK_TRANSFER, SALARY_DEDUCTION
+  description     String?
+  
+  // Oylikdan ushlab qolish
+  isSalaryDeduction Boolean @default(false)
+  payrollPeriod   String?  // Masalan: "2026-03"
+  
+  // Kim qabul qilgan
+  receivedBy      String   // User ID
+  receivedByName  String   // User ismi
+  
+  createdAt       DateTime @default(now())
+
+  @@index([loanId])
+  @@index([createdAt])
+}
+
+// ============ BUDGET TIZIMI ============
+
+model Budget {
+  id              String   @id @default(uuid())
+  category        String   // Budget kategoriyasi (SALARY, MATERIALS, MARKETING, etc.)
+  year            Int      // Yil
+  month           Int      // Oy (1-12)
+  
+  // Budget maqsadlari
+  amount          Float    // Budget miqdori
+  currency        String   @default("UZS") // UZS, USD
+  alertThreshold  Float    @default(80) // Alert foizi (masalan: 80, 90, 100)
+  
+  // Tracking
+  spent           Float    @default(0) // Sarflangan
+  remaining       Float    // Qolgan (calculated)
+  
+  // Status
+  status          String   @default("ACTIVE") // ACTIVE, CLOSED, DRAFT
+  
+  // Meta
+  description     String?
+  createdBy       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  closedAt        DateTime?
+  
+  // Relations
+  alerts          BudgetAlert[]
+  
+  @@unique([category, year, month])
+  @@index([year])
+  @@index([month])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model BudgetAlert {
+  id              String   @id @default(uuid())
+  budgetId        String
+  budget          Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  
+  // Alert ma'lumotlari
+  type            String   // WARNING, DANGER, EXCEEDED
+  category        String?  // Qaysi kategoriya uchun (null = umumiy)
+  threshold       Float    // Foiz (masalan: 80, 90, 100)
+  currentUsage    Float    // Joriy foydalanish foizi
+  
+  // Xabar
+  message         String
+  isRead          Boolean  @default(false)
+  readAt          DateTime?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([budgetId])
+  @@index([type])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+// ============ KOMPLEKT (KIT) SYSTEM ============
+
+model Kit {
+  id              String   @id @default(uuid())
+  kitName         String // "Standart komplekt", "Lux komplekt", "Ekologik komplekt"
+  description     String?  // Komplekt tavsifi
+  price           Float    // Komplekt narxi
+  discountPercent Float    @default(0) // Komplekt uchun chegirma foizi
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  items           KitItem[]
+  sales           KitSale[]
+
+  @@index([kitName])
+  @@index([active])
+}
+
+model KitItem {
+  id          String   @id @default(uuid())
+  kitId       String
+  kit         Kit      @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  quantity    Int      @default(1) // Komplektdagi mahsulot miqdori (qop/dona)
+  itemType    String   @default("bag") // "bag" yoki "piece"
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@unique([kitId, productId])
+  @@index([kitId])
+  @@index([productId])
+}
+
+model KitSale {
+  id          String   @id @default(uuid())
+  saleId      String   @unique
+  kitId       String
+  kit         Kit      @relation(fields: [kitId], references: [id])
+  customerId  String?
+  quantity    Int      @default(1) // Nechta komplekt sotilgan
+  kitPrice    Float    // Komplekt narxi
+  totalAmount Float    // Jami summa
+  currency    String   @default("USD")
+  createdAt   DateTime @default(now())
+
+  @@index([saleId])
+  @@index([kitId])
+  @@index([customerId])
 }

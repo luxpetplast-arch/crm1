@@ -1,10 +1,9 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 import { authenticate } from '../middleware/auth';
 import { analyzeBusinessWithGemini } from '../utils/gemini';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.use(authenticate);
 

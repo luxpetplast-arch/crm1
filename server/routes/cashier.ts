@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { prisma } from '../utils/prisma';
+import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.use(authenticate);
 
@@ -100,6 +99,50 @@ router.get('/shifts', async (req: AuthRequest, res) => {
     res.json(shifts);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch shifts' });
+  }
+});
+
+// Cashier sales endpoint - handles sales created from cashier interface
+router.post('/sales', authorize('CASHIER'), async (req: AuthRequest, res) => {
+  try {
+    console.log('📥 Cashier POST /sales - Data:', { 
+      userId: req.user?.id, 
+      bodySize: JSON.stringify(req.body).length 
+    });
+
+    // Import and use SalesService directly
+    const { salesService } = await import('../services/SalesService');
+    
+    // Prepare user info for SalesService
+    const userInfo = {
+      id: req.user!.id,
+      name: (req.user as any)?.name || req.user?.email || 'Cashier',
+      email: req.user?.email || ''
+    };
+
+    // Create sale using SalesService
+    const saleInput = {
+      ...req.body,
+      userId: req.user!.id,
+      userName: userInfo.name
+    };
+    
+    const result = await salesService.createSale(saleInput);
+    
+    console.log('✅ Cashier sale created successfully');
+    res.json(result);
+    
+  } catch (error: any) {
+    console.error('❌ Cashier sales error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      body: req.body
+    });
+    res.status(500).json({ 
+      error: 'Cashier sales creation failed', 
+      details: error.message 
+    });
   }
 });
 

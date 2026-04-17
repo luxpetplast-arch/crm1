@@ -8,18 +8,22 @@ import { getExchangeRates } from '../lib/settings';
 import { getCategoryEmoji, getCategoryText } from '../lib/stockUtils';
 import { formatCurrency } from '../lib/utils';
 import { latinToCyrillic } from '../lib/transliterator';
-import { Users, Eye, DollarSign, AlertTriangle, TrendingUp, Users2, Crown, CreditCard, Trash2, FileSpreadsheet } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Users, Eye, DollarSign, AlertTriangle, TrendingUp, Users2, Crown, CreditCard, Trash2, FileSpreadsheet, Plus } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { exportToExcel } from '../lib/excelUtils';
+
+import type { Customer } from '../types';
 
 export default function Customers() {
   const navigate = useNavigate();
-  const [customers, setCustomers] = useState<any[]>([]);
+  const location = useLocation();
+  const isCashier = location.pathname.startsWith('/cashier');
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [exchangeRates, setExchangeRates] = useState({ USD_TO_UZS: 12500, EUR_TO_UZS: 13500 });
   const [form, setForm] = useState({ name: '', phone: '', category: 'NORMAL', telegramId: '' });
   const [paymentForm, setPaymentForm] = useState({
@@ -243,119 +247,115 @@ export default function Customers() {
   };
 
   return (
-    <div className="space-y-10 pb-20 animate-in fade-in duration-1000">
-      {/* Premium Header Section */}
-      <div className="relative overflow-hidden bg-white dark:bg-gray-900 rounded-xl p-10 sm:p-16 shadow-[0_10px_40px_rgba(0,0,0,0.02)] border border-gray-100 dark:border-gray-800">
-        {/* Background blobs */}
-        <div className="absolute top-0 -left-10 w-64 h-64 bg-indigo-100 dark:bg-indigo-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob pointer-events-none"></div>
-        <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-purple-100 dark:bg-purple-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000 pointer-events-none"></div>
-
-        <div className="relative z-10">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-10">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg border border-indigo-100 dark:border-indigo-800 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
-                <Crown className="w-3 h-3 animate-pulse" />
-                Customer Management
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 pb-12">
+      {/* Gradient Header */}
+      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 shadow-xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-lg ring-1 ring-white/30">
+                <Users className="w-7 h-7 text-white" />
               </div>
-              <h1 className="text-5xl sm:text-7xl font-black text-gray-900 dark:text-white tracking-tighter leading-[0.9]">
-                {latinToCyrillic("Mijozlar")} <br />
-                <span className="text-indigo-600">{latinToCyrillic("Bazasi")}</span>
-              </h1>
-              <p className="text-gray-500 dark:text-gray-400 text-lg font-bold tracking-tight">
-                {customers.length} {latinToCyrillic("ta umumiy mijoz")} • {activeCustomers.length} {latinToCyrillic("ta faol")}
-              </p>
+              <div>
+                <h1 className="text-2xl font-bold text-white">
+                  {latinToCyrillic("Mijozlar")}
+                </h1>
+                <p className="text-sm text-blue-100/80">
+                  {customers.length} {latinToCyrillic("ta mijoz")} • {activeCustomers.length} {latinToCyrillic("ta faol")}
+                </p>
+              </div>
             </div>
             
-            <div className="flex flex-wrap gap-4 w-full lg:w-auto">
+            <div className="flex items-center gap-3">
               <button 
                 onClick={handleExportExcel}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-8 py-5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl font-black text-sm transition-all active:scale-95 text-gray-900 dark:text-white shadow-sm border border-gray-200 dark:border-gray-700"
+                className="flex items-center gap-2 px-4 py-2.5 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white border border-white/20 rounded-xl font-medium text-sm transition-all"
               >
-                <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
-                {latinToCyrillic("EXCEL")}
+                <FileSpreadsheet className="w-4 h-4" />
+                {latinToCyrillic("Excel")}
               </button>
-              
               <button 
                 onClick={() => setShowForm(!showForm)} 
-                className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-10 py-5 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-black text-sm transition-all active:scale-95 text-white shadow-2xl shadow-indigo-500/30"
+                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl font-semibold text-sm transition-all shadow-lg shadow-emerald-500/30 hover:scale-105 active:scale-95"
               >
-                {showForm ? latinToCyrillic("BEKOR QILISH") : latinToCyrillic("YANGI MIJOZ")}
+                {showForm ? latinToCyrillic("Bekor") : <><Plus className="w-5 h-5" />{latinToCyrillic("Yangi mijoz")}</>}
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-        {[
-          { title: 'Jami Mijozlar', value: customers.length, icon: Users, color: 'blue', desc: 'Bazadagi barcha mijozlar' },
-          { title: 'Qarzdorlar', value: debtCustomers.length, icon: CreditCard, color: 'rose', desc: `${totalDebtUSD.toFixed(0)}$ + ${totalDebtUZS.toLocaleString()} UZS` },
-          { title: 'VIP Mijozlar', value: vipCustomers.length, icon: Crown, color: 'amber', desc: 'Eng ko\'p xarid qilganlar' },
-          { title: 'Faol Mijozlar', value: activeCustomers.length, icon: TrendingUp, color: 'emerald', desc: 'Oxirgi 30 kunda faol' }
-        ].map((stat, idx) => (
-          <div key={idx} className="bg-white dark:bg-gray-900 rounded-xl p-8 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-gray-100 dark:border-gray-800">
-            <div className={`w-14 h-14 rounded-lg flex items-center justify-center mb-6 shadow-2xl ${
-              stat.color === 'blue' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30' : 
-              stat.color === 'rose' ? 'bg-rose-50 text-rose-600 dark:bg-rose-900/30' : 
-              stat.color === 'amber' ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/30' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30'
-            }`}>
-              <stat.icon className="w-7 h-7" />
+      {/* Stats Cards - Modern Gradient Design */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+          {[
+            { title: latinToCyrillic("Jami mijozlar"), value: customers.length, icon: Users, color: 'blue', gradient: 'from-blue-500 to-blue-600' },
+            { title: latinToCyrillic("Qarzdorlar"), value: debtCustomers.length, icon: CreditCard, color: 'rose', gradient: 'from-rose-500 to-pink-600' },
+            { title: latinToCyrillic("VIP mijozlar"), value: vipCustomers.length, icon: Crown, color: 'amber', gradient: 'from-amber-500 to-orange-500' },
+            { title: latinToCyrillic("Faol mijozlar"), value: activeCustomers.length, icon: TrendingUp, color: 'emerald', gradient: 'from-emerald-500 to-teal-600' }
+          ].map((stat, idx) => (
+            <div key={idx} className={`group bg-gradient-to-br ${stat.gradient} rounded-2xl p-5 shadow-lg shadow-${stat.color}-500/25 hover:shadow-xl hover:shadow-${stat.color}-500/30 transition-all duration-300 hover:-translate-y-1 cursor-pointer`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                  <stat.icon className="w-6 h-6 text-white" />
+                </div>
+                <span className="text-xs font-medium text-white/80 bg-white/10 px-2 py-1 rounded-full">{stat.title}</span>
+              </div>
+              <p className="text-3xl font-bold text-white">{stat.value}</p>
+              <p className="text-sm text-white/70 mt-1">{latinToCyrillic("ta mijoz")}</p>
             </div>
-            <p className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">{stat.title}</p>
-            <h3 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight mb-2 leading-none">{stat.value}</h3>
-            <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{stat.desc}</p>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Filter and Content Area */}
-      <div className="space-y-8">
-        <div className="flex flex-wrap gap-4 p-2 bg-gray-100 dark:bg-gray-800 rounded-xl w-fit">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        {/* Filter Tabs - Modern Design */}
+        <div className="flex flex-wrap gap-1.5 p-1.5 bg-white/80 backdrop-blur-sm rounded-2xl w-fit shadow-lg shadow-blue-900/5 border border-white/50">
           {[
-            { id: 'all', name: 'BARCHASI', icon: Users2, count: customers.length },
-            { id: 'debtors', name: 'QARZDORLAR', icon: CreditCard, count: debtCustomers.length },
-            { id: 'vip', name: 'VIP MIJOZLAR', icon: Crown, count: vipCustomers.length }
+            { id: 'all', name: latinToCyrillic("Barchasi"), icon: Users2, count: customers.length, color: 'blue' },
+            { id: 'debtors', name: latinToCyrillic("Qarzdorlar"), icon: CreditCard, count: debtCustomers.length, color: 'rose' },
+            { id: 'vip', name: latinToCyrillic("VIP"), icon: Crown, count: vipCustomers.length, color: 'amber' }
           ].map((f) => (
             <button
               key={f.id}
               onClick={() => setFilter(f.id as any)}
-              className={`flex items-center gap-3 px-8 py-4 rounded-lg font-black text-xs transition-all duration-300 ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 ${
                 filter === f.id 
-                  ? 'bg-white dark:bg-gray-900 text-indigo-600 shadow-xl scale-105' 
-                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                  ? `bg-gradient-to-r from-${f.color}-500 to-${f.color === 'amber' ? 'orange' : f.color}-600 text-white shadow-lg shadow-${f.color}-500/25` 
+                  : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50'
               }`}
             >
               <f.icon className="w-4 h-4" />
               {f.name}
-              <span className={`px-2 py-0.5 rounded-lg text-[10px] ${filter === f.id ? 'bg-indigo-50 text-indigo-600' : 'bg-gray-200 dark:bg-gray-700'}`}>{f.count}</span>
+              <span className={`px-2 py-0.5 rounded-lg text-xs ${filter === f.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>{f.count}</span>
             </button>
           ))}
         </div>
 
         {showForm && (
           <div className="animate-in slide-in-from-top-4 duration-500">
-            <Card className="rounded-xl border-2 border-indigo-100 dark:border-indigo-900/30 overflow-hidden shadow-2xl">
-              <div className="bg-indigo-600 p-8 text-white">
-                <h3 className="text-2xl font-black tracking-tight">{latinToCyrillic("Yangi Mijoz Qo'shish")}</h3>
-                <p className="text-indigo-100 text-sm font-bold opacity-80">{latinToCyrillic("Mijoz ma'lumotlarini to'ldiring")}</p>
+            <Card className="rounded-2xl border-0 overflow-hidden shadow-xl shadow-blue-900/10">
+              <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-5 text-white">
+                <h3 className="text-lg font-bold tracking-tight">{latinToCyrillic("Yangi Mijoz Qo'shish")}</h3>
+                <p className="text-blue-100 text-sm font-medium opacity-90">{latinToCyrillic("Mijoz ma'lumotlarini to'ldiring")}</p>
               </div>
-              <CardContent className="p-10">
-                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <Input label="Исм" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required className="rounded-lg h-14" />
-                  <Input label="Телефон" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required className="rounded-lg h-14" />
+              <CardContent className="p-5">
+                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input label="Исм" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required className="rounded-lg h-11 text-sm" />
+                  <Input label="Телефон" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required className="rounded-lg h-11 text-sm" />
                   <Input 
                     label="Telegram ID (ixtiyoriy)" 
                     value={form.telegramId} 
                     onChange={(e) => setForm({ ...form, telegramId: e.target.value.toUpperCase() })}
                     placeholder="Masalan: A1B2C3D4"
                     maxLength={8}
-                    className="rounded-lg h-14"
+                    className="rounded-lg h-11 text-sm"
                   />
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-4">KATEGORIYA</label>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">KATEGORIYA</label>
                     <select
-                      className="w-full h-14 px-6 bg-gray-50 dark:bg-gray-800 border-none rounded-lg font-bold text-gray-900 dark:text-white focus:ring-4 focus:ring-indigo-500/10"
+                      className="w-full h-11 px-4 bg-gray-50 dark:bg-gray-800 border-none rounded-lg font-bold text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20"
                       value={form.category}
                       onChange={(e) => setForm({ ...form, category: e.target.value })}
                     >
@@ -364,8 +364,8 @@ export default function Customers() {
                       <option value="RISK">Хавфли</option>
                     </select>
                   </div>
-                  <div className="md:col-span-2 pt-4">
-                    <Button type="submit" size="lg" className="w-full h-16 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-black text-lg shadow-2xl shadow-indigo-500/30 transition-all active:scale-[0.98]">
+                  <div className="md:col-span-2 pt-2">
+                    <Button type="submit" size="lg" className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-bold text-base shadow-lg shadow-indigo-500/30 transition-all active:scale-[0.98]">
                       {latinToCyrillic("Mijozni Saqlash")}
                     </Button>
                   </div>
@@ -375,8 +375,8 @@ export default function Customers() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-          {filteredCustomers.map((customer) => {
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredCustomers.map((customer, index) => {
             const isDebtor = (customer.debtUSD > 0 || customer.debtUZS > 0);
             const isVIP = customer.category === 'VIP';
             const isRisk = customer.category === 'RISK';
@@ -384,65 +384,89 @@ export default function Customers() {
             return (
               <div 
                 key={customer.id}
-                onClick={() => navigate(`/customers/${customer.id}`)}
-                className={`group relative bg-white dark:bg-gray-900 rounded-xl p-8 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border-2 transition-all duration-500 hover:scale-[1.03] cursor-pointer ${
-                  isRisk ? 'border-red-100 dark:border-red-900/30' : 
-                  isVIP ? 'border-amber-100 dark:border-amber-900/30' : 'border-gray-100 dark:border-gray-800'
+                onClick={() => navigate(isCashier ? `/cashier/customers/${customer.id}` : `/customers/${customer.id}`)}
+                className={`group relative bg-white rounded-3xl p-6 shadow-lg shadow-slate-200/60 hover:shadow-2xl hover:shadow-slate-300/50 transition-all duration-500 hover:-translate-y-2 cursor-pointer border border-slate-100/50 overflow-hidden ${
+                  isRisk ? 'ring-2 ring-rose-200' : 
+                  isVIP ? 'ring-2 ring-amber-200' : ''
                 }`}
               >
-                {/* VIP Badge */}
-                {isVIP && (
-                  <div className="absolute top-6 right-6">
-                    <Crown className="w-6 h-6 text-amber-500 animate-pulse" />
-                  </div>
-                )}
+                {/* Hover gradient background */}
+                <div className={`absolute inset-0 bg-gradient-to-br ${isVIP ? 'from-amber-50/50 via-orange-50/30 to-transparent' : isRisk ? 'from-rose-50/50 via-pink-50/30 to-transparent' : 'from-blue-50/50 via-indigo-50/30 to-transparent'} opacity-0 group-hover:opacity-100 transition-opacity duration-500`}></div>
+                
+                {/* Status Badge & VIP - Premium */}
+                <div className="relative flex items-center justify-between mb-5">
+                  {isVIP ? (
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wide bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 text-white shadow-lg shadow-amber-500/30">
+                      <Crown className="w-4 h-4" />
+                      VIP
+                    </div>
+                  ) : isRisk ? (
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wide bg-gradient-to-r from-rose-500 via-rose-600 to-pink-600 text-white shadow-lg shadow-rose-500/30">
+                      <AlertTriangle className="w-4 h-4" />
+                      Risk
+                    </div>
+                  ) : (
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wide bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30">
+                      <Users className="w-4 h-4" />
+                      Normal
+                    </div>
+                  )}
+                  <span className="text-xs font-mono font-semibold text-slate-400 bg-slate-100/80 px-3 py-1.5 rounded-xl border border-slate-200">
+                    #{customer.id?.slice(0, 6).toUpperCase() || 'N/A'}
+                  </span>
+                </div>
 
-                <div className="flex items-center gap-4 mb-8">
-                  <div className={`w-16 h-16 rounded-lg flex items-center justify-center font-black text-xl shadow-2xl transition-all duration-500 group-hover:rotate-6 ${
-                    isVIP ? 'bg-amber-500 text-white' : 
-                    isRisk ? 'bg-red-500 text-white' : 'bg-indigo-600 text-white'
+                {/* Customer Info */}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg shadow-lg transition-all duration-300 group-hover:scale-110 ${
+                    isVIP ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-amber-500/30' : 
+                    isRisk ? 'bg-gradient-to-br from-rose-500 to-pink-500 text-white shadow-rose-500/30' : 
+                    'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-blue-500/30'
                   }`}>
                     {customer.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-black text-gray-900 dark:text-white truncate text-lg tracking-tight leading-none mb-1">{customer.name}</h3>
-                    <p className="text-xs font-bold text-gray-400 truncate tracking-wide">{customer.phone}</p>
+                    <h3 className="font-bold text-slate-900 truncate text-base">{customer.name}</h3>
+                    <p className="text-sm text-slate-500 truncate">{customer.phone || latinToCyrillic("Telefon yo'q")}</p>
                   </div>
                 </div>
 
-                <div className="space-y-4 mb-8">
-                  <div className="flex justify-between items-end">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">QARZ (USD)</p>
-                    <p className={`font-black text-lg ${customer.debtUSD > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                      ${customer.debtUSD?.toFixed(2) || '0.00'}
+                {/* Debt Info */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="p-3 bg-gradient-to-br from-blue-50 to-blue-100/30 rounded-xl border border-blue-100">
+                    <p className="text-xs text-blue-600 font-medium mb-1">{latinToCyrillic("Qarz (USD)")}</p>
+                    <p className={`text-lg font-bold ${customer.debtUSD > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      ${customer.debtUSD?.toFixed(0) || '0'}
                     </p>
                   </div>
-                  <div className="flex justify-between items-end">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">QARZ (UZS)</p>
-                    <p className={`font-black text-lg ${customer.debtUZS > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                  <div className="p-3 bg-gradient-to-br from-emerald-50 to-emerald-100/30 rounded-xl border border-emerald-100">
+                    <p className="text-xs text-emerald-600 font-medium mb-1">{latinToCyrillic("Qarz (UZS)")}</p>
+                    <p className={`text-lg font-bold ${customer.debtUZS > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                       {customer.debtUZS?.toLocaleString() || '0'}
                     </p>
                   </div>
                 </div>
 
+                {/* Action Buttons */}
                 <div className="flex gap-2">
                   <button 
                     onClick={(e) => handlePayDebt(customer, e)}
-                    className="flex-1 h-12 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+                    className="flex-1 h-10 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl font-semibold text-xs uppercase tracking-wide transition-all shadow-md shadow-emerald-500/25 hover:shadow-lg hover:shadow-emerald-500/30 flex items-center justify-center gap-1.5 active:scale-95"
                   >
+                    <DollarSign className="w-4 h-4" />
                     {latinToCyrillic("To'lov")}
                   </button>
                   <button 
-                    onClick={(e) => { e.stopPropagation(); navigate(`/customers/${customer.id}`); }}
-                    className="w-12 h-12 bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-indigo-600 rounded-lg flex items-center justify-center transition-all active:scale-95"
+                    onClick={(e) => { e.stopPropagation(); navigate(isCashier ? `/cashier/sales?customerId=${customer.id}` : `/sales?customerId=${customer.id}`); }}
+                    className="w-10 h-10 bg-slate-100 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95"
                   >
-                    <Eye className="w-5 h-5" />
+                    <Eye className="w-4 h-4" />
                   </button>
                   <button 
                     onClick={(e) => handleDeleteCustomer(customer, e)}
-                    className="w-12 h-12 bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-500 hover:text-white rounded-lg flex items-center justify-center transition-all active:scale-95"
+                    className="w-10 h-10 bg-rose-50 hover:bg-rose-500 text-rose-500 hover:text-white rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95"
                   >
-                    <Trash2 className="w-5 h-5" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -555,14 +579,14 @@ export default function Customers() {
                     <div className="flex justify-between items-center border-b border-gray-200 pb-2">
                       <span className="text-sm font-medium text-gray-600">Jami USD to'lov:</span>
                       <div className="text-right">
-                        <span className="text-lg font-black text-blue-600">${(parseFloat(paymentForm.paidUSD) || 0).toFixed(2)}</span>
+                        <span className="text-lg font-bold text-blue-600">${(parseFloat(paymentForm.paidUSD) || 0).toFixed(2)}</span>
                         <p className="text-[10px] text-blue-400 font-bold uppercase tracking-wider">USD qarz uchun</p>
                       </div>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-medium text-gray-600">Jami UZS to'lov:</span>
                       <div className="text-right">
-                        <span className="text-lg font-black text-green-600">{( (parseFloat(paymentForm.paidUZS) || 0) + (parseFloat(paymentForm.paidCLICK) || 0) ).toLocaleString()} sum</span>
+                        <span className="text-lg font-bold text-green-600">{( (parseFloat(paymentForm.paidUZS) || 0) + (parseFloat(paymentForm.paidCLICK) || 0) ).toLocaleString()} sum</span>
                         <p className="text-[10px] text-green-400 font-bold uppercase tracking-wider">UZS qarz uchun</p>
                       </div>
                     </div>

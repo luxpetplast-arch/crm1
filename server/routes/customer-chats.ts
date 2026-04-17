@@ -1,12 +1,11 @@
-import express from 'express';
-import { PrismaClient } from '@prisma/client';
-import { sendTelegramMessage } from '../utils/telegram';
+import { Router } from 'express';
+import { prisma } from '../utils/prisma';
+import { authenticate } from '../middleware/auth';
 
-const router = express.Router();
-const prisma = new PrismaClient();
+const router = Router();
 
 // Get all customer chats
-router.get('/', async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
   try {
     // Get all customers with telegram chat ID
     const customers = await prisma.customer.findMany({
@@ -207,5 +206,32 @@ router.post('/webhook/telegram', async (req, res) => {
     res.status(500).json({ error: 'Failed to handle webhook' });
   }
 });
+
+// Send Telegram message helper function
+async function sendTelegramMessage(chatId: string, message: string): Promise<boolean> {
+  try {
+    // Get bot token from environment
+    const botToken = process.env.TELEGRAM_CUSTOMER_BOT_TOKEN;
+    if (!botToken) {
+      console.error('Telegram bot token not configured');
+      return false;
+    }
+
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: message,
+        parse_mode: 'HTML'
+      })
+    });
+
+    return response.ok;
+  } catch (error) {
+    console.error('Failed to send Telegram message:', error);
+    return false;
+  }
+}
 
 export default router;

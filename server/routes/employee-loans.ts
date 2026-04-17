@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Get all loans
 router.get('/', authenticate, async (req: AuthRequest, res) => {
@@ -30,13 +29,14 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
             position: { select: { name: true } }
           }
         },
-        repayments: { orderBy: { paymentDate: 'desc' } }
+        repayments: { orderBy: { createdAt: 'desc' } }
       },
       orderBy: { createdAt: 'desc' }
     });
     
     res.json(loans);
   } catch (error) {
+    console.error('Error fetching loans:', error);
     res.status(500).json({ error: 'Failed to fetch loans' });
   }
 });
@@ -45,6 +45,10 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
 router.post('/', authenticate, async (req: AuthRequest, res) => {
   try {
     const { employeeId, amount, currency, purpose, description, dueDate, interestRate } = req.body;
+    
+    if (!employeeId || !amount) {
+      return res.status(400).json({ error: 'Employee ID and amount are required' });
+    }
     
     const loan = await prisma.employeeLoan.create({
       data: {
@@ -63,6 +67,7 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
     
     res.status(201).json(loan);
   } catch (error) {
+    console.error('Error creating loan:', error);
     res.status(500).json({ error: 'Failed to create loan' });
   }
 });
@@ -72,6 +77,10 @@ router.post('/:id/repay', authenticate, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const { amount, paymentMethod, description, isSalaryDeduction, payrollPeriod } = req.body;
+    
+    if (!amount) {
+      return res.status(400).json({ error: 'Amount is required' });
+    }
     
     const loan = await prisma.employeeLoan.findUnique({ where: { id } });
     if (!loan) return res.status(404).json({ error: 'Loan not found' });
@@ -109,6 +118,7 @@ router.post('/:id/repay', authenticate, async (req: AuthRequest, res) => {
     
     res.json(repayment);
   } catch (error) {
+    console.error('Error processing repayment:', error);
     res.status(500).json({ error: 'Failed to process repayment' });
   }
 });
@@ -134,7 +144,73 @@ router.get('/report/overdue', authenticate, async (req: AuthRequest, res) => {
     
     res.json(overdueLoans);
   } catch (error) {
+    console.error('Error fetching overdue loans:', error);
     res.status(500).json({ error: 'Failed to fetch overdue loans' });
+  }
+});
+
+// Get single loan by ID
+router.get('/:id', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    
+    const loan = await prisma.employeeLoan.findUnique({
+      where: { id },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            fullName: true,
+            employeeCode: true,
+            department: { select: { name: true } },
+            position: { select: { name: true } },
+            phone: true,
+            telegramChatId: true
+          }
+        },
+        repayments: { 
+          orderBy: { createdAt: 'desc' } 
+        }
+      }
+    });
+    
+    if (!loan) {
+      return res.status(404).json({ error: 'Loan not found' });
+    }
+    
+    res.json(loan);
+  } catch (error) {
+    console.error('Error fetching loan:', error);
+    res.status(500).json({ error: 'Failed to fetch loan' });
+  }
+});
+
+// Update loan
+router.put('/:id', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { status, dueDate, interestRate, description } = req.body;
+    
+    const loan = await prisma.employeeLoan.findUnique({ where: { id } });
+    if (!loan) {
+      return res.status(404).json({ error: 'Loan not found' });
+    }
+    
+    const updateData: any = {};
+    if (status) updateData.status = status;
+    if (dueDate) updateData.dueDate = new Date(dueDate);
+    if (interestRate !== undefined) updateData.interestRate = parseFloat(interestRate);
+    if (description !== undefined) updateData.description = description;
+    
+    const updatedLoan = await prisma.employeeLoan.update({
+      where: { id },
+      data: updateData
+    });
+    
+    res.json(updatedLoan);
+  } catch (error) {
+    console.error('Error updating loan:', error);
+    res.status(500).json({ error: 'Failed to update loan' });
   }
 });
 

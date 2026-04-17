@@ -1,10 +1,9 @@
 import { Router } from 'express';
 import { botManager } from '../bot/bot-manager';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Bot holatini tekshirish
 router.get('/status', authenticate, async (req, res) => {

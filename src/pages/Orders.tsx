@@ -7,6 +7,7 @@ import ProductSelector from '../components/ProductSelector';
 import DebugInfo from '../components/DebugInfo';
 import api from '../lib/api';
 import { formatDate } from '../lib/dateUtils';
+import { useNavigate } from 'react-router-dom';
 import { 
   Package, 
   Plus, 
@@ -29,21 +30,25 @@ import {
   Banknote,
   Landmark,
   Smartphone,
-  MoreHorizontal
+  MoreHorizontal,
+  RefreshCw
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { exportToExcel } from '../lib/excelUtils';
 import { cn } from '../lib/utils';
 
 
+import type { Order, Customer, Product } from '../types';
+
 export default function Orders() {
   const { t } = useTranslation();
-  const [orders, setOrders] = useState<any[]>([]);
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
+  const navigate = useNavigate();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   
@@ -486,20 +491,22 @@ export default function Orders() {
 
   const handleSellOrder = async () => {
     try {
-      if (totalPaymentUSD === 0 && !paymentForm.dueDate) {
+      if (!selectedOrder) {
+        console.warn(' selectedOrder null, savdo amalga oshirilmaydi');
         return;
       }
       
-      const response = await api.post(`/orders/${selectedOrder.id}/sell`, {
-        paymentDetails: {
-          uzs: paymentForm.uzs,
-          usd: paymentForm.usd,
-          click: paymentForm.click
-        },
-        dueDate: paymentForm.dueDate || null
+      // To'g'ridan-to'g'ri sotuv sahifasiga yo'naltirish
+      navigate('/cashier/sales/add', { 
+        state: { 
+          orderData: selectedOrder 
+        } 
       });
       
-      console.log('✅ Savdo muvaffaqiyatli amalga oshirildi:', response.data);
+      setShowPaymentModal(false);
+      setShowDetail(false);
+      
+      console.log('Buyurtma sotuv sahifasiga yo\'naltirildi:', selectedOrder);
       
       // Print receipt after successful sale
       try {
@@ -609,6 +616,11 @@ ID: SLS-${selectedOrder.id}
 
   const handleDriverPayment = async () => {
     try {
+      if (!selectedOrder) {
+        alert('❌ Buyurtma tanlanmagan!');
+        return;
+      }
+      
       if (!driverPaymentForm.driverId) {
         alert('❌ Haydovchini tanlang!');
         return;
@@ -798,82 +810,138 @@ ID: SLS-${selectedOrder.id}
 
   return (
     <>
-    <div className="space-y-12 pb-20 animate-in fade-in duration-1000">
-      <DebugInfo />
-      
-      {/* Premium Header Section */}
-      <div className="relative overflow-hidden bg-white dark:bg-gray-900 rounded-[3rem] p-10 sm:p-16 shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white dark:border-gray-800">
-        <div className="absolute top-0 -left-10 w-64 h-64 bg-blue-100 dark:bg-blue-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob pointer-events-none"></div>
-        <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-purple-100 dark:bg-purple-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000 pointer-events-none"></div>
-
-        <div className="relative z-10">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-10">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-full border border-blue-100 dark:border-blue-800 text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">
-                <Package className="w-3 h-3 animate-pulse" />
-                Order Management System
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 pb-12">
+      {/* Gradient Header */}
+      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 shadow-xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-lg ring-1 ring-white/30">
+                <Package className="w-7 h-7 text-white" />
               </div>
-              <h1 className="text-5xl sm:text-7xl font-black text-gray-900 dark:text-white tracking-tighter leading-[0.9]">
-                {t("Buyurtmalar")}<br />
-                <span className="text-blue-600">{t("Nazorati")}</span>
-              </h1>
-              <p className="text-gray-500 dark:text-gray-400 font-bold max-w-md text-sm sm:text-base">
-                {t("Barcha buyurtmalar ro'yxati, ishlab chiqarish tahlili va savdo jarayoni")}
-              </p>
+              <div>
+                <h1 className="text-2xl font-bold text-white">
+                  {t("Buyurtmalar")}
+                </h1>
+                <p className="text-sm text-blue-100/80">
+                  {t("Buyurtmalar ro'yxati va nazorati")}
+                </p>
+              </div>
             </div>
             
-            <div className="flex flex-wrap gap-4 w-full lg:w-auto">
+            <div className="flex items-center gap-3">
               <button 
                 onClick={handleExport}
-                className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-8 py-5 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-[2rem] font-black text-xs transition-all active:scale-95 border border-emerald-100 dark:border-emerald-800"
+                className="flex items-center gap-2 px-4 py-2.5 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white border border-white/20 rounded-xl font-medium text-sm transition-all"
               >
-                <FileText className="w-5 h-5" />
-                EXCEL
+                <FileText className="w-4 h-4" />
+                Excel
               </button>
               <button 
                 onClick={initializeForm} 
-                className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-10 py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] font-black text-xs shadow-2xl shadow-blue-500/30 transition-all hover:scale-105 active:scale-95"
+                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl font-semibold text-sm transition-all shadow-lg shadow-emerald-500/30 hover:scale-105 active:scale-95"
               >
                 <Plus className="w-5 h-5" />
-                {t("YANGI BUYURTMA")}
+                {t("Yangi buyurtma")}
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6 px-4">
+      {/* Stats Grid - Modern Gradient Design */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-5 px-4">
         {[
-          { label: t("Jami"), value: orderStats.total, icon: Clock, color: 'blue' },
-          { label: t("Tasdiqlandi"), value: orderStats.confirmed, icon: CheckCircle, color: 'cyan' },
-          { label: t("Ishlab chiqarish"), value: orderStats.inProduction, icon: Activity, color: 'purple' },
-          { label: t("Tayyor"), value: orderStats.ready, icon: CheckCircle, color: 'green' },
-          { label: t("Sotildi"), value: orderStats.sold, icon: DollarSign, color: 'emerald' },
-          { label: t("Botdan"), value: orderStats.fromBot, icon: Bot, color: 'indigo' }
+          { label: t("Jami"), value: orderStats.total, icon: Clock, color: 'blue', gradient: 'from-blue-500 to-blue-600' },
+          { label: t("Tasdiqlandi"), value: orderStats.confirmed, icon: CheckCircle, color: 'cyan', gradient: 'from-cyan-500 to-blue-500' },
+          { label: t("Ishlab chiqarish"), value: orderStats.inProduction, icon: Activity, color: 'purple', gradient: 'from-purple-500 to-violet-600' },
+          { label: t("Tayyor"), value: orderStats.ready, icon: CheckCircle, color: 'green', gradient: 'from-green-500 to-emerald-600' },
+          { label: t("Sotildi"), value: orderStats.sold, icon: DollarSign, color: 'emerald', gradient: 'from-emerald-500 to-teal-600' },
+          { label: t("Botdan"), value: orderStats.fromBot, icon: Bot, color: 'indigo', gradient: 'from-indigo-500 to-purple-600' }
         ].map((stat, i) => (
-          <div key={i} className="group bg-white dark:bg-gray-900 p-6 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm transition-all duration-500 hover:shadow-xl hover:-translate-y-1">
-            <div className={`w-12 h-12 bg-${stat.color}-50 dark:bg-${stat.color}-900/20 rounded-2xl flex items-center justify-center text-${stat.color}-600 mb-6 transition-transform group-hover:rotate-12`}>
-              <stat.icon className="w-6 h-6" />
+          <div key={i} className={`group bg-gradient-to-br ${stat.gradient} rounded-2xl p-5 shadow-lg shadow-${stat.color}-500/25 hover:shadow-xl hover:shadow-${stat.color}-500/30 transition-all duration-300 hover:-translate-y-1 cursor-pointer`}>
+            <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center mb-4">
+              <stat.icon className="w-6 h-6 text-white" />
             </div>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">{stat.label}</p>
-            <p className={`text-2xl font-black tracking-tight text-gray-900 dark:text-white`}>
+            <p className="text-xs font-medium text-white/80 mb-1">{stat.label}</p>
+            <p className="text-2xl font-bold text-white">
               {stat.value}
             </p>
           </div>
         ))}
       </div>
 
-      {/* Product Analysis Section */}
+      {/* Quick Filter Buttons */}
+      <div className="px-4 flex flex-wrap gap-3">
+        <button
+          onClick={() => setStatusFilter('SOLD')}
+          className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2 ${
+            statusFilter === 'SOLD'
+              ? 'bg-emerald-600 text-white'
+              : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+          }`}
+        >
+          <DollarSign className="w-4 h-4" />
+          Sotilgan buyurtmalar
+          {statusFilter === 'SOLD' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setStatusFilter('ALL');
+              }}
+              className="ml-1 p-0.5 hover:bg-emerald-500 rounded"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </button>
+
+        <button
+          onClick={() => setStatusFilter('READY')}
+          className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center gap-2 ${
+            statusFilter === 'READY'
+              ? 'bg-green-600 text-white'
+              : 'bg-green-100 text-green-700 hover:bg-green-200'
+          }`}
+        >
+          <CheckCircle className="w-4 h-4" />
+          Tayyor buyurtmalar
+          {statusFilter === 'READY' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setStatusFilter('ALL');
+              }}
+              className="ml-1 p-0.5 hover:bg-green-500 rounded"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </button>
+
+        {statusFilter !== 'ALL' && (
+          <button
+            onClick={() => {
+              setStatusFilter('ALL');
+              setPriorityFilter('ALL');
+              setSearchQuery('');
+            }}
+            className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Filtrlarni tozalash
+          </button>
+        )}
+      </div>
       {Object.keys(productStats).length > 0 && (
         <div className="px-4">
           <div className="bg-white dark:bg-gray-900 rounded-[3.5rem] p-10 border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between mb-10">
-              <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-4">
-                <div className="w-12 h-12 bg-orange-50 dark:bg-orange-900/30 rounded-2xl flex items-center justify-center text-orange-600">
-                  <Package className="w-6 h-6" />
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
+                <div className="w-10 h-10 bg-orange-50 dark:bg-orange-900/30 rounded-xl flex items-center justify-center text-orange-600">
+                  <Package className="w-5 h-5" />
                 </div>
-                {t("Mahsulotlar Bo'yicha")} <span className="text-orange-600">{t("Tahlil")}</span>
+                {t("Mahsulotlar bo'yicha")} <span className="text-orange-600">{t("tahlil")}</span>
               </h3>
             </div>
 
@@ -890,20 +958,20 @@ ID: SLS-${selectedOrder.id}
                     </div>
                   )}
 
-                  <h4 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight mb-6">{stat.productName}</h4>
+                  <h4 className="text-base font-bold text-gray-900 dark:text-white tracking-tight mb-4">{stat.productName}</h4>
                   
                   <div className="space-y-4 mb-8">
                     <div className="flex justify-between items-center p-3 rounded-xl bg-white/50 dark:bg-gray-900/50">
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t("Buyurtma")}</span>
-                      <span className="font-black text-blue-600">{stat.totalOrdered} {t("QOP")}</span>
+                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">{t("Buyurtma")}</span>
+                      <span className="font-bold text-blue-600">{stat.totalOrdered} {t("QOP")}</span>
                     </div>
                     <div className="flex justify-between items-center p-3 rounded-xl bg-white/50 dark:bg-gray-900/50">
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t("Ombor")}</span>
-                      <span className="font-black text-emerald-600">{stat.inStock} {t("QOP")}</span>
+                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">{t("Ombor")}</span>
+                      <span className="font-bold text-emerald-600">{stat.inStock} {t("QOP")}</span>
                     </div>
                     <div className="flex justify-between items-center p-3 rounded-xl bg-white/50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-800">
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{stat.needProduction > 0 ? t("Kamchilik") : t("Holat")}</span>
-                      <span className={`font-black ${stat.needProduction > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">{stat.needProduction > 0 ? t("Kamchilik") : t("Holat")}</span>
+                      <span className={`font-bold ${stat.needProduction > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                         {stat.needProduction > 0 ? `-${stat.needProduction} QOP` : t("YETARLI")}
                       </span>
                     </div>
@@ -912,10 +980,10 @@ ID: SLS-${selectedOrder.id}
                   {stat.needProduction > 0 && (
                     <button
                       onClick={() => createProductionOrder(stat.productId, stat.needProduction)}
-                      className="w-full py-4 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl font-black text-[10px] tracking-[0.1em] shadow-xl shadow-orange-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
+                      className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-semibold text-sm shadow-lg shadow-orange-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
                     >
                       <Factory className="w-4 h-4" />
-                      {t("ISHLAB CHIQARISH BUYURTMASI")}
+                      {t("Ishlab chiqarish buyurtmasi")}
                     </button>
                   )}
                 </div>
@@ -940,9 +1008,9 @@ ID: SLS-${selectedOrder.id}
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">{t("Holati")}</label>
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-4">{t("Holati")}</label>
               <select
-                className="w-full h-14 px-6 bg-white dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-black text-xs appearance-none shadow-sm outline-none"
+                className="w-full h-14 px-6 bg-white dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-semibold text-xs appearance-none shadow-sm outline-none"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
@@ -953,9 +1021,9 @@ ID: SLS-${selectedOrder.id}
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">{t("Prioritet")}</label>
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-4">{t("Prioritet")}</label>
               <select
-                className="w-full h-14 px-6 bg-white dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-black text-xs appearance-none shadow-sm outline-none"
+                className="w-full h-14 px-6 bg-white dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-semibold text-xs appearance-none shadow-sm outline-none"
                 value={priorityFilter}
                 onChange={(e) => setPriorityFilter(e.target.value)}
               >
@@ -966,9 +1034,9 @@ ID: SLS-${selectedOrder.id}
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">{t("Vaqt Oralig'i")}</label>
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-4">{t("Vaqt Oralig'i")}</label>
               <select
-                className="w-full h-14 px-6 bg-white dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-black text-xs appearance-none shadow-sm outline-none"
+                className="w-full h-14 px-6 bg-white dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-semibold text-xs appearance-none shadow-sm outline-none"
                 value={advancedFilters.dateRange}
                 onChange={(e) => setAdvancedFilters({ ...advancedFilters, dateRange: e.target.value as any })}
               >
@@ -1127,7 +1195,7 @@ ID: SLS-${selectedOrder.id}
                     <Icon className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">{config.label}</h3>
+                    <h3 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-widest">{config.label}</h3>
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{ordersList.length} {t("BUYURTMA")}</p>
                   </div>
                 </div>
@@ -1148,8 +1216,8 @@ ID: SLS-${selectedOrder.id}
                       {/* Header */}
                       <div className="flex justify-between items-start pl-2">
                         <div className="space-y-1">
-                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">#{order.orderNumber}</p>
-                          <h4 className="font-black text-gray-900 dark:text-white uppercase tracking-tight truncate max-w-[150px]">
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">#{order.orderNumber}</p>
+                          <h4 className="font-bold text-gray-900 dark:text-white uppercase tracking-tight truncate max-w-[150px]">
                             {order.customer?.name}
                           </h4>
                         </div>
@@ -1172,11 +1240,11 @@ ID: SLS-${selectedOrder.id}
                         {order.items?.slice(0, 2).map((item: any, index: number) => (
                           <div key={index} className="flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/30 p-3 rounded-xl border border-gray-50 dark:border-gray-800">
                             <span className="text-[10px] font-bold text-gray-500 truncate max-w-[100px] uppercase">{item.product?.name}</span>
-                            <span className="text-[10px] font-black text-blue-600">{item.quantityBags} {t("QOP")}</span>
+                            <span className="text-[10px] font-bold text-blue-600">{item.quantityBags} {t("QOP")}</span>
                           </div>
                         ))}
-                        {order.items?.length > 2 && (
-                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">+{order.items.length - 2} {t("yana")}</p>
+                        {(order.items?.length || 0) > 2 && (
+                          <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-widest text-center">+{(order.items?.length || 0) - 2} {t("yana")}</p>
                         )}
                       </div>
 
@@ -1184,18 +1252,21 @@ ID: SLS-${selectedOrder.id}
                       <div className="pt-4 border-t border-gray-50 dark:border-gray-800 flex justify-between items-center pl-2">
                         <div className="flex items-center gap-2 text-gray-400">
                           <Calendar className="w-3.5 h-3.5" />
-                          <span className="text-[10px] font-bold">{formatDate(order.requestedDate)}</span>
+                          <span className="text-[10px] font-bold">{order.requestedDate ? formatDate(order.requestedDate) : '-'}</span>
                         </div>
-                        <p className="text-lg font-black text-emerald-600 tracking-tighter">${order.totalAmount?.toFixed(2)}</p>
+                        <p className="text-base font-bold text-emerald-600 tracking-tight">${order.totalAmount?.toFixed(2)}</p>
                       </div>
                     </div>
                   </div>
                 ))}
 
                 {ordersList.length === 0 && (
-                  <div className="py-20 text-center opacity-20 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-[3rem]">
-                    <Package className="w-12 h-12 mb-4" />
-                    <p className="text-xs font-black uppercase tracking-widest">{t("BO'SH")}</p>
+                  <div className="py-24 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm rounded-[3rem] border-2 border-dashed border-slate-300 dark:border-slate-700">
+                    <div className="w-24 h-24 bg-gradient-to-br from-slate-100 via-slate-200 to-slate-300 rounded-3xl flex items-center justify-center mb-6 shadow-inner">
+                      <Package className="w-12 h-12 text-slate-400" />
+                    </div>
+                    <p className="text-lg font-bold text-slate-400 uppercase tracking-widest">{t("Buyurtmalar yo'q")}</p>
+                    <p className="text-sm text-slate-400 mt-2">{t("Yangi buyurtma qo'shish uchun tugmani bosing")}</p>
                   </div>
                 )}
               </div>
@@ -1210,7 +1281,7 @@ ID: SLS-${selectedOrder.id}
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xl flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
           <div className="bg-white dark:bg-gray-900 w-full max-w-4xl rounded-[3rem] overflow-hidden shadow-2xl border border-white/20 animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
             <div className="p-10 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center bg-blue-50/30 dark:bg-blue-900/10 shrink-0">
-              <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-4">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-4">
                 <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600">
                   <Brain className="w-6 h-6" />
                 </div>
@@ -1227,7 +1298,7 @@ ID: SLS-${selectedOrder.id}
                 <div className="p-6 bg-rose-50 dark:bg-rose-900/20 border-2 border-rose-200 dark:border-rose-800 rounded-[2rem] space-y-2">
                   <div className="flex items-center gap-3 text-rose-600">
                     <AlertCircle className="w-5 h-5" />
-                    <h4 className="font-black uppercase tracking-widest text-xs">{t("Xatoliklar bor")}</h4>
+                    <h4 className="font-bold uppercase tracking-widest text-xs">{t("Xatoliklar bor")}</h4>
                   </div>
                   <ul className="list-disc list-inside text-xs font-bold text-rose-500/80">
                     {formErrors.customerId && <li>{formErrors.customerId}</li>}
@@ -1240,8 +1311,8 @@ ID: SLS-${selectedOrder.id}
               {/* Step 1: Customer */}
               <div className="space-y-8">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl flex items-center justify-center font-black">1</div>
-                  <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">{t("Mijozni Tanlang")}</h4>
+                  <div className="w-10 h-10 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl flex items-center justify-center font-bold">1</div>
+                  <h4 className="text-lg font-bold text-gray-900 dark:text-white uppercase tracking-tight">{t("Mijozni Tanlang")}</h4>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-800/50 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800">
                   <CustomerSelector
@@ -1263,13 +1334,13 @@ ID: SLS-${selectedOrder.id}
               <div className="space-y-8">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl flex items-center justify-center font-black">2</div>
-                    <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">{t("Mahsulotlar")}</h4>
+                    <div className="w-10 h-10 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl flex items-center justify-center font-bold">2</div>
+                    <h4 className="text-lg font-bold text-gray-900 dark:text-white uppercase tracking-tight">{t("Mahsulotlar")}</h4>
                   </div>
                   <button 
                     type="button" 
                     onClick={addItem}
-                    className="flex items-center gap-2 px-6 py-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-xl font-black text-[10px] tracking-widest hover:scale-105 transition-all active:scale-95"
+                    className="flex items-center gap-2 px-6 py-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-xl font-semibold text-xs tracking-widest hover:scale-105 transition-all active:scale-95"
                   >
                     <Plus className="w-4 h-4" />
                     {t("QO'SHISH")}
@@ -1406,7 +1477,7 @@ ID: SLS-${selectedOrder.id}
                             </div>
                             <div className="text-right min-w-[100px]">
                               <p className="text-[10px] font-bold text-gray-400 uppercase mb-0.5">SUMMA</p>
-                              <p className="text-lg font-black text-emerald-600">
+                              <p className="text-base font-bold text-emerald-600">
                                 ${(item.priceType === 'BAG' ? (item.quantityBags * item.price) : (item.quantityUnits * item.price)).toFixed(2)}
                               </p>
                             </div>
@@ -1431,8 +1502,8 @@ ID: SLS-${selectedOrder.id}
               {/* Step 3: Details */}
               <div className="space-y-8">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl flex items-center justify-center font-black">3</div>
-                  <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">{t("Tafsilotlar")}</h4>
+                  <div className="w-10 h-10 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl flex items-center justify-center font-bold">3</div>
+                  <h4 className="text-lg font-bold text-gray-900 dark:text-white uppercase tracking-tight">{t("Tafsilotlar")}</h4>
                 </div>
                 
                 {/* Overall Inventory Summary */}
@@ -1440,13 +1511,13 @@ ID: SLS-${selectedOrder.id}
                   <div className="p-8 bg-orange-50 dark:bg-orange-900/20 rounded-[2.5rem] border border-orange-100 dark:border-orange-800 space-y-4">
                     <div className="flex items-center gap-3 text-orange-600">
                       <Factory className="w-5 h-5" />
-                      <h4 className="font-black uppercase tracking-widest text-xs">{t("Ishlab chiqarish rejasi kerak")}</h4>
+                      <h4 className="font-bold uppercase tracking-widest text-xs">{t("Ishlab chiqarish rejasi kerak")}</h4>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {inventoryCheck.filter(c => c.needProduction > 0).map((c, i) => (
                         <div key={i} className="bg-white/50 dark:bg-gray-900/50 p-4 rounded-xl flex justify-between items-center">
-                          <span className="text-[10px] font-black uppercase tracking-tight">{c.productName}</span>
-                          <span className="text-xs font-black text-rose-600">-{c.needProduction} {t("qop")}</span>
+                          <span className="text-xs font-semibold uppercase tracking-tight">{c.productName}</span>
+                          <span className="text-xs font-bold text-rose-600">-{c.needProduction} {t("qop")}</span>
                         </div>
                       ))}
                     </div>
@@ -1455,21 +1526,21 @@ ID: SLS-${selectedOrder.id}
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("Yetkazish Sanasi")}</label>
+                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("Yetkazish Sanasi")}</label>
                     <input
                       type="date"
                       value={form.requestedDate}
                       onChange={(e) => setForm({ ...form, requestedDate: e.target.value })}
                       min={new Date().toISOString().split('T')[0]}
-                      className="w-full h-16 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-black transition-all outline-none"
+                      className="w-full h-16 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-semibold transition-all outline-none"
                     />
                   </div>
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("Prioritet")}</label>
+                    <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("Prioritet")}</label>
                     <select
                       value={form.priority}
                       onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                      className="w-full h-16 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-black text-sm appearance-none outline-none"
+                      className="w-full h-16 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-semibold text-sm appearance-none outline-none"
                     >
                       {Object.entries(priorityConfig).map(([key, config]) => (
                         <option key={key} value={key}>{config.label}</option>
@@ -1479,7 +1550,7 @@ ID: SLS-${selectedOrder.id}
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("Izoh")}</label>
+                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("Izoh")}</label>
                   <textarea
                     value={form.notes}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
@@ -1493,13 +1564,13 @@ ID: SLS-${selectedOrder.id}
                 <button
                   type="button"
                   onClick={closeForm}
-                  className="flex-1 h-16 rounded-[2rem] border-2 border-gray-100 dark:border-gray-800 font-black text-xs tracking-[0.2em] text-gray-400 hover:bg-gray-50 transition-all active:scale-95"
+                  className="flex-1 h-16 rounded-[2rem] border-2 border-gray-100 dark:border-gray-800 font-semibold text-xs tracking-[0.2em] text-gray-400 hover:bg-gray-50 transition-all active:scale-95"
                 >
                   {t("BEKOR QILISH")}
                 </button>
                 <button
                   type="submit"
-                  className="flex-[2] h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] font-black text-xs tracking-[0.2em] shadow-2xl shadow-blue-500/30 transition-all active:scale-95 flex items-center justify-center gap-3"
+                  className="flex-[2] h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] font-semibold text-xs tracking-[0.2em] shadow-2xl shadow-blue-500/30 transition-all active:scale-95 flex items-center justify-center gap-3"
                 >
                   <Brain className="w-5 h-5" />
                   {t("BUYURTMANI TASDIQLASH")}
@@ -1516,12 +1587,12 @@ ID: SLS-${selectedOrder.id}
           <div className="bg-white dark:bg-gray-900 w-full max-w-4xl rounded-[3.5rem] overflow-hidden shadow-2xl border border-white/20 animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
             <div className="p-10 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center bg-gray-50/30 dark:bg-gray-800/30 shrink-0">
               <div className="flex items-center gap-6">
-                <div className="w-16 h-16 bg-blue-600 text-white rounded-[1.5rem] flex items-center justify-center font-black text-xl shadow-xl shadow-blue-500/20">
+                <div className="w-16 h-16 bg-blue-600 text-white rounded-[1.5rem] flex items-center justify-center font-bold text-xl shadow-xl shadow-blue-500/20">
                   #{selectedOrder.orderNumber.split('-').pop()}
                 </div>
                 <div>
-                  <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">{t("Buyurtma Tafsilotlari")}</h3>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">ID: {selectedOrder.id}</p>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">{t("Buyurtma Tafsilotlari")}</h3>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mt-1">ID: {selectedOrder.id}</p>
                 </div>
               </div>
               <button onClick={() => setShowDetail(false)} className="w-12 h-12 flex items-center justify-center rounded-full bg-white dark:bg-gray-800 text-gray-400 hover:text-rose-500 shadow-sm transition-colors">
@@ -1535,22 +1606,22 @@ ID: SLS-${selectedOrder.id}
                 {[
                   { label: t("MIJOZ"), value: selectedOrder.customer?.name, icon: User, color: 'blue' },
                   { label: t("STATUS"), value: statusConfig[selectedOrder.status as keyof typeof statusConfig].label, icon: Activity, color: statusConfig[selectedOrder.status as keyof typeof statusConfig].color },
-                  { label: t("SANA"), value: formatDate(selectedOrder.requestedDate), icon: Calendar, color: 'orange' },
+                  { label: t("SANA"), value: selectedOrder.requestedDate ? formatDate(selectedOrder.requestedDate) : '-', icon: Calendar, color: 'orange' },
                   { label: t("SUMMA"), value: `$${selectedOrder.totalAmount?.toFixed(2)}`, icon: DollarSign, color: 'emerald' }
                 ].map((item, i) => (
                   <div key={i} className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800">
                     <div className={`w-10 h-10 bg-${item.color}-50 dark:bg-${item.color}-900/20 rounded-xl flex items-center justify-center text-${item.color}-600 mb-4`}>
                       <item.icon className="w-5 h-5" />
                     </div>
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">{item.label}</p>
-                    <p className="text-sm font-black text-gray-900 dark:text-white uppercase truncate">{item.value}</p>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">{item.label}</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white uppercase truncate">{item.value}</p>
                   </div>
                 ))}
               </div>
 
               {/* Products Table */}
               <div className="space-y-6">
-                <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-3">
+                <h4 className="text-lg font-bold text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-3">
                   <Package className="w-6 h-6 text-blue-600" />
                   {t("MAHSULOTLAR RO'YXATI")}
                 </h4>
@@ -1558,26 +1629,26 @@ ID: SLS-${selectedOrder.id}
                   <table className="w-full">
                     <thead>
                       <tr className="bg-gray-100/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700">
-                        <th className="text-left py-5 px-8 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t("MAHSULOT")}</th>
-                        <th className="text-center py-5 px-8 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t("MIQDOR")}</th>
-                        <th className="text-right py-5 px-8 text-[10px] font-black text-gray-400 uppercase tracking-widest">{t("SUBTOTAL")}</th>
+                        <th className="text-left py-5 px-8 text-xs font-semibold text-gray-400 uppercase tracking-widest">{t("MAHSULOT")}</th>
+                        <th className="text-center py-5 px-8 text-xs font-semibold text-gray-400 uppercase tracking-widest">{t("MIQDOR")}</th>
+                        <th className="text-right py-5 px-8 text-xs font-semibold text-gray-400 uppercase tracking-widest">{t("SUBTOTAL")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                       {selectedOrder.items?.map((item: any, idx: number) => (
                         <tr key={idx} className="group hover:bg-white dark:hover:bg-gray-800/50 transition-colors">
                           <td className="py-5 px-8">
-                            <p className="font-black text-gray-900 dark:text-white uppercase tracking-tight">{item.product?.name || t("MAHSULOT")}</p>
+                            <p className="font-semibold text-gray-900 dark:text-white uppercase tracking-tight">{item.product?.name || t("MAHSULOT")}</p>
                             <p className="text-[10px] font-bold text-gray-400 uppercase">{item.product?.bagType || '-'}</p>
                           </td>
                           <td className="py-5 px-8 text-center">
                             <div className="inline-flex items-center gap-3 px-4 py-2 bg-white dark:bg-gray-900 rounded-xl shadow-sm">
-                              <span className="text-xs font-black text-blue-600">{item.quantityBags} {t("QOP")}</span>
+                              <span className="text-xs font-bold text-blue-600">{item.quantityBags} {t("QOP")}</span>
                               <div className="w-1 h-1 bg-gray-200 rounded-full"></div>
-                              <span className="text-xs font-black text-purple-600">{item.quantityUnits} {t("DONA")}</span>
+                              <span className="text-xs font-bold text-purple-600">{item.quantityUnits} {t("DONA")}</span>
                             </div>
                           </td>
-                          <td className="py-5 px-8 text-right font-black text-emerald-600 tracking-tighter">
+                          <td className="py-5 px-8 text-right font-bold text-emerald-600 tracking-tight">
                             ${item.subtotal?.toFixed(2)}
                           </td>
                         </tr>
@@ -1589,20 +1660,20 @@ ID: SLS-${selectedOrder.id}
 
               {/* Status Actions Section */}
               <div className="pt-10 border-t border-gray-50 dark:border-gray-800">
-                <h4 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6 text-center">{t("AMALLAR")}</h4>
+                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-[0.2em] mb-6 text-center">{t("AMALLAR")}</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {selectedOrder.status === 'CONFIRMED' && (
                     <>
                       <button 
                         onClick={() => { changeStatus(selectedOrder.id, 'IN_PRODUCTION'); setShowDetail(false); }}
-                        className="h-16 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-black text-[10px] tracking-widest shadow-xl shadow-purple-500/20 transition-all active:scale-95 flex items-center justify-center gap-3"
+                        className="h-16 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-semibold text-xs tracking-widest shadow-xl shadow-purple-500/20 transition-all active:scale-95 flex items-center justify-center gap-3"
                       >
                         <Package className="w-5 h-5" />
                         {t("ISHLAB CHIQARISHNI BOSHLASH")}
                       </button>
                       <button 
                         onClick={() => { changeStatus(selectedOrder.id, 'CANCELLED'); setShowDetail(false); }}
-                        className="h-16 bg-rose-50 dark:bg-rose-900/20 text-rose-600 rounded-2xl font-black text-[10px] tracking-widest transition-all hover:bg-rose-600 hover:text-white active:scale-95"
+                        className="h-16 bg-rose-50 dark:bg-rose-900/20 text-rose-600 rounded-2xl font-semibold text-xs tracking-widest transition-all hover:bg-rose-600 hover:text-white active:scale-95"
                       >
                         {t("BUYURTMANI BEKOR QILISH")}
                       </button>
@@ -1612,14 +1683,14 @@ ID: SLS-${selectedOrder.id}
                     <>
                       <button 
                         onClick={() => { changeStatus(selectedOrder.id, 'READY'); setShowDetail(false); }}
-                        className="h-16 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-[10px] tracking-widest shadow-xl shadow-emerald-500/20 transition-all active:scale-95 flex items-center justify-center gap-3"
+                        className="h-16 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-semibold text-xs tracking-widest shadow-xl shadow-emerald-500/20 transition-all active:scale-95 flex items-center justify-center gap-3"
                       >
                         <CheckCircle className="w-5 h-5" />
                         {t("TAYYOR DEB BELGILASH")}
                       </button>
                       <button 
                         onClick={() => { changeStatus(selectedOrder.id, 'CANCELLED'); setShowDetail(false); }}
-                        className="h-16 bg-rose-50 dark:bg-rose-900/20 text-rose-600 rounded-2xl font-black text-[10px] tracking-widest transition-all hover:bg-rose-600 hover:text-white active:scale-95"
+                        className="h-16 bg-rose-50 dark:bg-rose-900/20 text-rose-600 rounded-2xl font-semibold text-xs tracking-widest transition-all hover:bg-rose-600 hover:text-white active:scale-95"
                       >
                         {t("BUYURTMANI BEKOR QILISH")}
                       </button>
@@ -1629,14 +1700,14 @@ ID: SLS-${selectedOrder.id}
                     <>
                       <button 
                         onClick={() => { setShowDetail(false); openPaymentModal(selectedOrder); }}
-                        className="h-16 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-[10px] tracking-widest shadow-xl shadow-emerald-500/20 transition-all active:scale-95 flex items-center justify-center gap-3"
+                        className="h-16 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-semibold text-xs tracking-widest shadow-xl shadow-emerald-500/20 transition-all active:scale-95 flex items-center justify-center gap-3"
                       >
                         <DollarSign className="w-5 h-5" />
                         {t("SOTUV VA TO'LOV QABUL QILISH")}
                       </button>
                       <button 
                         onClick={() => { changeStatus(selectedOrder.id, 'CANCELLED'); setShowDetail(false); }}
-                        className="h-16 bg-rose-50 dark:bg-rose-900/20 text-rose-600 rounded-2xl font-black text-[10px] tracking-widest transition-all hover:bg-rose-600 hover:text-white active:scale-95"
+                        className="h-16 bg-rose-50 dark:bg-rose-900/20 text-rose-600 rounded-2xl font-semibold text-xs tracking-widest transition-all hover:bg-rose-600 hover:text-white active:scale-95"
                       >
                         {t("BUYURTMANI BEKOR QILISH")}
                       </button>
@@ -1647,7 +1718,7 @@ ID: SLS-${selectedOrder.id}
                       <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center text-emerald-600 mx-auto mb-6">
                         <CheckCircle className="w-8 h-8" />
                       </div>
-                      <h5 className="text-xl font-black text-emerald-900 dark:text-emerald-100 uppercase tracking-tight mb-2">{t("BUYURTMA SOTILDI")}</h5>
+                      <h5 className="text-lg font-bold text-emerald-900 dark:text-emerald-100 uppercase tracking-tight mb-2">{t("BUYURTMA SOTILDI")}</h5>
                       <p className="text-sm font-bold text-emerald-600/70 uppercase tracking-widest">
                         {t("TO'LANGAN")}: ${selectedOrder.paidAmount?.toFixed(2)}
                       </p>
@@ -1665,7 +1736,7 @@ ID: SLS-${selectedOrder.id}
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xl flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
           <div className="bg-white dark:bg-gray-900 w-full max-w-2xl rounded-[3.5rem] overflow-hidden shadow-2xl border border-white/20 animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
             <div className="p-10 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center bg-emerald-50/30 dark:bg-emerald-900/10 shrink-0">
-              <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-4">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-4">
                 <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center text-emerald-600">
                   <DollarSign className="w-6 h-6" />
                 </div>
@@ -1681,8 +1752,8 @@ ID: SLS-${selectedOrder.id}
               <div className="relative overflow-hidden bg-gradient-to-br from-emerald-600 to-blue-700 rounded-[2.5rem] p-10 text-white shadow-xl">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
                 <div className="relative z-10 space-y-2">
-                  <p className="text-[10px] font-black text-emerald-100 uppercase tracking-[0.3em]">{t("JAMI TO'LOV SUMMASI")}</p>
-                  <h4 className="text-5xl font-black tracking-tighter leading-none">${selectedOrder.totalAmount?.toFixed(2)}</h4>
+                  <p className="text-xs font-semibold text-emerald-100 uppercase tracking-widest">{t("JAMI TO'LOV SUMMASI")}</p>
+                  <h4 className="text-3xl font-bold tracking-tight leading-none">${selectedOrder.totalAmount?.toFixed(2)}</h4>
                   <p className="text-xs font-bold text-emerald-100/70 uppercase tracking-widest mt-4">
                     ≈ {(selectedOrder.totalAmount * exchangeRates.USD_TO_UZS).toLocaleString()} UZS
                   </p>
@@ -1691,14 +1762,14 @@ ID: SLS-${selectedOrder.id}
 
               {/* Payment Grid */}
               <div className="space-y-6">
-                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("TO'LOV TURLARI")}</h4>
+                <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("TO'LOV TURLARI")}</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800 space-y-4">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center text-emerald-600">
                         <Banknote className="w-4 h-4" />
                       </div>
-                      <span className="text-[10px] font-black uppercase tracking-widest">UZS</span>
+                      <span className="text-xs font-semibold uppercase tracking-widest">UZS</span>
                     </div>
                     <input
                       type="text"
@@ -1709,7 +1780,7 @@ ID: SLS-${selectedOrder.id}
                         if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
                         setPaymentForm({ ...paymentForm, uzs: raw === '' ? 0 : parseFloat(raw) });
                       }}
-                      className="w-full bg-transparent font-black text-xl text-gray-900 dark:text-white outline-none"
+                      className="w-full bg-transparent font-semibold text-xl text-gray-900 dark:text-white outline-none"
                       placeholder="0"
                     />
                   </div>
@@ -1719,7 +1790,7 @@ ID: SLS-${selectedOrder.id}
                       <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center text-blue-600">
                         <DollarSign className="w-4 h-4" />
                       </div>
-                      <span className="text-[10px] font-black uppercase tracking-widest">USD</span>
+                      <span className="text-xs font-semibold uppercase tracking-widest">USD</span>
                     </div>
                     <input
                       type="text"
@@ -1730,7 +1801,7 @@ ID: SLS-${selectedOrder.id}
                         if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
                         setPaymentForm({ ...paymentForm, usd: raw === '' ? 0 : parseFloat(raw) });
                       }}
-                      className="w-full bg-transparent font-black text-xl text-gray-900 dark:text-white outline-none"
+                      className="w-full bg-transparent font-semibold text-xl text-gray-900 dark:text-white outline-none"
                       placeholder="0.00"
                     />
                   </div>
@@ -1740,7 +1811,7 @@ ID: SLS-${selectedOrder.id}
                       <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center text-purple-600">
                         <Smartphone className="w-4 h-4" />
                       </div>
-                      <span className="text-[10px] font-black uppercase tracking-widest">CLICK</span>
+                      <span className="text-[10px] font-semibold uppercase tracking-widest">CLICK</span>
                     </div>
                     <input
                       type="text"
@@ -1751,7 +1822,7 @@ ID: SLS-${selectedOrder.id}
                         if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
                         setPaymentForm({ ...paymentForm, click: raw === '' ? 0 : parseFloat(raw) });
                       }}
-                      className="w-full bg-transparent font-black text-xl text-gray-900 dark:text-white outline-none"
+                      className="w-full bg-transparent font-semibold text-xl text-gray-900 dark:text-white outline-none"
                       placeholder="0"
                     />
                   </div>
@@ -1767,19 +1838,19 @@ ID: SLS-${selectedOrder.id}
                         <AlertTriangle className="w-5 h-5" />
                       </div>
                       <div>
-                        <h5 className="text-[10px] font-black text-rose-600 uppercase tracking-widest">{t("QOLDIQ QARZ")}</h5>
-                        <p className="text-2xl font-black text-rose-900 dark:text-rose-100 tracking-tighter">${(selectedOrder.totalAmount - totalPaymentUSD).toFixed(2)}</p>
+                        <h5 className="text-[10px] font-semibold text-rose-600 uppercase tracking-widest">{t("QOLDIQ QARZ")}</h5>
+                        <p className="text-2xl font-bold text-rose-900 dark:text-rose-100 tracking-tight">${(selectedOrder.totalAmount - totalPaymentUSD).toFixed(2)}</p>
                       </div>
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("QARZNI QAYTARISH MUDDATI")}</label>
+                    <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("QARZNI QAYTARISH MUDDATI")}</label>
                     <input
                       type="date"
                       value={paymentForm.dueDate}
                       onChange={(e) => setPaymentForm({ ...paymentForm, dueDate: e.target.value })}
                       min={new Date().toISOString().split('T')[0]}
-                      className="w-full h-14 px-6 bg-white dark:bg-gray-900 border-2 border-transparent focus:border-rose-500 rounded-xl font-black transition-all outline-none"
+                      className="w-full h-14 px-6 bg-white dark:bg-gray-900 border-2 border-transparent focus:border-rose-500 rounded-xl font-bold transition-all outline-none"
                     />
                   </div>
                 </div>
@@ -1790,14 +1861,14 @@ ID: SLS-${selectedOrder.id}
                 <button
                   type="button"
                   onClick={() => openDriverPaymentModal(selectedOrder)}
-                  className="flex-1 h-16 rounded-[2rem] border-2 border-blue-100 dark:border-blue-800 font-black text-[10px] tracking-[0.2em] text-blue-600 hover:bg-blue-50 transition-all active:scale-95 flex items-center justify-center gap-3"
+                  className="flex-1 h-16 rounded-[2rem] border-2 border-blue-100 dark:border-blue-800 font-semibold text-[10px] tracking-[0.2em] text-blue-600 hover:bg-blue-50 transition-all active:scale-95 flex items-center justify-center gap-3"
                 >
                   <Truck className="w-4 h-4" />
                   {t("HAYDOVCHI TO'LOVI")}
                 </button>
                 <button
                   type="submit"
-                  className="flex-[2] h-16 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[2rem] font-black text-[10px] tracking-[0.2em] shadow-2xl shadow-emerald-500/30 transition-all active:scale-95 flex items-center justify-center gap-3"
+                  className="flex-[2] h-16 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[2rem] font-semibold text-[10px] tracking-[0.2em] shadow-2xl shadow-emerald-500/30 transition-all active:scale-95 flex items-center justify-center gap-3"
                 >
                   <CheckCircle className="w-4 h-4" />
                   {t("SOTUVNI YAKUNLASH")}
@@ -1813,11 +1884,11 @@ ID: SLS-${selectedOrder.id}
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xl flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
           <div className="bg-white dark:bg-gray-900 w-full max-w-2xl rounded-[3.5rem] overflow-hidden shadow-2xl border border-white/20 animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
             <div className="p-10 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center bg-blue-50/30 dark:bg-blue-900/10 shrink-0">
-              <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600">
-                  <Truck className="w-6 h-6" />
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center text-blue-600">
+                  <Truck className="w-5 h-5" />
                 </div>
-                {t("HAYDOVCHI")} <span className="text-blue-600">{t("TO'LOVI")}</span>
+                {t("Haydovchi")} <span className="text-blue-600">{t("to'lovi")}</span>
               </h3>
               <button onClick={() => setShowDriverPaymentModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400">
                 <MoreHorizontal className="w-5 h-5 rotate-45" />
@@ -1827,11 +1898,11 @@ ID: SLS-${selectedOrder.id}
             <form onSubmit={(e) => { e.preventDefault(); handleDriverPayment(); }} className="p-10 sm:p-16 overflow-y-auto custom-scrollbar space-y-10">
               <div className="bg-gray-50 dark:bg-gray-800/50 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 space-y-8">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("HAYDOVCHINI TANLANG")}</label>
+                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("HAYDOVCHINI TANLANG")}</label>
                   <select
                     value={driverPaymentForm.driverId}
                     onChange={(e) => setDriverPaymentForm({ ...driverPaymentForm, driverId: e.target.value })}
-                    className="w-full h-16 px-6 bg-white dark:bg-gray-900 border-2 border-transparent focus:border-blue-500 rounded-2xl font-black text-sm appearance-none outline-none transition-all shadow-sm"
+                    className="w-full h-16 px-6 bg-white dark:bg-gray-900 border-2 border-transparent focus:border-blue-500 rounded-2xl font-bold text-sm appearance-none outline-none transition-all shadow-sm"
                   >
                     <option value="">{t("Haydovchini tanlang...")}</option>
                     {drivers.filter(d => d.active).map(driver => (
@@ -1843,7 +1914,7 @@ ID: SLS-${selectedOrder.id}
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("TO'LOV USULI")}</label>
+                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("TO'LOV USULI")}</label>
                   <div className="grid grid-cols-3 gap-3">
                     {[
                       { id: 'CASH', label: t('NAQD'), icon: Banknote, color: 'emerald' },
@@ -1861,7 +1932,7 @@ ID: SLS-${selectedOrder.id}
                         }`}
                       >
                         <method.icon className={`w-6 h-6 ${driverPaymentForm.paymentMethod === method.id ? `text-${method.color}-600` : 'text-gray-400'}`} />
-                        <span className={`text-[9px] font-black uppercase tracking-widest ${driverPaymentForm.paymentMethod === method.id ? `text-${method.color}-700` : 'text-gray-400'}`}>
+                        <span className={`text-[9px] font-semibold uppercase tracking-widest ${driverPaymentForm.paymentMethod === method.id ? `text-${method.color}-700` : 'text-gray-400'}`}>
                           {method.label}
                         </span>
                       </button>
@@ -1870,7 +1941,7 @@ ID: SLS-${selectedOrder.id}
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("TO'LOV SUMMASI (USD)")}</label>
+                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("TO'LOV SUMMASI (USD)")}</label>
                   <div className="relative group">
                     <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400 group-focus-within:text-blue-600 transition-colors" />
                     <input
@@ -1882,14 +1953,14 @@ ID: SLS-${selectedOrder.id}
                         if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
                         setDriverPaymentForm({ ...driverPaymentForm, amount: raw === '' ? 0 : parseFloat(raw) });
                       }}
-                      className="w-full h-20 pl-16 pr-8 bg-white dark:bg-gray-900 border-2 border-transparent focus:border-blue-500 rounded-[1.5rem] font-black text-3xl transition-all outline-none shadow-sm text-blue-600"
+                      className="w-full h-20 pl-16 pr-8 bg-white dark:bg-gray-900 border-2 border-transparent focus:border-blue-500 rounded-[1.5rem] font-bold text-3xl transition-all outline-none shadow-sm text-blue-600"
                       placeholder="0.00"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{t("IZOH")}</label>
+                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("IZOH")}</label>
                   <textarea
                     value={driverPaymentForm.notes}
                     onChange={(e) => setDriverPaymentForm({ ...driverPaymentForm, notes: e.target.value })}
@@ -1903,16 +1974,16 @@ ID: SLS-${selectedOrder.id}
                 <button
                   type="button"
                   onClick={() => setShowDriverPaymentModal(false)}
-                  className="flex-1 h-16 rounded-[2rem] border-2 border-gray-100 dark:border-gray-800 font-black text-xs tracking-[0.2em] text-gray-400 hover:bg-gray-50 transition-all active:scale-95"
+                  className="flex-1 h-14 rounded-xl border-2 border-gray-100 dark:border-gray-800 font-semibold text-sm text-gray-400 hover:bg-gray-50 transition-all active:scale-95"
                 >
-                  {t("BEKOR QILISH")}
+                  {t("Bekor qilish")}
                 </button>
                 <button
                   type="submit"
-                  className="flex-[2] h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] font-black text-xs tracking-[0.2em] shadow-2xl shadow-blue-500/30 transition-all active:scale-95 flex items-center justify-center gap-3"
+                  className="flex-[2] h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm shadow-lg shadow-blue-500/30 transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
                   <CheckCircle className="w-5 h-5" />
-                  {t("TO'LOVNI TASDIQLASH")}
+                  {t("To'lovni tasdiqlash")}
                 </button>
               </div>
             </form>

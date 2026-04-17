@@ -32,7 +32,7 @@ export default function NotificationCenter() {
       setNotifications(data);
       setUnreadCount(data.filter((n: Notification) => !n.read).length);
     } catch (error) {
-      console.error('Bildirishnomalarni yuklashda xatolik');
+      console.error('Билдиришномаларни юклашда хатолик');
     }
   };
 
@@ -44,7 +44,7 @@ export default function NotificationCenter() {
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
-      console.error('Bildirishnomani o\'qilgan deb belgilashda xatolik');
+      console.error('Билдиришномани ўқилган деб белгилашда хатолик');
     }
   };
 
@@ -54,7 +54,7 @@ export default function NotificationCenter() {
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (error) {
-      console.error('Barcha bildirishnomalarni o\'qilgan deb belgilashda xatolik');
+      console.error('Барча билдиришномаларни ўқилган деб белгилашда хатолик');
     }
   };
 
@@ -75,10 +75,10 @@ export default function NotificationCenter() {
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
 
-    if (diffMins < 1) return 'Hozir';
-    if (diffMins < 60) return `${diffMins} daqiqa oldin`;
-    if (diffHours < 24) return `${diffHours} soat oldin`;
-    return `${diffDays} kun oldin`;
+    if (diffMins < 1) return 'Ҳозир';
+    if (diffMins < 60) return `${diffMins} дақиқа олдин`;
+    if (diffHours < 24) return `${diffHours} соат олдин`;
+    return `${diffDays} кун олдин`;
   };
 
   return (
@@ -98,7 +98,7 @@ export default function NotificationCenter() {
       {isOpen && (
         <div className="absolute right-0 top-full mt-2 w-80 bg-card border border-border rounded-lg shadow-lg z-50">
           <div className="flex items-center justify-between p-4 border-b border-border">
-            <h3 className="font-semibold">Bildirishnomalar</h3>
+            <h3 className="font-semibold">Билдиришномалар</h3>
             <div className="flex items-center gap-2">
               {unreadCount > 0 && (
                 <Button
@@ -107,7 +107,7 @@ export default function NotificationCenter() {
                   onClick={markAllAsRead}
                   className="text-xs"
                 >
-                  Barchasini o'qilgan deb belgilash
+                  Барчасини ўқилган деб белгилаш
                 </Button>
               )}
               <button
@@ -122,7 +122,7 @@ export default function NotificationCenter() {
           <div className="max-h-96 overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="p-4 text-center text-muted-foreground">
-                Bildirishnomalar yo'q
+                Билдиришномалар йўқ
               </div>
             ) : (
               notifications.map((notification) => (
@@ -168,7 +168,7 @@ export default function NotificationCenter() {
                   // Navigate to notifications page
                 }}
               >
-                Barcha bildirishnomalarni ko'rish
+                Барча билдиришномаларни кўриш
               </Button>
             </div>
           )}

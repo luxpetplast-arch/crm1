@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/Card';
 import Button from '../components/Button';
-import api from '../lib/api';
-import { Package, Eye, Trash2, Plus, ChevronDown, Search, Expand, Minimize2, RefreshCw, List, LayoutGrid, Pencil, Check, X } from 'lucide-react';
+import api from '../lib/professionalApi';
+import { Package, Eye, Trash2, Plus, ChevronDown, Search, Expand, Minimize2, RefreshCw, List, LayoutGrid, Pencil, Check, X, AlertCircle } from 'lucide-react';
 
 export default function ProductsGrouped() {
   const navigate = useNavigate();
@@ -224,169 +224,165 @@ export default function ProductsGrouped() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Омборни танлаш (Tabs) - ЭНГ ТЕПАДА */}
-      <div className="sticky top-0 z-30 bg-gray-50/80 backdrop-blur-md py-2 -mx-2 px-2 border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-2">
-          <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mr-2 hidden lg:block">
-            Омбор Бўлими:
-          </div>
-          <div className="flex flex-wrap gap-1.5 sm:gap-2">
-            {[
-              { id: 'all', label: 'Ҳаммаси', icon: '📋', activeClass: 'bg-emerald-600 ring-emerald-100 text-white', hoverClass: 'text-emerald-600 hover:bg-emerald-50' },
-              { id: 'preform', label: 'Преформа', icon: '📦', activeClass: 'bg-blue-600 ring-blue-100 text-white', hoverClass: 'text-blue-600 hover:bg-blue-50' },
-              { id: 'krishka', label: 'Қопқоқ', icon: '⭕', activeClass: 'bg-orange-600 ring-orange-100 text-white', hoverClass: 'text-orange-600 hover:bg-orange-50' },
-              { id: 'ruchka', label: 'Ручка', icon: '🎗️', activeClass: 'bg-green-600 ring-green-100 text-white', hoverClass: 'text-green-600 hover:bg-green-50' },
-              { id: 'other', label: 'Бошқа', icon: '🛠️', activeClass: 'bg-gray-600 ring-gray-100 text-white', hoverClass: 'text-gray-600 hover:bg-gray-50' }
-            ].map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategory(cat.id as any)}
-                className={`flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all duration-300 ${
-                  activeCategory === cat.id 
-                    ? `${cat.activeClass} shadow-lg ring-4 scale-105` 
-                    : `bg-white border border-gray-200 text-gray-500 shadow-sm ${cat.hoverClass}`
-                }`}
-              >
-                <span className="text-base sm:text-lg">{cat.icon}</span>
-                <span>{cat.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Header - MOBIL OPTIMALLASHTIRILGAN */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-2">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-            <Package className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
-            Маҳсулотлар
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Омбор бошқаруви ва мониторинг
-          </p>
-        </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Button 
-            onClick={loadProducts}
-            variant="outline"
-            className="min-h-[44px] text-xs sm:text-sm"
-            title="Mahsulotlarni yangilash"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </Button>
-          <Button
-            onClick={() => setViewMode(viewMode === 'grouped' ? 'list' : 'grouped')}
-            variant="outline"
-            className={`min-h-[44px] text-xs sm:text-sm ${viewMode === 'list' ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : ''}`}
-            title={viewMode === 'list' ? "Guruhlangan ko'rinish" : "Ro'yxat ko'rinishi"}
-          >
-            {viewMode === 'list' ? <LayoutGrid className="w-4 h-4" /> : <List className="w-4 h-4" />}
-          </Button>
-          <Button 
-            onClick={() => window.location.href = isCashier ? '/cashier/add-product' : '/add-product'} 
-            className="w-full sm:w-auto min-h-[44px] bg-green-600 hover:bg-green-700 text-xs sm:text-sm"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            {isCashier ? 'Mahsulot Qo\'shish' : 'Янги Маҳсулот'}
-          </Button>
-        </div>
-      </div>
-
-      {/* Statistika - ZAMONAVIY KOMPAKT */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-        <div className={`p-3 rounded-xl shadow-md text-white ${
-          activeCategory === 'all' ? 'bg-gradient-to-br from-emerald-500 to-emerald-600' :
-          activeCategory === 'preform' ? 'bg-gradient-to-br from-blue-500 to-blue-600' :
-          activeCategory === 'krishka' ? 'bg-gradient-to-br from-orange-500 to-orange-600' :
-          activeCategory === 'ruchka' ? 'bg-gradient-to-br from-green-500 to-green-600' :
-          'bg-gradient-to-br from-gray-500 to-gray-600'
-        }`}>
-          <div className="flex items-center gap-2">
-            <Package className="w-5 h-5" />
-            <span className="text-xs opacity-90">Турдаги</span>
-          </div>
-          <p className="text-2xl font-bold mt-1">
-            {statsFilteredProducts.length}
-          </p>
-        </div>
-
-        <div className={`p-3 rounded-xl shadow-md text-white ${
-          activeCategory === 'all' ? 'bg-gradient-to-br from-teal-500 to-teal-600' :
-          activeCategory === 'preform' ? 'bg-gradient-to-br from-indigo-500 to-indigo-600' :
-          activeCategory === 'krishka' ? 'bg-gradient-to-br from-amber-500 to-amber-600' :
-          activeCategory === 'ruchka' ? 'bg-gradient-to-br from-emerald-500 to-emerald-600' :
-          'bg-gradient-to-br from-slate-500 to-slate-600'
-        }`}>
-          <div className="flex items-center gap-2">
-            <span className="text-lg">📦</span>
-            <span className="text-xs opacity-90">Қоплар</span>
-          </div>
-          <p className="text-2xl font-bold mt-1">
-            {statsFilteredProducts.reduce((sum, p) => sum + (p.currentStock || 0), 0)}
-          </p>
-        </div>
-
-        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-3 rounded-xl shadow-md text-white">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">✅</span>
-            <span className="text-xs opacity-90">Яхши</span>
-          </div>
-          <p className="text-2xl font-bold mt-1">
-            {statsFilteredProducts.filter(p => (p.currentStock || 0) >= (p.minStockLimit || 50)).length}
-          </p>
-        </div>
-
-        <div className={`p-3 rounded-xl shadow-md text-white ${
-          statsFilteredProducts.filter(p => (p.currentStock || 0) < (p.minStockLimit || 50)).length > 0
-            ? 'bg-gradient-to-br from-red-500 to-red-600' 
-            : 'bg-gradient-to-br from-green-500 to-green-600'
-        }`}>
-          <div className="flex items-center gap-2">
-            <span className="text-lg">⚠️</span>
-            <span className="text-xs opacity-90">
-              {statsFilteredProducts.filter(p => (p.currentStock || 0) < (p.minStockLimit || 50)).length > 0 ? 'Кам' : 'Оптимал'}
+      {/* Омборни танлаш (Tabs) - Eng tepada */}
+      <div className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider mr-2 hidden sm:block">
+              Бўлим:
             </span>
+            {[
+              { id: 'all', label: 'Ҳаммаси', icon: '📋', color: 'emerald' },
+              { id: 'preform', label: 'Преформа', icon: '📦', color: 'blue' },
+              { id: 'krishka', label: 'Қопқоқ', icon: '⭕', color: 'orange' },
+              { id: 'ruchka', label: 'Ручка', icon: '🎗️', color: 'green' },
+              { id: 'other', label: 'Бошқа', icon: '�️', color: 'gray' }
+            ].map((cat) => {
+              const isActive = activeCategory === cat.id;
+              const colorClasses = {
+                emerald: isActive ? 'bg-emerald-600 text-white' : 'bg-white text-gray-600 hover:bg-emerald-50 hover:text-emerald-600',
+                blue: isActive ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600',
+                orange: isActive ? 'bg-orange-600 text-white' : 'bg-white text-gray-600 hover:bg-orange-50 hover:text-orange-600',
+                green: isActive ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-green-50 hover:text-green-600',
+                gray: isActive ? 'bg-gray-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-600'
+              };
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveCategory(cat.id as any)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all border ${
+                    isActive ? 'shadow-md border-transparent' : 'border-gray-200 shadow-sm'
+                  } ${colorClasses[cat.color as keyof typeof colorClasses]}`}
+                >
+                  <span className="text-base">{cat.icon}</span>
+                  <span>{cat.label}</span>
+                </button>
+              );
+            })}
           </div>
-          <p className="text-2xl font-bold mt-1">
-            {statsFilteredProducts.filter(p => (p.currentStock || 0) < (p.minStockLimit || 50)).length}
-          </p>
         </div>
       </div>
 
-      {/* Qidiruv va boshqaruv - KOMPAKT */}
-      <div className="sticky top-0 z-10 bg-gray-50/95 backdrop-blur-sm py-2 -mx-2 px-2">
-        <div className="flex flex-col sm:flex-row gap-2 items-center">
+      {/* Header - Zamonaviy va Professional */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+              <Package className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                Маҳсулотлар
+              </h1>
+              <p className="text-sm text-gray-500">
+                Омбор бошқаруви ва мониторинг
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button 
+              onClick={loadProducts}
+              variant="outline"
+              className="min-h-[44px] text-xs sm:text-sm"
+              title="Mahsulotlarni yangilash"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </Button>
+            <Button
+              onClick={() => setViewMode(viewMode === 'grouped' ? 'list' : 'grouped')}
+              variant="outline"
+              className={`min-h-[44px] text-xs sm:text-sm ${viewMode === 'list' ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : ''}`}
+            >
+              {viewMode === 'list' ? <LayoutGrid className="w-4 h-4" /> : <List className="w-4 h-4" />}
+            </Button>
+            <Button 
+              onClick={() => window.location.href = isCashier ? '/cashier/add-product' : '/add-product'} 
+              className="min-h-[44px] bg-green-600 hover:bg-green-700 text-xs sm:text-sm"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Янги Маҳсулот
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Statistika - Zamonaviy Kartochkalar */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { 
+            label: 'Жами турлар', 
+            value: statsFilteredProducts.length,
+            icon: Package,
+            color: 'from-blue-500 to-blue-600',
+            bgColor: 'bg-blue-50'
+          },
+          { 
+            label: 'Жами қоплар', 
+            value: statsFilteredProducts.reduce((sum, p) => sum + (p.currentStock || 0), 0),
+            icon: Package,
+            color: 'from-emerald-500 to-emerald-600',
+            bgColor: 'bg-emerald-50'
+          },
+          { 
+            label: 'Яхши ҳолатда', 
+            value: statsFilteredProducts.filter(p => (p.currentStock || 0) >= (p.minStockLimit || 50)).length,
+            icon: Check,
+            color: 'from-green-500 to-green-600',
+            bgColor: 'bg-green-50'
+          },
+          { 
+            label: 'Кам қолган', 
+            value: statsFilteredProducts.filter(p => (p.currentStock || 0) < (p.minStockLimit || 50)).length,
+            icon: AlertCircle,
+            color: statsFilteredProducts.filter(p => (p.currentStock || 0) < (p.minStockLimit || 50)).length > 0 ? 'from-red-500 to-red-600' : 'from-green-500 to-green-600',
+            bgColor: statsFilteredProducts.filter(p => (p.currentStock || 0) < (p.minStockLimit || 50)).length > 0 ? 'bg-red-50' : 'bg-green-50'
+          }
+        ].map((stat, index) => (
+          <div key={index} className={`${stat.bgColor} rounded-xl p-4 border border-gray-100`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">{stat.label}</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
+              </div>
+              <div className={`w-10 h-10 bg-gradient-to-br ${stat.color} rounded-lg flex items-center justify-center shadow-md`}>
+                <stat.icon className="w-5 h-5 text-white" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Qidiruv va boshqaruv - Zamonaviy */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3">
+        <div className="flex flex-col sm:flex-row gap-3 items-center">
           <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Қидириш..."
+              placeholder="Маҳсулот қидириш..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-12 pr-4 py-3 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
             />
           </div>
-          <div className="flex gap-1 w-full sm:w-auto">
+          <div className="flex gap-2 w-full sm:w-auto">
             <Button
               variant="outline"
-              size="sm"
               onClick={() => setExpandedGroups(sizes)}
-              className="flex-1 sm:flex-none items-center gap-1 text-xs py-2 px-3"
+              className="flex-1 sm:flex-none items-center gap-2 text-sm py-2.5 px-4 rounded-xl"
             >
-              <Expand className="w-3 h-3" />
-              <span className="sm:hidden">Очиш</span>
+              <Expand className="w-4 h-4" />
               <span className="hidden sm:inline">Барчасини очиш</span>
+              <span className="sm:hidden">Очиш</span>
             </Button>
             <Button
               variant="outline"
-              size="sm"
               onClick={() => setExpandedGroups([])}
-              className="flex-1 sm:flex-none items-center gap-1 text-xs py-2 px-3"
+              className="flex-1 sm:flex-none items-center gap-2 text-sm py-2.5 px-4 rounded-xl"
             >
-              <Minimize2 className="w-3 h-3" />
-              <span className="sm:hidden">Ёпиш</span>
+              <Minimize2 className="w-4 h-4" />
               <span className="hidden sm:inline">Барчасини ёпиш</span>
+              <span className="sm:hidden">Ёпиш</span>
             </Button>
           </div>
         </div>
@@ -404,22 +400,22 @@ export default function ProductsGrouped() {
             <Card key={size} className="border border-gray-200 shadow-sm rounded-lg overflow-hidden">
               {/* Guruh header - KOMPAKT */}
               <div 
-                className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white cursor-pointer"
+                className="p-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white cursor-pointer"
                 onClick={() => toggleGroup(size)}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <div className={`transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-                      <ChevronDown className="w-4 h-4" />
+                      <ChevronDown className="w-5 h-5" />
                     </div>
-                    <div>
-                      <span className="font-bold">{size}</span>
-                      <span className="text-xs opacity-80 ml-2">{sizeProducts.length} тур • {totalStock} қоп</span>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-base">{size}</span>
+                      <span className="text-xs opacity-80">{sizeProducts.length} тур • {totalStock} қоп</span>
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold">${avgPrice.toFixed(2)}</span>
+                    <span className="text-sm font-semibold bg-white/20 px-3 py-1 rounded-lg">${avgPrice.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -432,33 +428,33 @@ export default function ProductsGrouped() {
                     return (
                       <div 
                         key={product.id}
-                        className="flex items-center justify-between p-2 hover:bg-gray-50"
+                        className="flex items-center justify-between p-3 hover:bg-gray-50 transition-colors"
                       >
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${status.bgColor.replace(/border-2 border-\w+-300/, '')}`}></div>
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${status.bgColor.replace(/border-2 border-\w+-300/, '')}`}></div>
                           <span className="font-medium text-sm text-gray-800 truncate">{product.name}</span>
                         </div>
-                        <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="flex items-center gap-4 flex-shrink-0">
                           <div className="text-right">
-                            <span className={`text-xs font-semibold ${status.color}`}>{status.label}</span>
-                            <span className="text-xs text-gray-600 ml-1">{product.currentStock || 0} қоп</span>
+                            <span className={`text-xs font-semibold ${status.color} block`}>{status.label}</span>
+                            <span className="text-xs text-gray-500">{product.currentStock || 0} қоп</span>
                           </div>
-                          <span className="text-sm font-bold text-green-600 min-w-[60px] text-right">${(product.pricePerBag || 0).toFixed(2)}</span>
-                          <div className="flex gap-1">
+                          <span className="text-base font-bold text-green-600 min-w-[70px] text-right">${(product.pricePerBag || 0).toFixed(2)}</span>
+                          <div className="flex gap-2">
                             <button
                               onClick={() => navigate(getProductDetailPath(product.id))}
-                              className="p-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                              className="p-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                               title="Батафсил"
                             >
-                              <Eye className="w-3 h-3" />
+                              <Eye className="w-4 h-4" />
                             </button>
                             {!isCashier && (
                               <button
                                 onClick={() => deleteProduct(product.id)}
-                                className="p-1 bg-red-500 text-white rounded hover:bg-red-600"
+                                className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
                                 title="Ўчириш"
                               >
-                                <Trash2 className="w-3 h-3" />
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             )}
                           </div>
@@ -475,7 +471,7 @@ export default function ProductsGrouped() {
 
       {products.length === 0 && (
         <Card className="p-8 text-center">
-          <Package className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+          <Package className="w-16 h-16 text-muted-foreground mx-auto mb-4 rounded-lg" />
           <h3 className="text-xl font-semibold mb-2">Маҳсулотлар йўқ</h3>
           <p className="text-muted-foreground mb-4">
             Биринчи маҳсулотни қўшиш учун "Янги Маҳсулот" тугмасини босинг

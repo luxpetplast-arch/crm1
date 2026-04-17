@@ -14,10 +14,10 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
   if (!isOpen) return null;
 
   const sizeClasses = {
-    sm: 'max-w-md',
-    md: 'max-w-lg',
-    lg: 'max-w-2xl',
-    xl: 'max-w-4xl',
+    sm: 'max-w-lg',
+    md: 'max-w-xl',
+    lg: 'max-w-3xl',
+    xl: 'max-w-5xl',
   };
 
   return (
@@ -31,26 +31,26 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
       {/* Modal */}
       <div className={cn(
         'relative bg-card border border-border shadow-2xl w-full',
-        'rounded-t-2xl sm:rounded-lg',
+        'rounded-t-2xl sm:rounded-2xl',
         'max-h-[90vh] sm:max-h-[85vh]',
         'flex flex-col',
         'animate-slide-up sm:animate-fade-in',
         sizeClasses[size]
       )}>
         {/* Header - Sticky */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border sticky top-0 bg-card z-10 flex-shrink-0">
-          <h2 className="text-lg sm:text-xl font-semibold pr-8">{title}</h2>
+        <div className="flex items-center justify-between p-6 sm:p-8 border-b border-border sticky top-0 bg-card z-10 flex-shrink-0">
+          <h2 className="text-xl sm:text-2xl font-bold pr-8">{title}</h2>
           <button
             onClick={onClose}
-            className="absolute right-4 top-4 sm:top-6 text-muted-foreground hover:text-foreground transition-colors p-2 hover:bg-accent rounded-lg active:scale-95"
+            className="absolute right-6 top-6 sm:top-8 text-muted-foreground hover:text-foreground transition-colors p-3 hover:bg-accent rounded-xl active:scale-95"
             aria-label="Yopish"
           >
-            <X className="w-5 h-5 sm:w-6 sm:h-6" />
+            <X className="w-6 h-6 sm:w-7 sm:h-7" />
           </button>
         </div>
         
         {/* Content - Scrollable */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1">
+        <div className="p-6 sm:p-8 overflow-y-auto flex-1">
           {children}
         </div>
       </div>

@@ -1,10 +1,9 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 import { OrderWorkflow } from '../services/order-workflow';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.use(authenticate);
 
@@ -172,7 +171,7 @@ router.put('/:id/status', authorize('ADMIN', 'CASHIER', 'MANAGER', 'WAREHOUSE_MA
         // Barcha mahsulotlar omborda borligini tekshirish
         let allProductsReady = true;
         for (const item of order.items) {
-          if (item.product.currentStock < item.quantityBags) {
+          if (item.product && item.product.currentStock < item.quantityBags) {
             allProductsReady = false;
             break;
           }
@@ -465,16 +464,16 @@ router.post('/:id/sell', authorize('ADMIN', 'CASHIER', 'MANAGER'), async (req: A
     for (const item of order.items) {
       try {
         await prisma.product.update({
-          where: { id: item.productId },
+          where: { id: item.productId! },
           data: {
             currentStock: {
               decrement: item.quantityBags
             }
           }
         });
-        console.log(`✅ Mahsulot zaxirasi kamaytirildi: ${item.product.name} - ${item.quantityBags} qop`);
+        console.log(`✅ Mahsulot zaxirasi kamaytirildi: ${item.product?.name || 'Noma\'lum'} - ${item.quantityBags} qop`);
       } catch (stockError) {
-        console.error(`⚠️ Zaxirani kamaytirishda xatolik (${item.product.name}):`, stockError);
+        console.error(`⚠️ Zaxirani kamaytirishda xatolik (${item.product?.name || 'Noma\'lum'}):`, stockError);
         // Zaxira xatosi sotuvni to'xtatmasligi kerak
       }
     }
@@ -486,7 +485,7 @@ router.post('/:id/sell', authorize('ADMIN', 'CASHIER', 'MANAGER'), async (req: A
         await sendInvoiceToCustomer(order.customer.telegramChatId, {
           orderNumber: order.orderNumber,
           items: order.items.map(item => ({
-            name: item.product.name,
+            name: item.product?.name || 'Noma\'lum',
             quantity: `${item.quantityBags} qop, ${item.quantityUnits} dona`,
             price: item.pricePerBag,
             subtotal: item.subtotal
@@ -589,7 +588,7 @@ router.post('/:id/driver-payment', authorize('ADMIN', 'CASHIER', 'MANAGER'), asy
     if (order.paidAmount === 0 && updatedOrder.status === 'SOLD') {
       for (const item of order.items) {
         await prisma.product.update({
-          where: { id: item.productId },
+          where: { id: item.productId! },
           data: {
             currentStock: {
               decrement: item.quantityBags

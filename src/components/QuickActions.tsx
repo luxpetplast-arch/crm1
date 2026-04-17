@@ -10,7 +10,7 @@ export default function QuickActions() {
   const actions = [
     {
       icon: ShoppingCart,
-      label: 'Янги Сотув',
+      label: 'Yangi Sotuv',
       color: 'bg-green-500 hover:bg-green-600',
       path: '/sales',
     },
@@ -40,7 +40,7 @@ export default function QuickActions() {
     },
     {
       icon: Truck,
-      label: 'Ятказувчи',
+      label: 'Таъминловчи',
       color: 'bg-indigo-500 hover:bg-indigo-600',
       path: '/suppliers',
     },
@@ -50,11 +50,14 @@ export default function QuickActions() {
     <>
       {/* Floating Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          console.log('QuickActions main button clicked, isOpen:', isOpen);
+          setIsOpen(!isOpen);
+        }}
         className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all ${
           isOpen 
-            ? 'bg-destructive hover:bg-destructive/90 rotate-45' 
-            : 'bg-primary hover:bg-primary/90'
+            ? 'bg-red-500 hover:bg-red-600 rotate-45' 
+            : 'bg-blue-500 hover:bg-blue-600'
         }`}
       >
         <Plus className="w-6 h-6 text-white" />
@@ -70,7 +73,7 @@ export default function QuickActions() {
           />
           
           {/* Actions Grid */}
-          <div className="fixed bottom-24 right-6 z-50 animate-slide-in">
+          <div className="fixed bottom-24 right-6 z-50 animate-fade-in">
             <Card>
               <CardContent className="p-4 w-80">
                 <h3 className="font-semibold mb-4">Тезкор Амаллар</h3>
@@ -81,6 +84,7 @@ export default function QuickActions() {
                       <button
                         key={action.label}
                         onClick={() => {
+                          console.log('QuickActions button clicked:', action.label, action.path);
                           navigate(action.path);
                           setIsOpen(false);
                         }}

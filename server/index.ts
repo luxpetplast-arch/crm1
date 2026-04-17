@@ -43,16 +43,27 @@ import printRoutes from './routes/print';
 import bagLabelRoutes from './routes/bag-labels';
 import businessAIRoutes from './routes/business-ai';
 import budgetRoutes from './routes/budgets';
-import loanRoutes from './routes/loans';
+// import loanRoutes from './routes/loans'; // Fayl yo'q
 import { botManager } from './bot/bot-manager';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+console.log('🚀 Server starting...');
+console.log('🔐 JWT_SECRET exists:', !!process.env.JWT_SECRET);
+
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:25852',
+  'http://127.0.0.1:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173'
+];
+
 app.use(cors({
-  origin: '*',
+  origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id', 'X-Request-ID', 'x-request-time', 'X-Request-Time'],
   credentials: true
 }));
 app.use(express.json());
@@ -104,10 +115,44 @@ app.use('/api/export', exportRoutes);
 app.use('/api/print', printRoutes);
 app.use('/api/bag-labels', bagLabelRoutes);
 app.use('/api/budgets', budgetRoutes);
-app.use('/api/loans', loanRoutes);
+// app.use('/api/loans', loanRoutes); // Fayl yo'q
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Global error handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Unhandled error:', err);
+  res.status(err.status || 500).json({
+    status: 'error',
+    message: process.env.NODE_ENV === 'production' 
+      ? 'Internal server error' 
+      : err.message
+  });
+});
+
+// Auth test endpoint
+import jwt from 'jsonwebtoken';
+app.get('/api/test-auth', (req, res) => {
+  const auth = req.headers.authorization;
+  console.log('🧪 Test auth - Header present:', !!auth);
+  
+  if (!auth) {
+    return res.status(401).json({ error: 'No auth header' });
+  }
+  
+  const token = auth.split(' ')[1];
+  console.log('🧪 Test auth - Token:', token ? token.substring(0, 30) + '...' : 'missing');
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!);
+    console.log('✅ Test auth - Valid, user:', (decoded as any).id);
+    res.json({ valid: true, user: decoded });
+  } catch (e) {
+    console.log('❌ Test auth - Invalid:', e instanceof Error ? e.message : 'Unknown');
+    res.status(401).json({ valid: false, error: e instanceof Error ? e.message : 'Unknown error' });
+  }
 });
 
 app.listen(PORT, async () => {

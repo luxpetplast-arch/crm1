@@ -5,8 +5,7 @@
 CREATE TABLE IF NOT EXISTS "Budget" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "category" TEXT NOT NULL,
-    "amount" REAL NOT NULL,
-    "spent" REAL NOT NULL DEFAULT 0,
+    "amount" REAL NOT NULL,qiyaq NULL DEFAULT 0,
     "currency" TEXT NOT NULL DEFAULT 'UZS',
     "month" INTEGER NOT NULL,
     "year" INTEGER NOT NULL,
@@ -53,7 +52,7 @@ CREATE TABLE IF NOT EXISTS "LoanRepayment" (
     "amount" REAL NOT NULL,
     "date" DATETIME NOT NULL,
     "type" TEXT NOT NULL DEFAULT 'MANUAL',
-    "source" TEXT,
+    "source" TE
     "notes" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -82,4 +81,4 @@ CREATE INDEX IF NOT EXISTS "EmployeeLoan_employeeId_idx" ON "EmployeeLoan"("empl
 CREATE INDEX IF NOT EXISTS "EmployeeLoan_status_idx" ON "EmployeeLoan"("status");
 CREATE INDEX IF NOT EXISTS "LoanRepayment_loanId_idx" ON "LoanRepayment"("loanId");
 CREATE INDEX IF NOT EXISTS "ScheduledPayment_loanId_idx" ON "ScheduledPayment"("loanId");
-CREATE INDEX IF NOT EXISTS "ScheduledPayment_dueDate_idx" ON "ScheduledPayment"("dueDate");
+CREATE INDEX IF NOT EXISTS "ScheduledPayment_dueDate_idx" ON "ScheduledPayment"( "dueDate");

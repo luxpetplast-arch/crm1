@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 import { botManager } from '../bot/bot-manager';
-
-const prisma = new PrismaClient();
 
 export class OrderWorkflow {
   

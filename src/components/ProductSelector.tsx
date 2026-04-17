@@ -2,21 +2,6 @@ import { Search, ChevronDown, ChevronRight, Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { latinToCyrillic } from '../lib/transliterator';
 
-// ... (existing helper functions and interfaces remain same)
-const getCardTypeLabel = (cardType: string): string => {
-  switch (cardType) {
-    case 'STANDART':
-      return 'Standart';
-    case 'PREMIUM':
-      return 'Premium';
-    case 'ECO':
-      return 'Ekologik';
-    case 'LUXURY':
-      return 'Luxury';
-    default:
-      return cardType;
-  }
-};
 
 interface Product {
   id: string;
@@ -42,12 +27,8 @@ interface ProductSelectorProps {
   onSearchChange: (value: string) => void;
   onSelect: (id: string, name: string, pricePerBag: number, unitsPerBag?: number, cardType?: string, pricePerPiece?: number) => void;
   customerPrice?: number;
-  onPriceClick?: (productId: string) => void;
   favorites?: string[];
   onToggleFavorite?: (productId: string) => void;
-  categories?: string[];
-  selectedCategory?: string;
-  onCategoryChange?: (category: string) => void;
   showFavoritesOnly?: boolean;
   onToggleFavorites?: () => void;
 }
@@ -59,12 +40,8 @@ export default function ProductSelector({
   onSearchChange,
   onSelect,
   customerPrice,
-  onPriceClick,
   favorites = [],
   onToggleFavorite,
-  categories = [],
-  selectedCategory,
-  onCategoryChange,
   showFavoritesOnly,
   onToggleFavorites,
 }: ProductSelectorProps) {
@@ -138,16 +115,27 @@ export default function ProductSelector({
     items.forEach(product => {
       let size = 'Boshqa';
       const name = product.name.toLowerCase();
+      
       if (name.includes('krishka')) {
         const match = name.match(/(\d+)krishka/i);
         size = match ? `${match[1]}krishka` : 'Boshqa';
       } else if (name.includes('ruchka')) {
         const match = name.match(/(\d+)ruchka/i);
         size = match ? `${match[1]}ruchka` : 'Boshqa';
+      } else if (name.includes('cap') || name.includes('qopqoq')) {
+        // Qopqo'q mahsulotlarini o'lcham bo'yicha guruhlash
+        const match = name.match(/(\d+)(l|liter|l)/i);
+        if (match) {
+          size = `${match[1]}L`;
+        } else {
+          // Agar o'lcham topilmasa, umumiy guruhga qo'shish
+          size = 'Qopqoq';
+        }
       } else {
         const match = name.match(/(\d+)gr/i) || name.match(/(\d+)g/i);
         size = match ? `${match[1]}gr` : 'Boshqa';
       }
+      
       if (!groups[size]) groups[size] = [];
       groups[size].push(product);
     });
@@ -157,9 +145,21 @@ export default function ProductSelector({
   const groupedBySizes = groupProducts(parentProducts);
   
   const availableSizes = Object.keys(groupedBySizes).filter(size => groupedBySizes[size].length > 0).sort((a, b) => {
+    // L (liter) > gr > krishka > ruchka tartibida
+    if (a.includes('L') && !b.includes('L')) return -1;
+    if (!a.includes('L') && b.includes('L')) return 1;
+    
+    if (a.includes('gr') && !b.includes('gr') && !b.includes('L')) return -1;
+    if (!a.includes('gr') && b.includes('gr') && !a.includes('L')) return 1;
+    
+    if (a.includes('krishka') && !b.includes('krishka') && !b.includes('gr') && !b.includes('L')) return -1;
+    if (!a.includes('krishka') && b.includes('krishka') && !a.includes('gr') && !a.includes('L')) return 1;
+    
+    // Raqamli bo'lsa, raqam bo'yicha tartiblash
     const aMatch = a.match(/(\d+)/);
     const bMatch = b.match(/(\d+)/);
     if (aMatch && bMatch) return parseInt(aMatch[1]) - parseInt(bMatch[1]);
+    
     return a.localeCompare(b);
   });
 
@@ -170,15 +170,7 @@ export default function ProductSelector({
     sizes: availableSizes
   });
 
-  const getCategoryColor = (catId: string) => {
-    switch (catId) {
-      case 'preform' : return 'bg-blue-600';
-      case 'krishka': return 'bg-orange-600';
-      case 'ruchka': return 'bg-green-600';
-      default: return 'bg-gray-600';
-    }
-  };
-
+  
   return (
     <div className="space-y-4">
       {/* Search and favorites */}
@@ -186,7 +178,7 @@ export default function ProductSelector({
         <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
         <input
           type="text"
-          placeholder={latinToCyrillic("Mahsulot nomini kiriting...")}
+          placeholder={latinToCyrillic("Маҳсулот номини киритинг...")}
           value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
           className="w-full pl-12 pr-14 py-4 text-lg font-semibold bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-2xl focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 dark:focus:ring-emerald-900 transition-all duration-200 shadow-sm"
@@ -200,7 +192,7 @@ export default function ProductSelector({
                 ? 'text-yellow-600 bg-yellow-100 hover:bg-yellow-200 shadow-md'
                 : 'text-gray-400 hover:text-yellow-500 hover:bg-yellow-50'
             }`}
-            title={showFavoritesOnly ? latinToCyrillic('Barcha mahsulotlar') : latinToCyrillic('Faqat sevimlilar')}
+            title={showFavoritesOnly ? latinToCyrillic('Барча маҳсулотлар') : latinToCyrillic('Фақат севимлилар')}
           >
             <Star className={`w-5 h-5 ${showFavoritesOnly ? 'fill-current' : ''}`} />
           </button>
@@ -210,10 +202,10 @@ export default function ProductSelector({
       {/* Categories */}
       <div className="flex flex-wrap p-2 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-2xl w-full gap-2 shadow-inner">
         {[
-          { id: 'preform', label: latinToCyrillic('Preforma'), icon: '📦', color: 'blue' },
-          { id: 'krishka', label: latinToCyrillic('Qopqoq'), icon: '⭕', color: 'orange' },
-          { id: 'ruchka', label: latinToCyrillic('Ruchka'), icon: '🎗️', color: 'green' },
-          { id: 'other', label: latinToCyrillic('Boshqa'), icon: '🛠️', color: 'gray' }
+          { id: 'preform', label: latinToCyrillic('Преформа'), icon: '', color: 'blue' },
+          { id: 'krishka', label: latinToCyrillic('Қопқоқ'), icon: '', color: 'orange' },
+          { id: 'ruchka', label: latinToCyrillic('Ручка'), icon: '', color: 'green' },
+          { id: 'other', label: latinToCyrillic('Бошқа'), icon: '', color: 'gray' }
         ].map((cat) => (
           <button
             key={cat.id}
@@ -265,7 +257,7 @@ export default function ProductSelector({
                   </div>
                   <div className="min-w-0">
                     <h4 className="font-black text-gray-900 dark:text-white uppercase tracking-tight truncate text-sm">{size}</h4>
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-widest truncate">{sizeProducts.length} {latinToCyrillic('tur')}</p>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-widest truncate">{sizeProducts.length} {latinToCyrillic('тур')}</p>
                   </div>
                 </div>
                 <div className={`flex items-center gap-2 transition-all duration-200 ${
@@ -282,7 +274,7 @@ export default function ProductSelector({
 
               {/* Product list */}
               {isExpanded && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-2 animate-in slide-in-from-top-2 duration-300">
+                <div className="grid grid-cols-2 gap-3 p-2 animate-in slide-in-from-top-2 duration-300">
                   {sizeProducts.map((product) => {
                     const hasVariants = product.variants && product.variants.length > 0;
                     const isVariantsExpanded = expandedProductVariants === product.id;
@@ -318,11 +310,20 @@ export default function ProductSelector({
                               }`}>
                                 {product.name}
                               </h4>
-                              <p className={`text-xs font-bold uppercase tracking-widest truncate ${
-                                isSelected ? 'text-white/70' : 'text-gray-500'
-                              }`}>
-                                {product.currentStock || 0} {latinToCyrillic('qop')}
-                              </p>
+                              <div className="flex items-center gap-2">
+                                <p className={`text-xs font-bold uppercase tracking-widest truncate ${
+                                  isSelected ? 'text-white/70' : 'text-gray-500'
+                                }`}>
+                                  {product.currentStock || 0} {latinToCyrillic('қоп')}
+                                </p>
+                                {product.cardType && (
+                                  <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold ${
+                                    isSelected ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                                  }`}>
+                                    {product.cardType}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                           
@@ -355,7 +356,7 @@ export default function ProductSelector({
                                     ? 'text-yellow-500 bg-yellow-100 hover:bg-yellow-200'
                                     : 'text-gray-400 hover:text-yellow-500 hover:bg-yellow-50'
                                 }`}
-                                title={isFavorite ? latinToCyrillic('Sevimlilardan olish') : latinToCyrillic('Sevimlilarga qo\'shish')}
+                                title={isFavorite ? latinToCyrillic('Севимлилардан олиш') : latinToCyrillic('Севимлиларга қўшиш')}
                               >
                                 <Star className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
                               </button>
@@ -375,7 +376,7 @@ export default function ProductSelector({
                                     ? 'bg-white/20 hover:bg-white/40 text-white' 
                                     : 'bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200'
                                 }`}
-                                title={latinToCyrillic("Turlarini ko'rish")}
+                                title={latinToCyrillic("Турларини кўриш")}
                               >
                                 {isVariantsExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                               </button>
@@ -383,43 +384,69 @@ export default function ProductSelector({
                           </div>
                         </div>
 
-                        {/* Mahsulot variantlari (Turlari) */}
+                        {/* Mahsulot variantlari (Turlari va ranglari) */}
                         {isVariantsExpanded && hasVariants && (
                           <div className="col-span-2 grid grid-cols-2 gap-2 pl-4 border-l-2 border-blue-100 dark:border-blue-900/30 animate-in slide-in-from-left-2 duration-300 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 mt-2">
                             <p className="col-span-2 text-xs text-gray-500 font-bold mb-1">
-                              📋 Turlar ({product.variants?.length || 0})
+                              📋 Турлар ва ранглар ({product.variants?.length || 0})
                             </p>
                             {product.variants && product.variants.length > 0 ? (
-                              product.variants.map((variant: any) => (
-                              <div
-                                key={variant.id}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onSelect(variant.id, `${product.name} (${variant.variantName})`, variant.pricePerBag, product.unitsPerBag || 2000, variant.cardType, variant.pricePerPiece);
-                                }}
-                                className={`p-3 border-2 rounded-2xl cursor-pointer transition-all flex items-center justify-between shadow-sm ${
-                                  selectedId === variant.id
-                                    ? 'bg-blue-600 text-white shadow-lg border-blue-600'
-                                    : 'border-gray-100 bg-white dark:bg-gray-800 hover:border-blue-200'
-                                }`}
-                              >
-                                <div className="min-w-0">
-                                  <h5 className={`font-black text-[10px] uppercase truncate ${selectedId === variant.id ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>
-                                    {variant.variantName}
-                                  </h5>
-                                  <p className={`text-[8px] font-bold uppercase tracking-widest truncate ${selectedId === variant.id ? 'text-white/70' : 'text-gray-400'}`}>
-                                    {variant.currentStock || 0} qop
-                                  </p>
-                                </div>
-                                <div className="text-right ml-2">
-                                  <p className={`text-[11px] font-black ${selectedId === variant.id ? 'text-white' : 'text-blue-600'}`}>
-                                    ${variant.pricePerBag.toFixed(2)}
-                                  </p>
-                                </div>
-                              </div>
-                            ))
+                              product.variants.map((variant: any) => {
+                                // Rangni aniqlash
+                                const getVariantColor = (variantName: string) => {
+                                  const name = variantName.toLowerCase();
+                                  if (name.includes('oq') || name.includes('white')) return 'bg-gray-100 text-gray-800 border-gray-300';
+                                  if (name.includes('qora') || name.includes('black')) return 'bg-gray-800 text-white border-gray-900';
+                                  if (name.includes('qizil') || name.includes('red')) return 'bg-red-100 text-red-800 border-red-300';
+                                  if (name.includes('yashil') || name.includes('green')) return 'bg-green-100 text-green-800 border-green-300';
+                                  if (name.includes('kok') || name.includes('blue')) return 'bg-blue-100 text-blue-800 border-blue-300';
+                                  if (name.includes('sariq') || name.includes('yellow')) return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+                                  if (name.includes('binafsha') || name.includes('transparent')) return 'bg-gray-50 text-gray-600 border-gray-200';
+                                  return 'bg-purple-100 text-purple-800 border-purple-300';
+                                };
+
+                                const variantColorClass = getVariantColor(variant.variantName || '');
+
+                                return (
+                                  <div
+                                    key={variant.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onSelect(variant.id, `${product.name} (${variant.variantName})`, variant.pricePerBag, product.unitsPerBag || 2000, variant.cardType, variant.pricePerPiece);
+                                    }}
+                                    className={`p-3 border-2 rounded-2xl cursor-pointer transition-all flex items-center justify-between shadow-sm ${
+                                      selectedId === variant.id
+                                        ? 'bg-blue-600 text-white shadow-lg border-blue-600'
+                                        : `${variantColorClass} hover:border-blue-200`
+                                    }`}
+                                  >
+                                    <div className="min-w-0">
+                                      <h5 className={`font-black text-[10px] uppercase truncate ${selectedId === variant.id ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+                                        {variant.variantName}
+                                      </h5>
+                                      <div className="flex items-center gap-1">
+                                        <p className={`text-[8px] font-bold uppercase tracking-widest truncate ${selectedId === variant.id ? 'text-white/70' : 'text-gray-400'}`}>
+                                          {variant.currentStock || 0} қоп
+                                        </p>
+                                        {variant.cardType && (
+                                          <span className={`text-[6px] px-1 py-0.5 rounded-full font-bold ${
+                                            selectedId === variant.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                                          }`}>
+                                            {variant.cardType}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="text-right ml-2">
+                                      <p className={`text-[11px] font-black ${selectedId === variant.id ? 'text-white' : 'text-blue-600'}`}>
+                                        ${variant.pricePerBag.toFixed(2)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                );
+                              })
                             ) : (
-                              <p className="text-xs text-red-500">Turlar topilmadi</p>
+                              <p className="text-xs text-red-500">Турлар топилмади</p>
                             )}
                           </div>
                         )}

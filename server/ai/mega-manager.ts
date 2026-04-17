@@ -3,7 +3,7 @@
  * Barcha AI tizimlarni birlashtirgan super kuchli menejer
  */
 
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 import { 
   calculateAdvancedMetrics, 
   detectAnomalies, 
@@ -19,8 +19,6 @@ import {
   findRiskyProducts, 
   getOrderRecommendations 
 } from './inventory-optimizer';
-
-const prisma = new PrismaClient();
 
 export interface MegaAIReport {
   generatedAt: Date;

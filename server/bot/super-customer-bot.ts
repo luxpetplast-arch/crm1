@@ -1,9 +1,8 @@
 import TelegramBot from 'node-telegram-bot-api';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 import { OrderWorkflow } from '../services/order-workflow';
 import { botManager } from './bot-manager';
 
-const prisma = new PrismaClient();
 let superCustomerBot: TelegramBot | null = null;
 
 // Session storage
@@ -128,7 +127,7 @@ function setupSuperCustomerCommands() {
 Qo'shimcha
     `;
     
-    await superCustomerBot.sendMessage(chatId, welcomeMessage, {
+    await superCustomerBot?.sendMessage(chatId, welcomeMessage, {
       reply_markup: {
         inline_keyboard: [
           [
@@ -1723,7 +1722,9 @@ async function handleAddToCart(chatId: number, customerId: string, productId: st
 
   if (bags > 0 && units === 0) {
     // Faqat qop
-    subtotal = bags * product.pricePerBag;
+    if (product) {
+      subtotal = bags * product.pricePerBag;
+    }
   } else if (bags === 0 && units > 0) {
     // Faqat dona - qopga aylantirish
     finalBags = Math.floor(units / product.unitsPerBag);
@@ -2013,14 +2014,15 @@ async function handleConfirmOrder(chatId: number, customerId: string, queryId: s
       }
     });
 
-    // 4. ORDER WORKFLOW NI ISHGA TUSHIRISH
-    try {
-      const orderWorkflow = new OrderWorkflow();
-      await orderWorkflow.processNewOrder(order.id);
-      console.log('✅ Order workflow processed for order:', order.id);
-    } catch (workflowError) {
-      console.error('❌ Order workflow error:', workflowError);
-    }
+    // 4. ORDER WORKFLOW NI ISHGA TUSHIRISH (vaqtinchalik o'chirilgan)
+    // try {
+    //   const workflow: any = getOrderWorkflow();
+    //   await workflow.processNewOrder(order.id);
+    //   console.log('✅ Order workflow processed for order:', order.id);
+    // } catch (workflowError) {
+    //   console.error('❌ Order workflow error:', workflowError);
+    // }
+    console.log('✅ Order created:', order.id);
 
     await superCustomerBot?.answerCallbackQuery(queryId, { text: '✅ Buyurtma qabul qilindi!' });
 
@@ -2034,8 +2036,9 @@ async function handleConfirmOrder(chatId: number, customerId: string, queryId: s
 📦 **Mahsulotlar:**
 `;
 
-    order.items.forEach((item, index) => {
-      message += `\n${index + 1}. ${item.product.name}`;
+    order.items.forEach((item: any, index: number) => {
+      const productName = item.product?.name || 'Noma\'lum mahsulot';
+      message += `\n${index + 1}. ${productName}`;
       
       // Miqdorni ko'rsatish
       if (item.quantityBags > 0 && item.quantityUnits > 0) {
@@ -2231,7 +2234,7 @@ async function handleProductAnalytics(chatId: number, customerId: string) {
   // 5. Gross Margin
   const grossMargin = revenue > 0 ? (grossProfit / revenue * 100) : 0;
   
-  // 6. Contribution Margin (tahminiy 25%)
+  // 6. Contribution Margin (tahminiy)
   const contributionMargin = 25.5;
   
   // 7. Sell-through Rate (tahminiy)
@@ -3052,8 +3055,8 @@ ${createProgressBar(Math.min(frequency * 5, 100), 100)}
 
 📈 **Ko'rsatkichlar:**
 • Chastota: ${frequency} ta
-• O'rtacha: ${avgOrderValue.toLocaleString()} so\'m
-• Jami: ${totalRevenue.toLocaleString()} so\'m
+• O'rtacha: ${avgOrderValue.toLocaleString()} so'm
+• Jami: ${totalRevenue.toLocaleString()} so'm
 
 💡 **Tavsiya:**
 ${rfmSegment === 'Champion' ? '🏆 Siz top mijoz! Maxsus takliflar kuting!' : 
@@ -3099,7 +3102,7 @@ async function handleRecommendations(chatId: number, customerId: string) {
   recommendations.forEach((product, index) => {
     message += `
 ${index + 1}. **${product.name}**
-   💰 ${product.pricePerBag.toLocaleString()} so\'m/qop
+   💰 ${product.pricePerBag.toLocaleString()} so'm/qop
    📦 ${product.currentStock} qop mavjud
 `;
   });
@@ -3367,17 +3370,19 @@ async function showMyOrders(chatId: number) {
 
   let message = `📦 **Sizning Buyurtmalaringiz (${orders.length}):**\n\n`;
   
+  const statusEmojiMap: { [key: string]: string } = {
+    'PENDING': '⏳',
+    'CONFIRMED': '✅',
+    'IN_PRODUCTION': '🏭',
+    'READY': '📦',
+    'DELIVERED': '🚚',
+    'SOLD': '💰',
+    'CANCELLED': '❌'
+  };
+  
   orders.forEach((order: any, index: number) => {
-    const status = order.status;
-    const statusEmoji = {
-      'PENDING': '⏳',
-      'CONFIRMED': '✅',
-      'IN_PRODUCTION': '🏭',
-      'READY': '📦',
-      'DELIVERED': '🚚',
-      'SOLD': '💰',
-      'CANCELLED': '❌'
-    }[status] || '📋';
+    const status = order.status as string;
+    const statusEmoji = statusEmojiMap[status] || '📋';
 
     message += `${index + 1}. ${statusEmoji} ${order.orderNumber}\n`;
     message += `   💰 ${formatCurrency(order.totalAmount)}\n`;
@@ -3521,12 +3526,15 @@ async function showDeliveryInfo(chatId: number) {
   } else {
     message += `📦 **Faol buyurtmalar (${activeOrders.length}):**\n\n`;
     
+    const deliveryStatusMap: { [key: string]: string } = {
+      'CONFIRMED': '✅',
+      'IN_PRODUCTION': '🏭',
+      'READY': '📦'
+    };
+  
     activeOrders.forEach((order: any, index: number) => {
-      const statusEmoji = {
-        'CONFIRMED': '✅',
-        'IN_PRODUCTION': '🏭',
-        'READY': '📦'
-      }[order.status] || '📋';
+      const status = order.status as string;
+      const statusEmoji = deliveryStatusMap[status] || '📋';
 
       message += `${index + 1}. ${statusEmoji} ${order.orderNumber}\n`;
       message += `   📊 Status: ${order.status}\n`;

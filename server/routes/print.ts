@@ -7,10 +7,8 @@ import { promisify } from 'util';
 const router = Router();
 const execAsync = promisify(exec);
 
-router.use(authenticate);
-
-// Print receipt endpoint
-router.post('/receipt', async (req: AuthRequest, res) => {
+// Print receipt endpoint - authentication optional for receipt printing
+router.post('/receipt', async (req, res) => {
   try {
     const { content, filename } = req.body;
     

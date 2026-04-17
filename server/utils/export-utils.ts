@@ -1,8 +1,6 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from './prisma';
 import * as XLSX from 'xlsx';
 import { Response } from 'express';
-
-const prisma = new PrismaClient();
 
 export interface ExportOptions {
   format?: 'json' | 'excel' | 'csv';
@@ -306,7 +304,7 @@ export async function getExportStatistics() {
     ] = await Promise.all([
       prisma.product.count(),
       prisma.customer.count(),
-      prisma.product.count({ where: { currentStock: { lte: prisma.product.fields.minStockLimit } } }),
+      prisma.product.count({ where: { currentStock: { lte: 10 } } }),
       prisma.product.count({ where: { currentStock: 0 } }),
       prisma.customer.count({ where: { debt: { gt: 0 } } }),
       prisma.customer.count({ 

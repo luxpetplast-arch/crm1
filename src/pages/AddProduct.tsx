@@ -314,12 +314,12 @@ export default function AddProduct() {
             <div className="space-y-4">
               <button 
                 onClick={() => window.history.back()}
-                className="inline-flex items-center gap-2 px-4 py-1.5 bg-gray-50 dark:bg-gray-800 rounded-full border border-gray-100 dark:border-gray-700 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 hover:text-blue-600 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-1.5 bg-gray-50 dark:bg-gray-800 rounded-full border border-gray-100 dark:border-gray-700 text-[10px] font-semibold uppercase tracking-wide text-gray-500 hover:text-blue-600 transition-colors"
               >
                 <ArrowLeft className="w-3 h-3" />
-                {t("ORQAGA QAYTISH")}
+                {t("Orqaga qaytish")}
               </button>
-              <h1 className="text-5xl sm:text-7xl font-black text-gray-900 dark:text-white tracking-tighter leading-[0.9]">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white tracking-tight leading-[0.9]">
                 {isEditing ? t("Mahsulotni") : t("Yangi")}<br />
                 <span className="text-blue-600">{isEditing ? t("Tahrirlash") : t("Mahsulot")}</span>
               </h1>
@@ -334,7 +334,7 @@ export default function AddProduct() {
       <div className="max-w-5xl mx-auto px-4">
         <div className="bg-white dark:bg-gray-900 rounded-[4rem] border border-gray-100 dark:border-gray-800 shadow-2xl overflow-hidden">
           {message && (
-            <div className={`p-6 text-center font-black text-xs tracking-widest uppercase animate-in slide-in-from-top duration-500 ${
+            <div className={`p-6 text-center font-semibold text-xs tracking-widest uppercase animate-in slide-in-from-top duration-500 ${
               message.includes('✅') ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
             }`}>
               {message}
@@ -345,8 +345,8 @@ export default function AddProduct() {
             {/* 0. Ombor Turi */}
             <div className="space-y-8">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center font-black shadow-lg shadow-blue-500/30">0</div>
-                <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight uppercase">{t("Ombor Bo'limi")}</h3>
+                <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center font-bold shadow-lg shadow-blue-500/30">0</div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{t("Ombor bo'limi")}</h3>
               </div>
               
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -369,7 +369,7 @@ export default function AddProduct() {
                     <div className={`text-4xl mb-4 transition-transform duration-500 group-hover:scale-125 ${formData.warehouse === type.id ? 'scale-110' : ''}`}>
                       {type.icon}
                     </div>
-                    <p className={`text-[10px] font-black tracking-widest ${formData.warehouse === type.id ? `text-${type.color}-600` : 'text-gray-400'}`}>
+                    <p className={`text-xs font-semibold tracking-widest ${formData.warehouse === type.id ? `text-${type.color}-600` : 'text-gray-400'}`}>
                       {type.label}
                     </p>
                   </button>
@@ -378,7 +378,7 @@ export default function AddProduct() {
 
               {formData.warehouse === 'preform' && (
                 <div className="bg-gray-50 dark:bg-gray-800/50 p-8 rounded-[3rem] border border-gray-100 dark:border-gray-800 animate-in zoom-in-95 duration-500">
-                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6 text-center">{t("Aksessuar O'lchami")}</h4>
+                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-6 text-center">{t("Aksessuar O'lchami")}</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {[
                       { id: '28', label: '28 MM', desc: '15g - 30g' },
@@ -395,7 +395,7 @@ export default function AddProduct() {
                             : 'border-white dark:border-gray-800 text-gray-400'
                         }`}
                       >
-                        <p className="font-black text-lg text-gray-900 dark:text-white">{size.label}</p>
+                        <p className="font-bold text-lg text-gray-900 dark:text-white">{size.label}</p>
                         <p className="text-[10px] font-bold opacity-50 uppercase tracking-tighter">{size.desc}</p>
                       </button>
                     ))}
@@ -407,20 +407,20 @@ export default function AddProduct() {
             {/* 1. Asosiy Ma'lumotlar */}
             <div className="space-y-8">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center font-black shadow-lg shadow-emerald-500/30">1</div>
-                <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight uppercase">{t("Asosiy Ma'lumotlar")}</h3>
+                <div className="w-12 h-12 bg-emerald-600 text-white rounded-2xl flex items-center justify-center font-bold shadow-lg shadow-emerald-500/30">1</div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white tracking-tight">{latinToCyrillic(t("Asosiy ma'lumotlar"))}</h3>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic(t("Mahsulot Nomi"))}</label>
+                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic(t("Mahsulot Nomi"))}</label>
                   <div className="relative group">
                     <input
                       type="text"
                       name="name"
                       value={formData.name}
                       onChange={handleInputChange}
-                      className="w-full h-16 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-black text-sm transition-all outline-none"
+                      className="w-full h-16 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-bold text-sm transition-all outline-none"
                       placeholder={latinToCyrillic("15G QORA...")}
                     />
                     {(isNameManuallyEdited || manualSuffix) && !isEditing && (
@@ -439,7 +439,7 @@ export default function AddProduct() {
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic(t("Qop Turi"))}</label>
+                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic(t("Qop Turi"))}</label>
                   <CustomDropdown
                     value={formData.bagType}
                     onChange={(value) => setFormData(prev => ({ ...prev, bagType: value }))}
@@ -448,12 +448,12 @@ export default function AddProduct() {
                     variantKey="bagType"
                     onDeleteVariant={(variant) => deleteVariant('bagTypeVariants', variant)}
                     onAddVariant={(variant) => addVariant('bagTypeVariants', variant)}
-                    className="h-16 rounded-2xl bg-gray-50 dark:bg-gray-800 border-none font-black text-sm"
+                    className="h-16 rounded-2xl bg-gray-50 dark:bg-gray-800 border-none font-bold text-sm"
                   />
                 </div>
 
                 <div className="space-y-3 md:col-span-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic(t("Rangi"))}</label>
+                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic(t("Rangi"))}</label>
                   <CustomDropdown
                     value={formData.color}
                     onChange={(value) => setFormData(prev => ({ ...prev, color: value }))}
@@ -462,7 +462,7 @@ export default function AddProduct() {
                     variantKey="color"
                     onDeleteVariant={(variant) => deleteVariant('colorVariants', variant)}
                     onAddVariant={(variant) => addVariant('colorVariants', variant)}
-                    className="h-16 rounded-2xl bg-gray-50 dark:bg-gray-800 border-none font-black text-sm"
+                    className="h-16 rounded-2xl bg-gray-50 dark:bg-gray-800 border-none font-bold text-sm"
                   />
                 </div>
               </div>
@@ -471,13 +471,13 @@ export default function AddProduct() {
             {/* 2. Miqdor va Narx */}
             <div className="space-y-8">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-amber-600 text-white rounded-2xl flex items-center justify-center font-black shadow-lg shadow-amber-500/30">2</div>
-                <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight uppercase">{latinToCyrillic(t("Miqdor va Narx"))}</h3>
+                <div className="w-12 h-12 bg-amber-600 text-white rounded-2xl flex items-center justify-center font-bold shadow-lg shadow-amber-500/30">2</div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{latinToCyrillic(t("Miqdor va narx"))}</h3>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic(t("Qopdagi Dona"))}</label>
+                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic(t("Qopdagi Dona"))}</label>
                   <CustomDropdown
                     value={formData.unitsPerBag}
                     onChange={(value) => setFormData(prev => ({ ...prev, unitsPerBag: value }))}
@@ -488,12 +488,12 @@ export default function AddProduct() {
                     min="1"
                     onDeleteVariant={(variant) => deleteVariant('unitsPerBagVariants', variant)}
                     onAddVariant={(variant) => addVariant('unitsPerBagVariants', variant)}
-                    className="h-16 rounded-2xl bg-gray-50 dark:bg-gray-800 border-none font-black text-lg"
+                    className="h-16 rounded-2xl bg-gray-50 dark:bg-gray-800 border-none font-bold text-lg"
                   />
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic(t("Joriy Zaxira"))}</label>
+                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic(t("Joriy Zaxira"))}</label>
                   <CustomDropdown
                     value={formData.currentStock}
                     onChange={(value) => setFormData(prev => ({ ...prev, currentStock: value }))}
@@ -504,12 +504,12 @@ export default function AddProduct() {
                     min="0"
                     onDeleteVariant={(variant) => deleteVariant('stockVariants', variant)}
                     onAddVariant={(variant) => addVariant('stockVariants', variant)}
-                    className="h-16 rounded-2xl bg-gray-50 dark:bg-gray-800 border-none font-black text-lg"
+                    className="h-16 rounded-2xl bg-gray-50 dark:bg-gray-800 border-none font-bold text-lg"
                   />
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic(t("Narxi (USD)"))}</label>
+                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic(t("Narxi (USD)"))}</label>
                   <CustomDropdown
                     value={formData.pricePerBag}
                     onChange={(value) => setFormData(prev => ({ ...prev, pricePerBag: value }))}
@@ -521,7 +521,7 @@ export default function AddProduct() {
                     min="0"
                     onDeleteVariant={(variant) => deleteVariant('priceVariants', variant)}
                     onAddVariant={(variant) => addVariant('priceVariants', variant)}
-                    className="h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border-none font-black text-lg text-emerald-600"
+                    className="h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border-none font-bold text-lg text-emerald-600"
                   />
                 </div>
               </div>
@@ -530,44 +530,44 @@ export default function AddProduct() {
             {/* 3. Limitlar */}
             <div className="space-y-8">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-rose-600 text-white rounded-2xl flex items-center justify-center font-black shadow-lg shadow-rose-500/30">3</div>
-                <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight uppercase">{latinToCyrillic(t("Limitlar va Nazorat"))}</h3>
+                <div className="w-12 h-12 bg-rose-600 text-white rounded-2xl flex items-center justify-center font-bold shadow-lg shadow-rose-500/30">3</div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{latinToCyrillic(t("Limitlar va nazorat"))}</h3>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic(t("Minimal Limit"))}</label>
+                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic(t("Minimal Limit"))}</label>
                   <input
                     type="text"
                     inputMode="decimal"
                     name="minStockLimit"
                     value={formData.minStockLimit}
                     onChange={handleInputChange}
-                    className="w-full h-14 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-rose-500 rounded-xl font-black transition-all outline-none"
+                    className="w-full h-14 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-rose-500 rounded-xl font-semibold transition-all outline-none"
                   />
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic(t("Optimal Limit"))}</label>
+                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic(t("Optimal Limit"))}</label>
                   <input
                     type="text"
                     inputMode="decimal"
                     name="optimalStock"
                     value={formData.optimalStock}
                     onChange={handleInputChange}
-                    className="w-full h-14 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-xl font-black transition-all outline-none"
+                    className="w-full h-14 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-xl font-semibold transition-all outline-none"
                   />
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic(t("Maksimal Sig'im"))}</label>
+                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic(t("Maksimal Sig'im"))}</label>
                   <input
                     type="text"
                     inputMode="decimal"
                     name="maxCapacity"
                     value={formData.maxCapacity}
                     onChange={handleInputChange}
-                    className="w-full h-14 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-indigo-500 rounded-xl font-black transition-all outline-none"
+                    className="w-full h-14 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-indigo-500 rounded-xl font-semibold transition-all outline-none"
                   />
                 </div>
               </div>
@@ -582,7 +582,7 @@ export default function AddProduct() {
                     className="sr-only peer"
                   />
                   <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                  <span className="ml-4 text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">{t("Mahsulot Faol")}</span>
+                  <span className="ml-4 text-xs font-semibold text-gray-900 dark:text-white uppercase tracking-widest">{t("Mahsulot Faol")}</span>
                 </label>
               </div>
             </div>
@@ -592,19 +592,19 @@ export default function AddProduct() {
               <button
                 type="button"
                 onClick={() => window.history.back()}
-                className="flex-1 h-16 rounded-[2rem] border-2 border-gray-100 dark:border-gray-800 font-black text-xs tracking-[0.2em] text-gray-400 hover:bg-gray-50 transition-all active:scale-95"
+                className="flex-1 h-14 rounded-xl border-2 border-gray-100 dark:border-gray-800 font-semibold text-sm text-gray-400 hover:bg-gray-50 transition-all active:scale-95"
               >
-                {t("BEKOR QILISH")}
+                {t("Bekor qilish")}
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-[2] h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] font-black text-xs tracking-[0.2em] shadow-2xl shadow-blue-500/30 transition-all active:scale-95 flex items-center justify-center gap-3"
+                className="flex-[2] h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm shadow-lg shadow-blue-500/30 transition-all active:scale-95 flex items-center justify-center gap-2"
               >
                 {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                 {loading 
-                  ? (isEditing ? t("YANGILANMOQDA...") : t("SAQLANMOQDA..."))
-                  : (isEditing ? t("MAHSULOTNI YANGILASH") : t("MAHSULOTNI SAQLASH"))
+                  ? (isEditing ? t("Yangilanmoqda...") : t("Saqlanmoqda..."))
+                  : (isEditing ? t("Mahsulotni yangilash") : t("Mahsulotni saqlash"))
                 }
               </button>
             </div>

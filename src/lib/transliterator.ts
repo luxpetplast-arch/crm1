@@ -20,7 +20,18 @@ export function latinToCyrillic(text: string): string {
   result = result.replace(/Ch/g, 'Ч');
   result = result.replace(/CH/g, 'Ч');
   result = result.replace(/ng/g, 'нг');
-  result = result.replace(/Ng/g, 'Нг');
+  result = result.replace(/Ng/g, 'Нг'); 
+
+
+
+
+
+
+
+
+
+
+  
   result = result.replace(/NG/g, 'НГ');
 
   // Harflar xaritasi

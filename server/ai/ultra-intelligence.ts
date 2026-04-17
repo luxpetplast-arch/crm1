@@ -153,10 +153,10 @@ export function generateAutomatedDecisions(
   sales: any[],
   metrics: any
 ): AutomatedDecisions {
-  const priceAdjustments = [];
-  const inventoryOrders = [];
-  const marketingCampaigns = [];
-  const staffingRecommendations = [];
+  const priceAdjustments: any[] = [];
+  const inventoryOrders: any[] = [];
+  const marketingCampaigns: any[] = [];
+  const staffingRecommendations: any[] = [];
   
   // 1. Narx o'zgartirishlari
   products.forEach(product => {

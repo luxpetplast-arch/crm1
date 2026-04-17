@@ -5,19 +5,23 @@ interface CardProps {
   children: ReactNode;
   className?: string;
   onClick?: () => void;
+  style?: React.CSSProperties;
 }
 
-export function Card({ children, className, onClick }: CardProps) {
+export function Card({ children, className, onClick, style }: CardProps) {
   return (
     <div 
       className={cn(
-        'bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-white dark:border-gray-800 transition-all duration-500 hover:shadow-[0_30px_70px_rgba(0,0,0,0.08)]',
-        onClick && 'cursor-pointer active:scale-[0.98]',
+        'ultra-card',
+        onClick && 'cursor-pointer interactive',
         className
       )} 
       onClick={onClick}
+      style={style}
     >
-      {children}
+      <div className="p-6">
+        {children}
+      </div>
     </div>
   );
 }
@@ -26,7 +30,7 @@ export function CardHeader({ children, className, onClick }: CardProps) {
   return (
     <div 
       className={cn(
-        'p-10 border-b border-gray-100 dark:border-gray-800', 
+        'px-6 py-4 border-b border-gray-100', 
         onClick && 'cursor-pointer', 
         className
       )} 
@@ -41,7 +45,7 @@ export function CardTitle({ children, className, onClick }: CardProps) {
   return (
     <h3 
       className={cn(
-        'text-2xl font-black tracking-tight uppercase text-gray-900 dark:text-white',
+        'text-lg font-semibold text-gray-900',
         onClick && 'cursor-pointer hover:text-blue-600 transition-colors', 
         className
       )} 
@@ -56,7 +60,7 @@ export function CardContent({ children, className, onClick }: CardProps) {
   return (
     <div 
       className={cn(
-        'p-10',
+        'px-6 py-4',
         onClick && 'cursor-pointer', 
         className
       )} 

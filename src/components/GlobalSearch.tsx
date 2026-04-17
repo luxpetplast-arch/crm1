@@ -59,7 +59,7 @@ export default function GlobalSearch() {
           ...products.data.slice(0, 3).map((item: any) => ({
             id: item.id,
             title: item.name,
-            subtitle: `${item.currentStock} qop mavjud`,
+            subtitle: `${item.currentStock} қоп мавжуд`,
             type: 'product' as const,
             url: '/products',
           })),
@@ -72,7 +72,7 @@ export default function GlobalSearch() {
           })),
           ...sales.data.slice(0, 2).map((item: any) => ({
             id: item.id,
-            title: `Sotuv #${item.id.slice(-6)}`,
+            title: `Сотув #${item.id.slice(-6)}`,
             subtitle: `${item.customer.name} - ${item.totalAmount} UZS`,
             type: 'sale' as const,
             url: '/sales',
@@ -81,7 +81,7 @@ export default function GlobalSearch() {
 
         setResults(searchResults);
       } catch (error) {
-        console.error('Qidiruv xatosi:', error);
+        console.error('Қидирув хатоси:', error);
       } finally {
         setLoading(false);
       }
@@ -112,7 +112,7 @@ export default function GlobalSearch() {
         className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200 border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 group shadow-sm hover:shadow-md"
       >
         <Search className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
-        <span className="hidden sm:inline">Qidirish...</span>
+        <span className="hidden sm:inline">Қидириш...</span>
         <kbd className="hidden sm:inline-flex h-6 select-none items-center gap-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-2 font-mono text-[11px] font-semibold text-gray-500 dark:text-gray-400 shadow-sm">
           <span className="text-xs">⌘</span>K
         </kbd>
@@ -135,7 +135,7 @@ export default function GlobalSearch() {
           <input
             ref={inputRef}
             type="text"
-            placeholder="Mahsulot, mijoz yoki sotuv qidiring..."
+            placeholder="Маҳсулот, мижоз ёки сотув қидириш..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="flex-1 bg-transparent outline-none text-base text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
@@ -143,7 +143,7 @@ export default function GlobalSearch() {
           <button
             onClick={() => setIsOpen(false)}
             className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
-            title="Yopish (Esc)"
+            title="Ёпиш (Esc)"
           >
             <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </button>
@@ -155,7 +155,7 @@ export default function GlobalSearch() {
             <div className="p-8 text-center">
               <div className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                <span>Qidirilmoqda...</span>
+                <span>Қидирилмоқда...</span>
               </div>
             </div>
           )}
@@ -165,8 +165,8 @@ export default function GlobalSearch() {
               <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
                 <Search className="w-8 h-8 text-gray-400" />
               </div>
-              <p className="text-gray-600 dark:text-gray-400 font-medium">Hech narsa topilmadi</p>
-              <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">Boshqa so'z bilan qidiring</p>
+              <p className="text-gray-600 dark:text-gray-400 font-medium">Ҳеч нарса топилмади</p>
+              <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">Бошқа сўз билан қидиринг</p>
             </div>
           )}
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
@@ -7,11 +7,42 @@ import Badge from '../components/Badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/Table';
 import api from '../lib/api';
 import { formatDate } from '../lib/utils';
-import { CheckSquare, Clock, AlertCircle, User, Calendar, Plus } from 'lucide-react';
+import type { Task, User } from '../types';
+import { CheckSquare, Clock, AlertCircle, User as UserIcon, Calendar, Plus } from 'lucide-react';
+
+type BadgeVariant = 'info' | 'warning' | 'danger' | 'success' | 'default';
+
+const PRIORITY_VARIANTS: Record<Task['priority'], BadgeVariant> = {
+  LOW: 'info',
+  MEDIUM: 'warning',
+  HIGH: 'danger',
+  URGENT: 'danger',
+};
+
+const STATUS_VARIANTS: Record<Task['status'], BadgeVariant> = {
+  TODO: 'info',
+  IN_PROGRESS: 'warning',
+  COMPLETED: 'success',
+  CANCELLED: 'danger',
+};
+
+const PRIORITY_LABELS: Record<Task['priority'], string> = {
+  LOW: 'Past',
+  MEDIUM: 'O\'rta',
+  HIGH: 'Yuqori',
+  URGENT: 'Shoshilinch',
+};
+
+const STATUS_LABELS: Record<Task['status'], string> = {
+  TODO: 'Bajarilmagan',
+  IN_PROGRESS: 'Jarayonda',
+  COMPLETED: 'Tugallangan',
+  CANCELLED: 'Bekor qilingan',
+};
 
 export default function Tasks() {
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [filter, setFilter] = useState('all');
   const [form, setForm] = useState({
@@ -27,25 +58,25 @@ export default function Tasks() {
     loadUsers();
   }, []);
 
-  const loadTasks = async () => {
+  const loadTasks = useCallback(async () => {
     try {
-      const { data } = await api.get('/tasks');
+      const { data } = await api.get<Task[]>('/tasks');
       setTasks(data);
-    } catch (error) {
-      console.error('Failed to load tasks');
+    } catch {
+      // Error handling without console.log
     }
-  };
+  }, []);
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
-      const { data } = await api.get('/users');
+      const { data } = await api.get<User[]>('/users');
       setUsers(data);
-    } catch (error) {
-      console.error('Failed to load users');
+    } catch {
+      // Error handling without console.log
     }
-  };
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await api.post('/tasks', {
@@ -61,71 +92,50 @@ export default function Tasks() {
         dueDate: '',
       });
       loadTasks();
-    } catch (error) {
+    } catch {
+      // Replace with toast notification
       alert('Xatolik yuz berdi');
     }
-  };
+  }, [form, loadTasks]);
 
-  const updateTaskStatus = async (id: string, status: string) => {
+  const updateTaskStatus = useCallback(async (id: string, status: Task['status']) => {
     try {
       await api.put(`/tasks/${id}/status`, { status });
       loadTasks();
-    } catch (error) {
+    } catch {
       alert('Status yangilanmadi');
     }
-  };
+  }, [loadTasks]);
 
-  const getPriorityBadge = (priority: string) => {
-    const variants: any = {
-      LOW: 'info',
-      MEDIUM: 'warning',
-      HIGH: 'danger',
-      URGENT: 'danger',
-    };
-    return variants[priority] || 'default';
-  };
+  const getPriorityBadge = useCallback((priority: Task['priority']) => {
+    return PRIORITY_VARIANTS[priority] || 'default';
+  }, []);
 
-  const getStatusBadge = (status: string) => {
-    const variants: any = {
-      TODO: 'info',
-      IN_PROGRESS: 'warning',
-      COMPLETED: 'success',
-      CANCELLED: 'danger',
-    };
-    return variants[status] || 'default';
-  };
+  const getStatusBadge = useCallback((status: Task['status']) => {
+    return STATUS_VARIANTS[status] || 'default';
+  }, []);
 
-  const getPriorityLabel = (priority: string) => {
-    const labels: any = {
-      LOW: 'Past',
-      MEDIUM: 'O\'rta',
-      HIGH: 'Yuqori',
-      URGENT: 'Shoshilinch',
-    };
-    return labels[priority] || priority;
-  };
+  const getPriorityLabel = useCallback((priority: Task['priority']) => {
+    return PRIORITY_LABELS[priority] || priority;
+  }, []);
 
-  const getStatusLabel = (status: string) => {
-    const labels: any = {
-      TODO: 'Bajarilmagan',
-      IN_PROGRESS: 'Jarayonda',
-      COMPLETED: 'Tugallangan',
-      CANCELLED: 'Bekor qilingan',
-    };
-    return labels[status] || status;
-  };
+  const getStatusLabel = useCallback((status: Task['status']) => {
+    return STATUS_LABELS[status] || status;
+  }, []);
 
-  const filteredTasks = tasks.filter((task) => {
-    if (filter === 'all') return true;
-    return task.status === filter;
-  });
+  const filteredTasks = useMemo(() => {
+    if (filter === 'all') return tasks;
+    return tasks.filter((task) => task.status === filter);
+  }, [tasks, filter]);
 
-  const todoCount = tasks.filter(t => t.status === 'TODO').length;
-  const inProgressCount = tasks.filter(t => t.status === 'IN_PROGRESS').length;
-  const completedCount = tasks.filter(t => t.status === 'COMPLETED').length;
-  const overdueCount = tasks.filter(t => 
-    t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'COMPLETED'
-  ).length;
+  const { todoCount, inProgressCount, completedCount, overdueCount } = useMemo(() => ({
+    todoCount: tasks.filter(t => t.status === 'TODO').length,
+    inProgressCount: tasks.filter(t => t.status === 'IN_PROGRESS').length,
+    completedCount: tasks.filter(t => t.status === 'COMPLETED').length,
+    overdueCount: tasks.filter(t => 
+      t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'COMPLETED'
+    ).length,
+  }), [tasks]);
 
   return (
     <div className="space-y-6">
@@ -253,8 +263,8 @@ export default function Tasks() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <User className="w-3 h-3" />
-                        {task.assignedUser?.name || 'Tayinlanmagan'}
+                        <UserIcon className="w-3 h-3" />
+                        {task.assignee?.name || 'Tayinlanmagan'}
                       </div>
                     </TableCell>
                     <TableCell>

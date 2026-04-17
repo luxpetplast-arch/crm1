@@ -1,6 +1,4 @@
-﻿import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+﻿import { prisma } from './prisma';
 
 // Qop va dona konvertatsiya
 export function convertBagsToUnits(bags: number, unitsPerBag: number): number {

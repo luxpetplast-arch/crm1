@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../utils/prisma';
 
 // 🤖 AI Kassa Prognozi
 export async function generateCashboxForecast(days: number = 7) {

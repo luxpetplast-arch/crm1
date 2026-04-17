@@ -1,9 +1,7 @@
 ﻿// Telegram Bot - Buyurtma Berish Funksiyalari
 import TelegramBot from 'node-telegram-bot-api';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 import { analyzeOrderAndCreatePlan } from '../utils/ai-order-planner';
-
-const prisma = new PrismaClient();
 
 // Buyurtma sessiyalari
 const orderSessions = new Map<number, {

@@ -1,10 +1,9 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 import { authenticate } from '../middleware/auth';
 import { sendEnhancedPaymentConfirmation } from '../bot/enhanced-bot';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.use(authenticate);
 
@@ -19,9 +18,12 @@ router.get('/', async (req, res) => {
       where.category = category as string;
     }
     
-    // Qarzli mijozlar filtri
+    // Qarzli mijozlar filtri - ikkala valyutada ham qarzni tekshirish
     if (hasDebt === 'true') {
-      where.debt = { gt: 0 };
+      where.OR = [
+        { debtUZS: { gt: 0 } },
+        { debtUSD: { gt: 0 } }
+      ];
     }
     
     const customers = await prisma.customer.findMany({
@@ -77,6 +79,15 @@ router.post('/', async (req, res) => {
   try {
     const { telegramId, ...customerData } = req.body;
     
+    // Validatsiya - ism va telefon raqami kiritilishi shart
+    if (!customerData.name || customerData.name.trim() === '') {
+      return res.status(400).json({ error: 'Ism kiritilishi shart' });
+    }
+    
+    if (!customerData.phone || customerData.phone.trim() === '') {
+      return res.status(400).json({ error: 'Telefon raqami kiritilishi shart' });
+    }
+    
     // Agar Telegram ID kiritilgan bo'lsa va bo'sh bo'lmasa, uni tekshirish va bog'lash
     if (telegramId && telegramId.trim()) {
       // Telegram ID orqali mijozni topish (ID ning oxirgi 8 belgisi)
@@ -91,30 +102,37 @@ router.post('/', async (req, res) => {
         c.id.slice(-8).toUpperCase() === telegramId.toUpperCase().trim()
       );
       
-      if (!matchedCustomer) {
-        return res.status(404).json({ 
-          error: 'Telegram ID topilmadi. Iltimos, botdan /start yuboring va ID ni qayta oling.' 
-        });
-      }
-      
-      // Agar mijoz allaqachon saytda ro'yxatdan o'tgan bo'lsa
-      if (matchedCustomer.name !== 'Telegram User' && matchedCustomer.phone !== `@${matchedCustomer.telegramUsername}`) {
-        return res.status(400).json({ 
-          error: 'Bu Telegram ID allaqachon boshqa mijozga bog\'langan.' 
-        });
-      }
-      
-      // Mavjud Telegram mijozni yangilash
-      const customer = await prisma.customer.update({
-        where: { id: matchedCustomer.id },
-        data: {
-          ...customerData,
-          telegramChatId: matchedCustomer.telegramChatId,
-          telegramUsername: matchedCustomer.telegramUsername
+      if (matchedCustomer) {
+        // Agar mijoz allaqachon saytda ro'yxatdan o'tgan bo'lsa
+        if (matchedCustomer.name !== 'Telegram User' && matchedCustomer.phone !== `@${matchedCustomer.telegramUsername}`) {
+          return res.status(400).json({ 
+            error: 'Bu Telegram ID allaqachon boshqa mijozga bog\'langan.' 
+          });
         }
-      });
-      
-      return res.json(customer);
+        
+        // Mavjud Telegram mijozni yangilash
+        const customer = await prisma.customer.update({
+          where: { id: matchedCustomer.id },
+          data: {
+            ...customerData,
+            telegramChatId: matchedCustomer.telegramChatId,
+            telegramUsername: matchedCustomer.telegramUsername
+          }
+        });
+        
+        return res.json(customer);
+      } else {
+        // Telegram ID topilmadi, lekin mijozni yarataveramiz (telegram ID ni ixtiyoriy field sifatida saqlaymiz)
+        console.log('Telegram ID not found in existing users, creating new customer with Telegram ID reference');
+        const customer = await prisma.customer.create({ 
+          data: {
+            ...customerData,
+            // Telegram ID ni telegramUsername fieldida saqlaymiz (vaqtincha yechim)
+            telegramUsername: telegramId.trim()
+          }
+        });
+        return res.json(customer);
+      }
     }
     
     // Oddiy mijoz yaratish (Telegram ID siz)
@@ -136,77 +154,20 @@ router.get('/:id', async (req, res) => {
         invoices: { orderBy: { createdAt: 'desc' } },
       },
     });
-    res.json(customer);
+    
+    // Ensure debtUZS and debtUSD are included in response
+    if (customer) {
+      const customerData = customer as any;
+      res.json({
+        ...customerData,
+        debtUZS: customerData.debtUZS || 0,
+        debtUSD: customerData.debtUSD || 0,
+      });
+    } else {
+      res.status(404).json({ error: 'Customer not found' });
+    }
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch customer' });
-  }
-});
-
-router.post('/:id/payment', async (req, res) => {
-  try {
-    const { amount, currency, description, paymentDetails } = req.body;
-    const customerId = req.params.id;
-    
-    // Mijozni tekshirish
-    const customer = await prisma.customer.findUnique({
-      where: { id: customerId }
-    });
-
-    if (!customer) {
-      return res.status(404).json({ error: 'Mijoz topilmadi' });
-    }
-
-    // Transaction ichida barcha operatsiyalarni bajarish
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. To'lovni yaratish
-      const payment = await tx.payment.create({
-        data: { 
-          customerId, 
-          amount, 
-          currency: currency || 'USD', 
-          description: description || 'Qarz to\'lovi',
-          paymentDetails: paymentDetails ? JSON.stringify(paymentDetails) : null
-        },
-      });
-
-      // 2. Mijoz qarzini kamaytirish
-      const updatedCustomer = await tx.customer.update({
-        where: { id: customerId },
-        data: { 
-          debt: { decrement: amount },
-          balance: { increment: amount },
-          lastPayment: new Date(),
-        },
-      });
-
-      // 3. Kassaga qo'shish
-      await (tx as any).cashboxTransaction.create({
-        data: {
-          type: 'INCOME',
-          amount,
-          category: 'PAYMENT',
-          description: `Qarz to'lovi - ${customer.name}`,
-          userId: (req as any).user.id,
-          userName: (req as any).user.name || (req as any).user.email,
-          reference: payment.id
-        }
-      });
-
-      return { payment, updatedCustomer };
-    });
-
-    // Telegram orqali tasdiqlash yuborish
-    try {
-      await sendEnhancedPaymentConfirmation(result.updatedCustomer, result.payment);
-    } catch (telegramError) {
-      console.error('Telegram notification error:', telegramError);
-      // Telegram xatosi asosiy operatsiyani to'xtatmasin
-    }
-
-    res.json(result.payment);
-  } catch (error) {
-    console.error('Payment error:', error);
-    res.status(500).json({ error: 'To\'lovni qayd qilishda xatolik' });
   }
 });
 
@@ -389,6 +350,112 @@ router.post('/:id/apply-discount-template', async (req, res) => {
       error: 'Failed to apply discount template',
       details: error.message 
     });
+  }
+});
+
+// Mijoz to'lovi qilish
+router.post('/:id/payment', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, currency = 'UZS', type = 'CASH', notes } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'To\'lov summasi kiritilishi shart' });
+    }
+
+    const customer = await prisma.customer.findUnique({
+      where: { id }
+    });
+
+    if (!customer) {
+      return res.status(404).json({ error: 'Mijoz topilmadi' });
+    }
+
+    // To'lovni amalga oshirish
+    const payment = await prisma.$transaction(async (tx) => {
+      // To'lovni yaratish
+      const newPayment = await tx.customerPayment.create({
+        data: {
+          customerId: id,
+          amount,
+          currency,
+          type,
+          notes,
+          createdBy: (req as any).user?.id
+        }
+      });
+
+      // Mijoz balansini yangilash
+      const updateData: any = {};
+      if (currency === 'UZS') {
+        updateData.balanceUZS = { increment: amount };
+        if (customer.debtUZS && customer.debtUZS > 0) {
+          updateData.debtUZS = { decrement: amount };
+        }
+      } else {
+        updateData.balanceUSD = { increment: amount };
+        if (customer.debtUSD && customer.debtUSD > 0) {
+          updateData.debtUSD = { decrement: amount };
+        }
+      }
+
+      const updatedCustomer = await tx.customer.update({
+        where: { id },
+        data: updateData
+      });
+
+      // Kassa tranzaksiyasini yaratish
+      await tx.cashboxTransaction.create({
+        data: {
+          type: 'INCOME',
+          amount,
+          category: 'CUSTOMER_PAYMENT',
+          description: `Mijoz to\'lovi: ${customer.name} - ${notes || ''}`,
+          reference: newPayment.id,
+          userId: (req as any).user?.id,
+          userName: (req as any).user?.name || 'Admin'
+        }
+      });
+
+      return { payment: newPayment, customer: updatedCustomer };
+    });
+
+    res.json({
+      success: true,
+      message: 'To\'lov muvaffaqiyatli amalga oshirildi',
+      payment: payment.payment,
+      customer: payment.customer
+    });
+  } catch (error: any) {
+    console.error('❌ To\'lov qilishda xatolik:', error.message);
+    res.status(500).json({ error: 'To\'lov amalga oshirishda xatolik' });
+  }
+});
+
+// Mijoz to'lovlar tarixini olish
+router.get('/:id/payments', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Avval mijoz mavjudligini tekshiramiz
+    const customer = await prisma.customer.findUnique({
+      where: { id },
+      select: { id: true }
+    });
+    
+    if (!customer) {
+      return res.status(404).json({ error: 'Mijoz topilmadi' });
+    }
+    
+    const payments = await prisma.customerPayment.findMany({
+      where: { customerId: id },
+      orderBy: { createdAt: 'desc' }
+    });
+    
+    res.json(payments);
+  } catch (error: any) {
+    console.error('❌ To\'lovlarni olishda xatolik:', error.message);
+    res.status(500).json({ error: 'To\'lovlarni olishda xatolik', details: error.message });
   }
 });
 

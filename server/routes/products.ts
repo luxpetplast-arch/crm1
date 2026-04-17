@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 import {
   logInventoryAction,
@@ -11,7 +11,6 @@ import {
 } from '../utils/inventory-audit';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.use(authenticate);
 
@@ -186,9 +185,9 @@ router.post('/', authorize('ADMIN', 'WAREHOUSE_MANAGER'), async (req: AuthReques
 
         if (productType?.defaultCard) {
           // Standart kartni topish
-          const card = await prisma.$queryRaw`
+          const card = await prisma.$queryRaw<{ id: string }[]>`
             SELECT id FROM Card WHERE name = ${productType.defaultCard} AND active = true
-          ` as any[];
+          `;
 
           if (card.length > 0) {
             // Mahsulotni kartga qo'shish
@@ -379,7 +378,7 @@ router.post('/:id/stock', authorize('ADMIN', 'WAREHOUSE_MANAGER'), async (req: A
       productName: product.name,
       details: {
         type,
-        quantity,
+        quantityBags: quantity,
         reason,
         previousStock,
         newStock,
@@ -1007,7 +1006,7 @@ router.get('/history/stats', async (req: AuthRequest, res) => {
       },
       byProduct: Object.values(byProduct),
       byUser: Object.values(byUser),
-      dailyStats: Object.entries(dailyStats).map(([date, stats]) => ({
+      dailyStats: Object.entries(dailyStats).map(([date, stats]: [string, any]) => ({
         date,
         ...stats
       }))

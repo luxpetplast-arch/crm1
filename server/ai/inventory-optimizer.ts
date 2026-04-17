@@ -13,9 +13,7 @@
  * - Trend bashorati
  */
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../utils/prisma';
 
 interface InventoryAnalysis {
   productId: string;

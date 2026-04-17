@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../utils/prisma';
 
 // 🤖 SUPER AI MANAGER - Hamma narsani kuzatadi!
 export async function generateSuperManagerReport() {

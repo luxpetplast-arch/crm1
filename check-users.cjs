@@ -9,7 +9,7 @@ async function checkUsers() {
     const users = await prisma.user.findMany({
       select: {
         id: true,
-        email: true,
+        login: true,
         name: true,
         role: true,
         active: true,
@@ -25,7 +25,7 @@ async function checkUsers() {
     } else {
       users.forEach((user, index) => {
         console.log(`${index + 1}. ${user.name}`);
-        console.log(`   Email: ${user.email}`);
+        console.log(`   Login: ${user.login}`);
         console.log(`   Role: ${user.role}`);
         console.log(`   Active: ${user.active}`);
         console.log(`   Created: ${user.createdAt}`);

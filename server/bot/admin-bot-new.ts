@@ -1,7 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 
-const prisma = new PrismaClient();
 let adminBot: TelegramBot | null = null;
 
 // Admin chat ID'lari (xavfsizlik uchun)
@@ -303,7 +302,7 @@ async function handlePaymentDirection(chatId: number) {
     });
 
     if (recentPayments.length === 0) {
-      await adminBot.sendMessage(chatId, '💰 *Kutayotgan to\'lovlar yo\'q*', {
+      await adminBot?.sendMessage(chatId, '💰 *Kutayotgan to\'lovlar yo\'q*', {
         parse_mode: 'Markdown'
       });
       return;
@@ -311,7 +310,7 @@ async function handlePaymentDirection(chatId: number) {
 
     let message = `💰 *Kutayotgan To'lovlar (${recentPayments.length}):*\n\n`;
     
-    const keyboard = {
+    const keyboard: { inline_keyboard: { text: string; callback_data: string; }[][] } = {
       inline_keyboard: []
     };
 
@@ -329,7 +328,7 @@ async function handlePaymentDirection(chatId: number) {
       ]);
     });
 
-    await adminBot.sendMessage(chatId, message, {
+    await adminBot?.sendMessage(chatId, message, {
       parse_mode: 'Markdown',
       reply_markup: keyboard
     });
@@ -358,7 +357,7 @@ async function showOrdersList(chatId: number) {
     });
 
     if (orders.length === 0) {
-      await adminBot.sendMessage(chatId, '📦 *Buyurtmalar yo\'q*', {
+      await adminBot?.sendMessage(chatId, '📦 *Buyurtmalar yo\'q*', {
         parse_mode: 'Markdown'
       });
       return;
@@ -373,7 +372,7 @@ async function showOrdersList(chatId: number) {
       message += `📊 Status: ${getStatusEmoji(order.status)} ${order.status}\n\n`;
     });
 
-    await adminBot.sendMessage(chatId, message, {
+    await adminBot?.sendMessage(chatId, message, {
       parse_mode: 'Markdown'
     });
 
@@ -392,7 +391,7 @@ async function showDriversList(chatId: number) {
     });
 
     if (drivers.length === 0) {
-      await adminBot.sendMessage(chatId, '🚚 *Haydovchilar yo\'q*', {
+      await adminBot?.sendMessage(chatId, '🚚 *Haydovchilar yo\'q*', {
         parse_mode: 'Markdown'
       });
       return;
@@ -407,7 +406,7 @@ async function showDriversList(chatId: number) {
       message += `📊 Status: ${driver.active ? '✅ Faol' : '❌ Nofaol'}\n\n`;
     });
 
-    await adminBot.sendMessage(chatId, message, {
+    await adminBot?.sendMessage(chatId, message, {
       parse_mode: 'Markdown'
     });
 
@@ -448,7 +447,7 @@ async function showCashboxInfo(chatId: number) {
     message += `💎 *Balans:* ${formatCurrency(balance)}\n\n`;
     message += `📊 *Tranzaksiyalar:* ${todayTransactions.length} ta`;
 
-    await adminBot.sendMessage(chatId, message, {
+    await adminBot?.sendMessage(chatId, message, {
       parse_mode: 'Markdown'
     });
 
@@ -493,7 +492,7 @@ async function showStatistics(chatId: number) {
     message += `👤 *Jami mijozlar:* ${totalCustomers} ta\n`;
     message += `🚚 *Jami haydovchilar:* ${totalDrivers} ta`;
 
-    await adminBot.sendMessage(chatId, message, {
+    await adminBot?.sendMessage(chatId, message, {
       parse_mode: 'Markdown'
     });
 
@@ -514,7 +513,7 @@ async function showSettings(chatId: number) {
     message += `💾 *Zaxira:* 🕐 Har 3 soatda\n`;
     message += `🔄 *Avtomatik yangilanish:* ✅ Faol`;
 
-    await adminBot.sendMessage(chatId, message, {
+    await adminBot?.sendMessage(chatId, message, {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
@@ -550,7 +549,7 @@ async function showLogs(chatId: number) {
     message += `✅ Xotira ishlatishi: 45%\n\n`;
     message += `⚠️ *Diqqat:* Hech qanday xatolik kuzatilmadi!`;
 
-    await adminBot.sendMessage(chatId, message, {
+    await adminBot?.sendMessage(chatId, message, {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
@@ -590,7 +589,7 @@ async function showAdminHelp(chatId: number) {
     message += `• Email: admin@luxpetplast.uz\n`;
     message += `• Telegram: @luxpetplast_admin`;
 
-    await adminBot.sendMessage(chatId, message, {
+    await adminBot?.sendMessage(chatId, message, {
       parse_mode: 'Markdown'
     });
 
@@ -612,7 +611,7 @@ async function selectDriverForPayment(chatId: number) {
     });
 
     if (drivers.length === 0) {
-      await adminBot.sendMessage(chatId, '🚚 *Faol haydovchilar yo\'q*', {
+      await adminBot?.sendMessage(chatId, '🚚 *Faol haydovchilar yo\'q*', {
         parse_mode: 'Markdown'
       });
       return;
@@ -620,7 +619,7 @@ async function selectDriverForPayment(chatId: number) {
 
     let message = `🚚 *Qaysi haydovchiga pul yuborasiz?*\n\n`;
     
-    const keyboard = {
+    const keyboard: { inline_keyboard: { text: string; callback_data: string; }[][] } = {
       inline_keyboard: []
     };
 
@@ -634,7 +633,7 @@ async function selectDriverForPayment(chatId: number) {
       ]);
     });
 
-    await adminBot.sendMessage(chatId, message, {
+    await adminBot?.sendMessage(chatId, message, {
       parse_mode: 'Markdown',
       reply_markup: keyboard
     });
@@ -647,7 +646,7 @@ async function selectDriverForPayment(chatId: number) {
 
 async function sendToCashbox(chatId: number, amount?: number) {
   try {
-    await adminBot.sendMessage(chatId, 
+    await adminBot?.sendMessage(chatId, 
       `💳 *Kassaga Pul Yuborish*\n\n` +
       `✅ Pul muvaffaqiyatli kassaga qo'shildi!\n\n` +
       `💰 Summa: ${formatCurrency(amount || 1000000)}\n` +
@@ -665,7 +664,7 @@ async function sendToCashbox(chatId: number, amount?: number) {
 }
 
 function getStatusEmoji(status: string): string {
-  const statusEmojis = {
+  const statusEmojis: Record<string, string> = {
     'PENDING': '⏳',
     'CONFIRMED': '✅',
     'IN_PRODUCTION': '🏭',

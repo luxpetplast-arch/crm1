@@ -24,7 +24,7 @@ export default function CashierLogin() {
       setAuth(data.token, data.user);
       
       // Kassir roli tekshiruvi
-      if (data.user.role !== 'cashier') {
+      if (data.user.role?.toLowerCase() !== 'cashier') {
         setError('❌ Faqat kassirlar uchun login!');
         return;
       }

@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from './prisma';
 import { botManager } from '../bot/bot-manager';
-
-const prisma = new PrismaClient();
 
 /**
  * Mijozga sotuv haqida xabar yuborish
@@ -19,7 +17,7 @@ export async function notifyCustomerSale(saleId: string) {
       }
     });
 
-    if (!sale || !sale.customer.telegramChatId) {
+    if (!sale || !sale.customer?.telegramChatId) {
       console.log('❌ Sale yoki customer telegramChatId topilmadi');
       return;
     }
@@ -34,7 +32,7 @@ export async function notifyCustomerSale(saleId: string) {
     let productsText = '';
     if (sale.items && sale.items.length > 0) {
       productsText = sale.items.map((item, index) => 
-        `${index + 1}. ${item.product.name} - ${item.quantity} qop x ${item.pricePerBag} = ${item.subtotal} USD`
+        `${index + 1}. ${item.product?.name || 'Noma\'lum'} - ${item.quantity} qop x ${item.pricePerBag} = ${item.subtotal} USD`
       ).join('\n');
     } else if (sale.product) {
       productsText = `1. ${sale.product.name} - ${sale.quantity} qop x ${sale.pricePerBag} = ${sale.totalAmount} USD`;
@@ -150,11 +148,12 @@ export async function sendDailyReport() {
     const unpaidSales = sales.filter(s => s.paymentStatus === 'UNPAID').length;
 
     // Top mijozlar
-    const customerSales = sales.reduce((acc: any, sale) => {
-      const key = sale.customerId;
+    const customerSales = sales.reduce((acc: Record<string, any>, sale) => {
+      const key = sale.customerId || 'unknown';
+      if (!key) return acc;
       if (!acc[key]) {
         acc[key] = {
-          name: sale.customer.name,
+          name: sale.customer?.name || 'Noma\'lum',
           count: 0,
           total: 0
         };

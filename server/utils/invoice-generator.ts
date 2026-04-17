@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from './prisma';
 
 /**
  * Invoice raqamini generatsiya qilish
@@ -51,15 +49,20 @@ export async function createInvoiceForSale(saleId: string): Promise<any> {
     }
 
     // Invoice yaratish
+    const invoiceData: any = {
+      saleId: sale.id,
+      invoiceNumber,
+      totalAmount: sale.totalAmount,
+      currency: sale.currency,
+      sentToTelegram: false
+    };
+    
+    if (sale.customerId) {
+      invoiceData.customerId = sale.customerId;
+    }
+    
     const invoice = await prisma.invoice.create({
-      data: {
-        saleId: sale.id,
-        customerId: sale.customerId,
-        invoiceNumber,
-        totalAmount: sale.totalAmount,
-        currency: sale.currency,
-        sentToTelegram: false
-      },
+      data: invoiceData,
       include: {
         sale: {
           include: {

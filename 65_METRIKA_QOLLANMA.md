@@ -100,7 +100,7 @@ Saytda endi **65 ta alohida biznes metrikasi** mavjud. Har bir metrika uchun:
 │ $12,345                     │
 │ Asosiy qiymat               │
 │                             │
-│ ▁▂▃▄▅▆▇ Mini Chart          │
+│ ▁▂▅▆▇ Mini Chart           │
 │                             │
 │ Trend: +5.2%                │
 └─────────────────────────────┘

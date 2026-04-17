@@ -221,7 +221,7 @@ export default function ProductDetail() {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <Package className="w-16 h-16 text-primary mx-auto mb-4 animate-pulse" />
+          <Package className="w-16 h-16 text-primary mx-auto mb-4 animate-pulse rounded-lg" />
           <p className="text-lg font-semibold">Yuklanmoqda...</p>
         </div>
       </div>
@@ -231,7 +231,7 @@ export default function ProductDetail() {
   if (!product) {
     return (
       <div className="text-center py-12">
-        <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
+        <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4 rounded-lg" />
         <p className="text-muted-foreground">Mahsulot topilmadi</p>
         <Button onClick={() => navigate('/products')} className="mt-4">
           Orqaga
@@ -249,34 +249,34 @@ export default function ProductDetail() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="outline" onClick={() => navigate('/products')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ArrowLeft className="w-4 h-4 mr-2 rounded-lg" />
             Orqaga
           </Button>
           <div>
             <h1 className="text-3xl font-bold">{product.name}</h1>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded text-[10px] font-black uppercase tracking-widest">
+              <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded text-[10px] font-semibold uppercase tracking-widest">
                 {product.warehouse === 'preform' ? '📦 PREFORMA' : 
                  product.warehouse === 'krishka' ? '⭕ QOPQOQ' : 
                  product.warehouse === 'ruchka' ? '🎗️ RUCHKA' : '🛠️ BOSHQA'}
               </span>
               {product.productType && (
-                <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded text-[10px] font-black uppercase tracking-widest">
+                <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded text-[10px] font-semibold uppercase tracking-widest">
                   {product.productType.name}
                 </span>
               )}
               {product.category && (
-                <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded text-[10px] font-black uppercase tracking-widest">
+                <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded text-[10px] font-semibold uppercase tracking-widest">
                   {product.category.name}
                 </span>
               )}
               {product.bagType && (
-                <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 rounded text-[10px] font-black uppercase tracking-widest">
+                <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 rounded text-[10px] font-semibold uppercase tracking-widest">
                   {product.bagType}
                 </span>
               )}
               {product.subType && (
-                <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded text-[10px] font-black uppercase tracking-widest">
+                <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded text-[10px] font-semibold uppercase tracking-widest">
                   {product.subType}
                 </span>
               )}
@@ -290,7 +290,7 @@ export default function ProductDetail() {
             onClick={() => setShowSettingsModal(true)}
             className="border-purple-500 text-purple-500 hover:bg-purple-50"
           >
-            <Settings className="w-4 h-4 mr-2" />
+            <Settings className="w-4 h-4 mr-2 rounded-lg" />
             Sozlamalar
           </Button>
           <Button 
@@ -298,7 +298,7 @@ export default function ProductDetail() {
             onClick={() => setShowPriceModal(true)}
             className="border-blue-500 text-blue-500 hover:bg-blue-50"
           >
-            <DollarSign className="w-4 h-4 mr-2" />
+            <DollarSign className="w-4 h-4 mr-2 rounded-lg" />
             Narx Belgilash
           </Button>
           <Button 
@@ -309,7 +309,7 @@ export default function ProductDetail() {
             }}
             className="bg-green-600 hover:bg-green-700"
           >
-            <Plus className="w-4 h-4 mr-2" />
+            <Plus className="w-4 h-4 mr-2 rounded-lg" />
             Qop Qo'shish
           </Button>
           <Button 
@@ -321,7 +321,7 @@ export default function ProductDetail() {
             variant="outline"
             className="border-red-500 text-red-500 hover:bg-red-50"
           >
-            <Minus className="w-4 h-4 mr-2" />
+            <Minus className="w-4 h-4 mr-2 rounded-lg" />
             Qop Kamaytirish
           </Button>
         </div>
@@ -333,7 +333,7 @@ export default function ProductDetail() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-muted-foreground">Jami Qoplar</span>
-              <Package className="w-5 h-5 text-blue-500" />
+              <Package className="w-5 h-5 text-blue-500 rounded-lg" />
             </div>
             <p className="text-3xl font-bold">{product.currentStock}</p>
             <p className="text-xs text-muted-foreground mt-1">qop</p>
@@ -344,7 +344,7 @@ export default function ProductDetail() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-muted-foreground">Qopdagi Dona</span>
-              <Package className="w-5 h-5 text-orange-500" />
+              <Package className="w-5 h-5 text-orange-500 rounded-lg" />
             </div>
             <p className="text-3xl font-bold">{product.unitsPerBag}</p>
             <p className="text-xs text-muted-foreground mt-1">dona/qop</p>
@@ -355,7 +355,7 @@ export default function ProductDetail() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-muted-foreground">Jami Donalar</span>
-              <Package className="w-5 h-5 text-purple-500" />
+              <Package className="w-5 h-5 text-purple-500 rounded-lg" />
             </div>
             <p className="text-3xl font-bold">{product.currentUnits}</p>
             <p className="text-xs text-muted-foreground mt-1">dona</p>
@@ -366,7 +366,7 @@ export default function ProductDetail() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-muted-foreground">Holat</span>
-              <StatusIcon className={`w-5 h-5 ${status.color}`} />
+              <StatusIcon className={`w-5 h-5 ${status.color} rounded-lg`} />
             </div>
             <p className={`text-2xl font-bold ${status.color}`}>{status.label}</p>
             <p className="text-xs text-muted-foreground mt-1">
@@ -385,19 +385,19 @@ export default function ProductDetail() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div>
               <p className="text-sm text-muted-foreground mb-1">Qop Narxi (UZS)</p>
-              <p className="text-xl font-black text-emerald-600">{(product.pricePerBag || 0).toLocaleString()} UZS</p>
+              <p className="text-xl font-bold text-emerald-600">{(product.pricePerBag || 0).toLocaleString()} UZS</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground mb-1">Qop Narxi ($)</p>
-              <p className="text-xl font-black text-blue-600">${(product.pricePerBag / exchangeRates.USD_TO_UZS).toFixed(2)}</p>
+              <p className="text-xl font-bold text-blue-600">${(product.pricePerBag / exchangeRates.USD_TO_UZS).toFixed(2)}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground mb-1">Dona Narxi (UZS)</p>
-              <p className="text-xl font-black text-emerald-600">{(product.pricePerPiece || 0).toLocaleString()} UZS</p>
+              <p className="text-xl font-bold text-emerald-600">{(product.pricePerPiece || 0).toLocaleString()} UZS</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground mb-1">Dona Narxi ($)</p>
-              <p className="text-xl font-black text-blue-600">${(product.pricePerPiece / exchangeRates.USD_TO_UZS).toFixed(4)}</p>
+              <p className="text-xl font-bold text-blue-600">${(product.pricePerPiece / exchangeRates.USD_TO_UZS).toFixed(4)}</p>
             </div>
             <div className="pt-4 border-t col-span-2 md:col-span-4 grid grid-cols-2 md:grid-cols-4 gap-6">
               <div>
@@ -424,7 +424,7 @@ export default function ProductDetail() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-muted-foreground">Jami Sotilgan</span>
-                <ShoppingCart className="w-5 h-5 text-green-500" />
+                <ShoppingCart className="w-5 h-5 text-green-500 rounded-lg" />
               </div>
               <p className="text-3xl font-bold text-green-600">{salesStats.totalSold}</p>
               <p className="text-xs text-muted-foreground mt-1">
@@ -437,7 +437,7 @@ export default function ProductDetail() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-muted-foreground">Jami Daromad</span>
-                <DollarSign className="w-5 h-5 text-blue-500" />
+                <DollarSign className="w-5 h-5 text-blue-500 rounded-lg" />
               </div>
               <p className="text-3xl font-bold text-blue-600">
                 {salesStats.totalRevenue.toLocaleString()}
@@ -450,7 +450,7 @@ export default function ProductDetail() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-muted-foreground">Jami Foyda</span>
-                <TrendingUp className="w-5 h-5 text-emerald-500" />
+                <TrendingUp className="w-5 h-5 text-emerald-500 rounded-lg" />
               </div>
               <p className="text-3xl font-bold text-emerald-600">
                 {salesStats.totalProfit.toLocaleString()}
@@ -466,7 +466,7 @@ export default function ProductDetail() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5" />
+              <BarChart3 className="w-5 h-5 rounded-lg" />
               Sotuv Analitikasi
             </CardTitle>
           </CardHeader>
@@ -536,106 +536,6 @@ export default function ProductDetail() {
         </Card>
       )}
 
-      {/* Stock Movements History */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <History className="w-5 h-5" />
-            Tarix
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {product.stockMovements && product.stockMovements.length > 0 ? (
-            <div className="space-y-3">
-              {product.stockMovements.map((movement: any) => (
-                <div 
-                  key={movement.id}
-                  className="flex items-start gap-3 p-4 bg-muted rounded-lg border-l-4"
-                  style={{
-                    borderLeftColor: movement.type === 'ADD' || movement.type === 'PRODUCTION' 
-                      ? '#10b981' 
-                      : '#ef4444'
-                  }}
-                >
-                  <div className="mt-1">
-                    {getMovementIcon(movement.type)}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <span className="font-semibold text-lg">{movement.reason}</span>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Clock className="w-3 h-3 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">
-                            {formatSmartDate(movement.createdAt)}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            • {formatRelativeTime(movement.createdAt)}
-                          </span>
-                        </div>
-                      </div>
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${
-                        movement.type === 'ADD' || movement.type === 'PRODUCTION'
-                          ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                          : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
-                      }`}>
-                        {movement.type}
-                      </span>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-3 p-3 bg-background rounded-lg mb-2">
-                      <div>
-                        <span className="text-xs text-muted-foreground">Qoplar O'zgarishi</span>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className={`text-lg font-bold ${getMovementColor(movement.type)}`}>
-                            {movement.quantity > 0 ? '+' : ''}{movement.quantity}
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            ({movement.previousStock} → {movement.newStock})
-                          </span>
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-xs text-muted-foreground">Donalar O'zgarishi</span>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className={`text-lg font-bold ${getMovementColor(movement.type)}`}>
-                            {movement.units > 0 ? '+' : ''}{movement.units}
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            ({movement.previousUnits} → {movement.newUnits})
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        👤 {movement.userName}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        📅 {formatDateTime(movement.createdAt)}
-                      </span>
-                    </div>
-                    
-                    {movement.notes && (
-                      <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-950 rounded border-l-2 border-blue-500">
-                        <p className="text-sm italic">
-                          💬 {movement.notes}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-muted-foreground py-8">
-              Hali harakat yo'q
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Adjust Modal */}
       <Modal
         isOpen={showAdjustModal}
@@ -700,10 +600,10 @@ export default function ProductDetail() {
             />
             
             <div className="col-span-2 grid grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
-              <div className="col-span-2 text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Asosiy Narxlar</div>
+              <div className="col-span-2 text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Asosiy Narxlar</div>
               
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-gray-400 uppercase">Qop Narxi (UZS)</label>
+                <label className="text-[10px] font-semibold text-gray-400 uppercase">Qop Narxi (UZS)</label>
                 <input
                   type="text"
                   value={parseFloat(settingsForm.pricePerBag).toLocaleString()}
@@ -713,7 +613,7 @@ export default function ProductDetail() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-gray-400 uppercase">Qop Narxi ($)</label>
+                <label className="text-[10px] font-semibold text-gray-400 uppercase">Qop Narxi ($)</label>
                 <input
                   type="text"
                   value={(parseFloat(settingsForm.pricePerBag) / exchangeRates.USD_TO_UZS).toFixed(2)}
@@ -723,7 +623,7 @@ export default function ProductDetail() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-gray-400 uppercase">Dona Narxi (UZS)</label>
+                <label className="text-[10px] font-semibold text-gray-400 uppercase">Dona Narxi (UZS)</label>
                 <input
                   type="text"
                   value={parseFloat(settingsForm.pricePerPiece).toLocaleString()}
@@ -733,7 +633,7 @@ export default function ProductDetail() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-gray-400 uppercase">Dona Narxi ($)</label>
+                <label className="text-[10px] font-semibold text-gray-400 uppercase">Dona Narxi ($)</label>
                 <input
                   type="text"
                   value={(parseFloat(settingsForm.pricePerPiece) / exchangeRates.USD_TO_UZS).toFixed(4)}

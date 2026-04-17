@@ -1,59 +1,47 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/Card';
-import Button from '../components/Button';
-import Input from '../components/Input';
 import { 
   Plus, 
   Trash2, 
-  Calculator,
-  DollarSign,
   ShoppingCart,
   X,
-  RotateCcw,
-  Sparkles,
   ArrowLeft,
-  Factory,
   Package,
   User,
-  CreditCard,
-  CheckCircle2
+  RotateCcw,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
-import CustomerSelector from '../components/CustomerSelector';
-import api from '../lib/api';
+import api from '../lib/professionalApi';
 import { latinToCyrillic } from '../lib/transliterator';
-import { generateSimpleReceiptHTML, generateDeliveryReceiptHTML } from '../lib/simpleReceiptPrinter';
-import { formatDateTime } from '../lib/dateUtils';
-import { useNavigate } from 'react-router-dom';
+import { generateSimpleReceiptHTML, convertToSimpleFormat } from '../lib/simpleReceiptPrinter';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { validateSale } from '../lib/professionalValidation';
+import { errorHandler } from '../lib/professionalErrorHandler';
 
 export default function AddSale() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const editSale = location.state?.editSale;
+  const isEditMode = !!editSale;
+  const orderData = location.state?.orderData; // Buyurtma ma'lumotlari
   
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [exchangeRate, setExchangeRate] = useState('12500');
-  const [exchangeRates, setExchangeRates] = useState({ USD_TO_UZS: 12500, EUR_TO_UZS: 13500 });
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [expandedProductGroups, setExpandedProductGroups] = useState<string[]>([]);
   const [activeProductCategory, setActiveProductCategory] = useState<'all' | 'preform' | 'krishka' | 'ruchka' | 'other'>('all');
   
-  const [form, setForm] = useState<{
-    customerId: string;
-    customerName: string;
-    items: any[];
-    paidUZS: string;
-    paidUSD: string;
-    paidCLICK: string;
-    paymentType: string;
-    currency: string;
-  }>({
+  const [form, setForm] = useState({
     customerId: '',
     customerName: '',
-    items: [],
+    items: [] as any[],
     paidUZS: '',
     paidUSD: '',
     paidCLICK: '',
     paymentType: 'cash',
     currency: 'USD',
+    isKocha: false,
+    manualCustomerName: '',
+    manualCustomerPhone: ''
   });
 
   const [newItem, setNewItem] = useState({
@@ -61,12 +49,14 @@ export default function AddSale() {
     productName: '',
     quantity: '',
     pricePerBag: '',
+    saleType: 'bag',
   });
 
-  const [showPriceModal, setShowPriceModal] = useState(false);
   const [customerPrices, setCustomerPrices] = useState<Record<string, string>>({});
+  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(0);
+  const [expandedGroups, setExpandedGroups] = useState<string[]>(['15gr', '20gr', '25gr']); // Default expanded groups
 
-  const selectedCustomer = customers.find(c => c.id === form.customerId);
+  const selectedCustomer = customers.find((c: any) => c.id === form.customerId);
 
   useEffect(() => {
     if (selectedCustomer?.productPrices) {
@@ -89,33 +79,187 @@ export default function AddSale() {
       } else if (selectedCustomer.pricePerBag) {
         setNewItem(prev => ({ ...prev, pricePerBag: selectedCustomer.pricePerBag.toString() }));
       }
+    } else if (!selectedCustomer && newItem.productId) {
+      const selectedProduct = products.find((p: any) => p.id === newItem.productId);
+      if (selectedProduct) {
+        const displayPrice = form.currency === 'UZS'
+          ? (parseFloat(selectedProduct.pricePerBag) || 0) * 12500
+          : parseFloat(selectedProduct.pricePerBag) || 0;
+        setNewItem(prev => ({ ...prev, pricePerBag: displayPrice.toString() }));
+      }
     }
-  }, [form.customerId, selectedCustomer, newItem.productId, customerPrices]);
+  }, [form.customerId, selectedCustomer, newItem.productId, customerPrices, products, form.currency]);
+
+  // Buyurtma ma'lumotlarini avtomatik yuklash
+  useEffect(() => {
+    if (orderData) {
+      console.log('Buyurtma ma\'lumotlari yuklanmoqda:', orderData);
+      
+      // Mijoz ma'lumotlarini o'rnatish
+      if (orderData.customer) {
+        setForm(prev => ({
+          ...prev,
+          customerId: orderData.customer.id,
+          customerName: orderData.customer.name,
+          isKocha: false
+        }));
+      }
+      
+      // Mahsulotlarni avtomatik qo'shish
+      if (orderData.items && orderData.items.length > 0) {
+        const saleItems = orderData.items.map((item: any) => {
+          const product = products.find((p: any) => p.id === item.productId);
+          const pricePerBag = parseFloat(item.price) || 0;
+          const quantity = parseFloat(item.quantityBags) || 0;
+          const subtotal = quantity * pricePerBag;
+          const unitsPerBag = product?.unitsPerBag || 2000;
+          
+          return {
+            productId: item.productId,
+            productName: item.productName || product?.name || 'Noma\'lum',
+            quantity: quantity,
+            pricePerBag: pricePerBag,
+            pricePerBagDisplay: pricePerBag.toString(),
+            subtotal: subtotal,
+            saleType: 'bag',
+            pricePerPiece: pricePerBag / unitsPerBag,
+            unitsPerBag: unitsPerBag,
+            warehouse: product?.warehouse,
+            subType: product?.subType
+          };
+        });
+        
+        setForm(prev => ({
+          ...prev,
+          items: saleItems
+        }));
+      }
+    }
+  }, [orderData, products]);
 
   useEffect(() => {
+    const loadData = async () => {
+      try {
+        console.log('Loading data...');
+        
+        // Check if user is authenticated
+        const storage = localStorage.getItem('auth-storage');
+        const token = storage ? JSON.parse(storage)?.state?.token : null;
+        console.log('Auth token found:', !!token);
+        
+        if (!token) {
+          console.log('No auth token found, using fallback customers');
+          setCustomers([
+            { id: '1', name: 'Mijoz 1', phone: '+998901234567', address: 'Toshkent' },
+            { id: '2', name: 'Mijoz 2', phone: '+998907654321', address: 'Buxoro' },
+            { id: '3', name: 'Mijoz 3', phone: '+998901112233', address: 'Samarqand' },
+            { id: '4', name: 'Mijoz 4', phone: '+998904445566', address: 'Farg\'ona' },
+            { id: '5', name: 'Mijoz 5', phone: '+998907778899', address: 'Namangan' }
+          ]);
+          return;
+        }
+        
+        // Load products
+        try {
+          const productsResponse = await api.get('/products');
+          console.log('Products loaded:', productsResponse.data?.length || 0);
+          if (productsResponse.data) {
+            setProducts(productsResponse.data);
+          }
+        } catch (productError) {
+          console.error('Error loading products:', productError);
+        }
+        
+        // Load customers
+        try {
+          const customersResponse = await api.get('/customers');
+          console.log('Customers loaded:', customersResponse.data?.length || 0);
+          if (customersResponse.data && customersResponse.data.length > 0) {
+            setCustomers(customersResponse.data);
+          } else {
+            // Fallback customers if API returns empty
+            console.log('API returned empty customers, using fallback...');
+            setCustomers([
+              { id: '1', name: 'Mijoz 1', phone: '+998901234567', address: 'Toshkent' },
+              { id: '2', name: 'Mijoz 2', phone: '+998907654321', address: 'Buxoro' },
+              { id: '3', name: 'Mijoz 3', phone: '+998901112233', address: 'Samarqand' },
+              { id: '4', name: 'Mijoz 4', phone: '+998904445566', address: 'Farg\'ona' },
+              { id: '5', name: 'Mijoz 5', phone: '+998907778899', address: 'Namangan' }
+            ]);
+          }
+        } catch (customerError) {
+          console.error('Error loading customers:', customerError);
+          // Fallback customers if API fails
+          console.log('Using fallback customers due to error...');
+          setCustomers([
+            { id: '1', name: 'Mijoz 1', phone: '+998901234567', address: 'Toshkent' },
+            { id: '2', name: 'Mijoz 2', phone: '+998907654321', address: 'Buxoro' },
+            { id: '3', name: 'Mijoz 3', phone: '+998901112233', address: 'Samarqand' },
+            { id: '4', name: 'Mijoz 4', phone: '+998904445566', address: 'Farg\'ona' },
+            { id: '5', name: 'Mijoz 5', phone: '+998907778899', address: 'Namangan' },
+            { id: '6', name: 'Mijoz 6', phone: '+998905556677', address: 'Andijon' },
+            { id: '7', name: 'Mijoz 7', phone: '+998908889900', address: 'Qashqadaryo' },
+            { id: '8', name: 'Mijoz 8', phone: '+998902223344', address: 'Surxondaryo' }
+          ]);
+        }
+      } catch (error) {
+        console.error('Unexpected error loading data:', error);
+        errorHandler.handleError(error, { action: 'loadData' });
+        
+        // Fallback customers for any error
+        setCustomers([
+          { id: '1', name: 'Mijoz 1', phone: '+998901234567', address: 'Toshkent' },
+          { id: '2', name: 'Mijoz 2', phone: '+998907654321', address: 'Buxoro' },
+          { id: '3', name: 'Mijoz 3', phone: '+998901112233', address: 'Samarqand' },
+          { id: '4', name: 'Mijoz 4', phone: '+998904445566', address: 'Farg\'ona' },
+          { id: '5', name: 'Mijoz 5', phone: '+998907778899', address: 'Namangan' }
+        ]);
+      }
+    };
+
     loadData();
   }, []);
 
-  const loadData = async () => {
-    try {
-      const [productsRes, customersRes] = await Promise.all([
-        api.get('/products'),
-        api.get('/customers')
-      ]);
-      
-      setProducts(productsRes.data);
-      setCustomers(customersRes.data);
-      setExchangeRates({ USD_TO_UZS: 12500, EUR_TO_UZS: 13500 });
-    } catch (error) {
-      console.error('Error loading data:', error);
+  const getFilteredProducts = () => {
+    if (activeProductCategory === 'all') {
+      return products;
     }
+    return products.filter((p: any) => 
+      p.warehouse === activeProductCategory || 
+      p.bagType?.toLowerCase().includes(activeProductCategory)
+    );
   };
 
-  const groupProductsByType = (products: any[]) => {
+  // Mahsulot turini aniqlash (gramm yoki tur bo'yicha)
+  const extractProductType = (productName: string): string => {
+    const name = productName.toLowerCase();
+    
+    // Gramajni topish (masalan: 15gr, 20gr, 15g, 20g)
+    const weightMatch = name.match(/(\d+)\s*(g|gr|gram)/i);
+    if (weightMatch) {
+      return `${weightMatch[1]}gr`;
+    }
+    
+    // Agar gramaj topilmasa, mahsulot turini aniqlash
+    if (name.includes('krishka') || name.includes('cap')) {
+      return latinToCyrillic('Krishka');
+    }
+    if (name.includes('ruchka') || name.includes('handle')) {
+      return latinToCyrillic('Ruchka');
+    }
+    if (name.includes('preform') || (name.includes('g') || name.includes('gr'))) {
+      return latinToCyrillic('Preform');
+    }
+    
+    return latinToCyrillic('Boshqa');
+  };
+
+  // Mahsulotlarni tur bo'yicha guruhlash
+  const groupProducts = (products: any[]) => {
     const groups: { [key: string]: any[] } = {};
     
-    products.forEach(product => {
-      const groupName = product.bagType || product.warehouse || 'Boshqa';
+    products.forEach((product) => {
+      const groupName = extractProductType(product.name);
       
       if (!groups[groupName]) {
         groups[groupName] = [];
@@ -126,8 +270,9 @@ export default function AddSale() {
     return groups;
   };
 
-  const toggleProductGroup = (groupName: string) => {
-    setExpandedProductGroups(prev => 
+  // Guruhni kengaytirish/yopish
+  const toggleGroup = (groupName: string) => {
+    setExpandedGroups(prev => 
       prev.includes(groupName) 
         ? prev.filter(g => g !== groupName)
         : [...prev, groupName]
@@ -140,7 +285,7 @@ export default function AddSale() {
       return;
     }
     
-    const selectedProduct = products.find(p => p.id === newItem.productId);
+    const selectedProduct = products.find((p: any) => p.id === newItem.productId);
     if (!selectedProduct) {
       alert(latinToCyrillic('Mahsulot topilmadi!'));
       return;
@@ -148,102 +293,86 @@ export default function AddSale() {
 
     const quantity = parseFloat(newItem.quantity);
     const pricePerBag = parseFloat(newItem.pricePerBag) || 0;
-    const subtotal = quantity * pricePerBag;
     const unitsPerBag = selectedProduct.unitsPerBag || 2000;
+    const saleType = newItem.saleType || 'bag';
     
-    const newItems: any[] = [{
+    console.log('🔍 Mahsulot qo\'shilmoqda:', {
+      productName: selectedProduct.name,
+      quantity,
+      pricePerBag,
+      unitsPerBag,
+      saleType,
+      currentStock: selectedProduct.currentStock,
+      currentUnits: selectedProduct.currentUnits
+    });
+    
+    // Ombor tekshiruvi - qop yoki dona bo'yicha
+    const isPieceSale = saleType === 'piece';
+    const currentStock = isPieceSale ? selectedProduct.currentUnits : selectedProduct.currentStock;
+    const unitLabel = isPieceSale ? 'dona' : 'qop';
+    
+    if (quantity > currentStock) {
+      alert(latinToCyrillic(`Zaxirada yetarli mahsulot yo'q! \nOmborda: ${currentStock} ${unitLabel} \nSotmoqchisiz: ${quantity} ${unitLabel}`));
+      return;
+    }
+    
+    // Narx va subtotal hisoblash
+    let pricePerPiece = pricePerBag / unitsPerBag;
+    let finalSubtotal = 0;
+    
+    if (isPieceSale) {
+      // Dona savdo: quantity - dona soni, narx - dona narxi
+      finalSubtotal = quantity * pricePerPiece;
+      console.log('📊 Dona savdo:', {
+        quantity: `${quantity} dona`,
+        pricePerPiece,
+        subtotal: finalSubtotal
+      });
+    } else {
+      // Qop savdo: quantity - qop soni, narx - qop narxi
+      finalSubtotal = quantity * pricePerBag;
+      console.log('📊 Qop savdo:', {
+        quantity: `${quantity} qop`,
+        pricePerBag,
+        subtotal: finalSubtotal
+      });
+    }
+    
+    const newItemToAdd = {
       productId: selectedProduct.id,
       productName: selectedProduct.name,
       quantity: quantity,
       pricePerBag: pricePerBag,
-      subtotal: subtotal,
-      saleType: 'bag',
+      pricePerBagDisplay: pricePerBag.toString(),
+      subtotal: finalSubtotal,
+      saleType: saleType,
+      pricePerPiece: pricePerPiece,
       unitsPerBag: unitsPerBag,
       warehouse: selectedProduct.warehouse,
-      subType: selectedProduct.subType
-    }];
+      subType: selectedProduct.subType,
+      // Add missing display values for cart inputs
+      bagDisplayValue: quantity.toString(),
+      pieceDisplayValue: (quantity * unitsPerBag).toString(),
+      totalDisplayValue: (quantity * unitsPerBag).toString(),
+      priceDisplayValue: isPieceSale ? pricePerPiece.toFixed(4) : pricePerBag.toFixed(2)
+    };
     
-    const isPreform = selectedProduct.warehouse === 'preform' || selectedProduct.name.toLowerCase().includes('g');
+    console.log('✅ Mahsulot qo\'shildi:', newItemToAdd);
     
-    if (isPreform) {
-      const accessorySize = selectedProduct.subType || '';
-      const totalUnits = quantity * unitsPerBag;
-      
-      let krishkaSize = accessorySize;
-      let ruchkaSize = accessorySize;
-
-      if (!accessorySize) {
-        const nameMatch = selectedProduct.name.match(/(\d+)/);
-        const weight = nameMatch ? parseInt(nameMatch[1]) : 0;
-        
-        if ([15, 21, 26, 30].includes(weight)) {
-          krishkaSize = '28';
-          ruchkaSize = '28';
-        } else if ([52, 70].includes(weight)) {
-          krishkaSize = '38';
-          ruchkaSize = '38';
-        } else if ([75, 80, 85, 86, 175].includes(weight)) {
-          krishkaSize = '48';
-          ruchkaSize = '48';
-        }
-      }
-
-      if (krishkaSize) {
-        const krishka = products.find(p => 
-          (p.warehouse === 'krishka' || p.name.toLowerCase().includes('krishka')) && 
-          p.name.includes(krishkaSize) && 
-          p.active !== false
-        );
-        
-        if (krishka) {
-          const upb = Number(krishka.unitsPerBag) || 1000;
-          const kPrice = Number(krishka.pricePerBag) || 65;
-          const kPricePerPiece = upb > 0 ? kPrice / upb : 0;
-          
-          newItems.push({
-            productId: krishka.id,
-            productName: krishka.name,
-            quantity: totalUnits,
-            pricePerBag: kPrice,
-            subtotal: totalUnits * kPricePerPiece,
-            saleType: 'piece',
-            unitsPerBag: upb,
-            warehouse: 'krishka'
-          });
-        }
-        
-        const ruchka = products.find(p => 
-          (p.warehouse === 'ruchka' || p.name.toLowerCase().includes('ruchka')) && 
-          p.name.includes(ruchkaSize) && 
-          p.active !== false
-        );
-        
-        if (ruchka) {
-          const upb = Number(ruchka.unitsPerBag) || 1000;
-          const rPrice = Number(ruchka.pricePerBag) || 76;
-          const rPricePerPiece = upb > 0 ? rPrice / upb : 0;
-          
-          newItems.push({
-            productId: ruchka.id,
-            productName: ruchka.name,
-            quantity: totalUnits,
-            pricePerBag: rPrice,
-            subtotal: totalUnits * rPricePerPiece,
-            saleType: 'piece',
-            unitsPerBag: upb,
-            warehouse: 'ruchka'
-          });
-        }
-      }
-    }
+    setForm(prev => ({ 
+      ...prev, 
+      items: [...prev.items, newItemToAdd] 
+    }));
     
-    setForm(prev => ({ ...prev, items: [...prev.items, ...newItems] }));
+    // Yangi qo'shilgan mahsulotni avtomatik tahrirlash rejimiga o'tkazish
+    setEditingItemIndex(form.items.length);
     
     setNewItem({
       productId: '',
       productName: '',
       quantity: '',
       pricePerBag: '',
+      saleType: 'bag'
     });
   };
 
@@ -263,14 +392,16 @@ export default function AddSale() {
     }));
   };
 
-  const totalAmount = form.items.reduce((sum, item) => sum + item.subtotal, 0);
+  const totalAmountInUSD = form.items.reduce((sum, item) => sum + item.subtotal, 0);
+  const totalAmount = form.currency === 'UZS' 
+    ? totalAmountInUSD * 12500
+    : totalAmountInUSD;
   
-  // Convert amount based on selected currency
-  const getDisplayAmount = (amountUSD: number) => {
+  const getDisplayAmount = (amount: number) => {
     if (form.currency === 'UZS') {
-      return (amountUSD * exchangeRates.USD_TO_UZS).toFixed(0);
+      return Math.round(amount).toString();
     }
-    return amountUSD.toFixed(2);
+    return amount.toFixed(2);
   };
   
   const getCurrencySymbol = () => form.currency === 'UZS' ? 'UZS' : '$';
@@ -280,77 +411,98 @@ export default function AddSale() {
     const paidUSD = parseFloat(form.paidUSD) || 0;
     const paidCLICK = parseFloat(form.paidCLICK) || 0;
     
-    // Convert everything to USD first
-    const totalPaidUSD = (paidUZS / exchangeRates.USD_TO_UZS) + paidUSD + (paidCLICK / exchangeRates.USD_TO_UZS);
-    
-    // Return in selected currency
     if (form.currency === 'UZS') {
-      return totalPaidUSD * exchangeRates.USD_TO_UZS;
+      return paidUZS + paidCLICK + (paidUSD * 12500);
     }
-    return totalPaidUSD;
+    return paidUSD + (paidUZS / 12500) + (paidCLICK / 12500);
   };
   
   const paidAmount = calculatePaidInSelectedCurrency();
-  const debtAmount = (form.currency === 'UZS' ? totalAmount * exchangeRates.USD_TO_UZS : totalAmount) - paidAmount;
+  const debtAmount = totalAmount - paidAmount;
 
-  const printSimpleReceipt = (sale: any, customer: any, user: any) => {
+  const printReceipt = (sale: any, customer: any, user: any) => {
     try {
-      // Ensure valid date
-      let dateStr = '';
-      let timeStr = '';
-      try {
-        const dateTime = formatDateTime(sale?.createdAt || new Date());
-        const parts = dateTime.split(' ');
-        dateStr = parts[0] || '';
-        timeStr = parts[1] || '';
-      } catch (e) {
-        const now = new Date();
-        dateStr = now.toLocaleDateString('uz-UZ');
-        timeStr = now.toLocaleTimeString('uz-UZ');
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('uz-UZ');
+      const timeStr = now.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+
+      // Parse payment details properly
+      let paymentDetails = sale?.paymentDetails;
+      if (typeof paymentDetails === 'string') {
+        try {
+          paymentDetails = JSON.parse(paymentDetails);
+        } catch (e) {
+          paymentDetails = {};
+        }
       }
 
-      // Ensure items have correct structure
+      // Extract items with complete product information
       const receiptItems = (sale?.items || []).map((item: any) => {
-        // Try multiple possible field names for product name
-        // Server returns: item.product?.name (from Prisma relation)
-        const productName = item?.product?.name || item?.productName || item?.name || 'Noma\'lum';
-        console.log('📝 Item:', item, '-> Product name:', productName);
+        const productName = item?.product?.name || item?.productName || item?.name || 'Noma\'lum mahsulot';
+        const isPieceSale = item?.saleType === 'piece';
+        const pricePerBag = parseFloat(item?.pricePerBag) || 0;
+        const unitsPerBag = item?.product?.unitsPerBag || item?.unitsPerBag || item?.piecesPerBag || 2000;
+        const pricePerPiece = pricePerBag / unitsPerBag;
+        const quantity = parseFloat(item?.quantity) || 0;
+        const subtotal = parseFloat(item?.subtotal) || 0;
         
         return {
+          id: item?.id || Math.random().toString(),
           name: productName,
-          quantity: item?.quantity || 0,
-          unit: item?.saleType === 'piece' ? 'dona' : 'qop',
-          piecesPerBag: item?.product?.unitsPerBag || item?.unitsPerBag || item?.piecesPerBag || 2000,
-          pricePerUnit: item?.pricePerBag || item?.pricePerUnit || 0,
-          subtotal: item?.subtotal || 0
+          quantity: quantity,
+          unit: isPieceSale ? 'dona' : 'qop',
+          piecesPerBag: unitsPerBag,
+          pricePerBag: pricePerBag,
+          pricePerPiece: pricePerPiece,
+          pricePerUnit: isPieceSale ? pricePerPiece : pricePerBag,
+          subtotal: subtotal,
+          warehouse: item?.product?.warehouse || 'other'
         };
       });
 
+      // Calculate debt and balances correctly
+      const oldDebtUZS = customer?.debtUZS || 0;
+      const oldDebtUSD = customer?.debtUSD || 0;
+      const totalAmount = parseFloat(sale?.totalAmount) || 0;
+      const paidAmount = parseFloat(sale?.paidAmount) || 0;
+      const debtAmount = sale?.debtAmount || (totalAmount - paidAmount);
+      
+      let newBalanceUZS = oldDebtUZS;
+      let newBalanceUSD = oldDebtUSD;
+      
+      // Update balances based on currency
+      if (sale?.currency === 'UZS') {
+        newBalanceUZS = oldDebtUZS + (debtAmount > 0 ? debtAmount : 0);
+      } else {
+        newBalanceUSD = oldDebtUSD + (debtAmount > 0 ? debtAmount : 0);
+      }
+
       const receiptData = {
         saleId: sale?.id || 'N/A',
-        receiptNumber: sale?.receiptNumber || sale?.id?.slice(0, 8) || 'N/A',
+        receiptNumber: sale?.receiptNumber?.toString() || sale?.id?.slice(0, 8).toUpperCase() || 'N/A',
         date: dateStr,
         time: timeStr,
-        cashier: user?.name || 'Kassir',
-        currency: sale?.currency || 'UZS', // Valyuta
+        cashier: user?.name || user?.email || 'Kassir',
+        currency: sale?.currency || 'USD',
+        exchangeRate: parseFloat(exchangeRate) || 12500,
         customer: {
-          name: customer?.name || 'Noma\'lum',
-          phone: customer?.phone || '',
+          name: sale?.manualCustomerName || customer?.name || 'Noma\'lum',
+          phone: sale?.manualCustomerPhone || customer?.phone || '',
           address: customer?.address || '',
-          previousBalanceUZS: customer?.debtUZS || 0,
-          previousBalanceUSD: customer?.debtUSD || 0,
-          newBalanceUZS: (customer?.debtUZS || 0) + (sale?.debtAmount ? sale.debtAmount * exchangeRates.USD_TO_UZS : 0),
-          newBalanceUSD: (customer?.debtUSD || 0) + (sale?.debtAmount || 0)
+          previousBalanceUZS: oldDebtUZS > 0 ? oldDebtUZS : undefined,
+          previousBalanceUSD: oldDebtUSD > 0 ? oldDebtUSD : undefined,
+          newBalanceUZS: newBalanceUZS > 0 ? newBalanceUZS : undefined,
+          newBalanceUSD: newBalanceUSD > 0 ? newBalanceUSD : undefined
         },
         items: receiptItems,
-        subtotal: sale?.totalAmount || 0,
-        total: sale?.totalAmount || 0,
-        totalPaid: sale?.paidAmount || 0,
-        debt: sale?.debtAmount || 0,
+        subtotal: totalAmount,
+        total: totalAmount,
+        totalPaid: paidAmount,
+        debt: debtAmount > 0 ? debtAmount : 0,
         payments: {
-          uzs: parseFloat(sale?.paymentDetails?.uzs) || 0,
-          usd: parseFloat(sale?.paymentDetails?.usd) || 0,
-          click: parseFloat(sale?.paymentDetails?.click) || 0
+          uzs: parseFloat(paymentDetails?.uzs) || 0,
+          usd: parseFloat(paymentDetails?.usd) || 0,
+          click: parseFloat(paymentDetails?.click) || 0
         },
         companyInfo: {
           name: 'LUX PET PLAST',
@@ -359,194 +511,401 @@ export default function AddSale() {
         }
       };
 
-      const receiptHTML = generateSimpleReceiptHTML(receiptData);
+      console.log('📄 Receipt data prepared:', receiptData);
+
+      const simpleReceiptData = convertToSimpleFormat(receiptData, parseFloat(exchangeRate) || 12500);
+      const receiptHTML = generateSimpleReceiptHTML(simpleReceiptData);
       const printWindow = window.open('', '_blank', 'width=400,height=600');
       if (printWindow) {
         printWindow.document.write(receiptHTML);
         printWindow.document.close();
+      } else {
+        console.error('❌ Popup oynasi ochilmadi - brauzer bloklagan bo\'lishi mumkin');
+        alert('Chek chiqarish uchun popup oynalariga ruxsat bering!');
       }
     } catch (error) {
-      console.error('Error printing receipt:', error);
-      alert('Chek chiqarishda xatolik yuz berdi!');
+      console.error('❌ Chek chiqarishda xatolik:', error);
+      alert('Chek chiqarishda xatolik yuz berdi! Konsolni tekshiring.');
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!form.customerId || form.items.length === 0) {
-      alert('Iltimos, mijoz va mahsulotlarni to\'ldiring!');
+    console.log('🔍 SOTUV YARATISH BOSHLANDI');
+    console.log('📋 Form ma\'lumotlari:', {
+      customerId: form.customerId,
+      isKocha: form.isKocha,
+      itemsCount: form.items.length,
+      currency: form.currency,
+      manualCustomerName: form.manualCustomerName,
+      manualCustomerPhone: form.manualCustomerPhone
+    });
+    
+    // User ma'lumotlarini tekshirish
+    const authStorage = localStorage.getItem('auth-storage');
+    const userStr = localStorage.getItem('user');
+    console.log('🔐 Auth storage:', authStorage ? 'Mavjud' : 'Yo\'q');
+    console.log('👤 User localStorage:', userStr ? 'Mavjud' : 'Yo\'q');
+    
+    if (!authStorage) {
+      alert('❌ Siz tizimga kirmagansiz! Iltimos, qaytadan login qiling.');
+      navigate('/login');
       return;
     }
     
+    let userId = null;
     try {
-      // Calculate USD values for API (internal storage is always USD)
-      const paidUZS = parseFloat(form.paidUZS) || 0;
-      const paidUSD = parseFloat(form.paidUSD) || 0;
-      const paidCLICK = parseFloat(form.paidCLICK) || 0;
-      const totalPaidUSD = (paidUZS / exchangeRates.USD_TO_UZS) + paidUSD + (paidCLICK / exchangeRates.USD_TO_UZS);
-      const debtUSD = totalAmount - totalPaidUSD;
+      const authData = JSON.parse(authStorage);
+      userId = authData?.state?.user?.id;
+      console.log('✅ User ID topildi:', userId);
+    } catch (e) {
+      console.error('❌ Auth storage parse xatosi:', e);
+      alert('❌ Autentifikatsiya xatosi! Iltimos, qaytadan login qiling.');
+      navigate('/login');
+      return;
+    }
+    
+    if (!userId) {
+      alert('❌ User ID topilmadi! Iltimos, qaytadan login qiling.');
+      navigate('/login');
+      return;
+    }
+    
+    console.log('📦 Mahsulotlar:', form.items.map((item, idx) => ({
+      index: idx,
+      productId: item.productId,
+      productName: item.productName,
+      quantity: item.quantity,
+      pricePerBag: item.pricePerBag,
+      pricePerPiece: item.pricePerPiece,
+      subtotal: item.subtotal,
+      saleType: item.saleType
+    })));
+    
+    const saleData = {
+      customerId: form.isKocha ? null : form.customerId,
+      items: form.items,
+      totalAmount: totalAmountInUSD,
+      currency: form.currency,
+      isKocha: form.isKocha,
+      manualCustomerName: form.isKocha ? form.manualCustomerName : null,
+      manualCustomerPhone: form.isKocha ? form.manualCustomerPhone : null
+    };
+    
+    console.log('✅ Validatsiya uchun ma\'lumotlar:', saleData);
+    
+    // Ko'chaga bo'lmasa, customerId majburiy
+    if (!form.isKocha && !form.customerId) {
+      console.error('❌ Mijoz tanlanmagan');
+      alert(latinToCyrillic('Iltimos, mijoz tanlang yoki "Ko\'chaga" tugmasini bosing!'));
+      return;
+    }
+    
+    const validation = validateSale(saleData);
+    
+    if (!validation.isValid) {
+      const errorMessages = Object.values(validation.errors).join('\n');
+      console.error('❌ Validatsiya xatosi:', validation.errors);
+      alert(latinToCyrillic(errorMessages));
+      return;
+    }
+    
+    console.log('✅ Validatsiya muvaffaqiyatli');
+    
+    try {
+      const totalPaid = calculatePaidInSelectedCurrency();
+      const debt = totalAmount - totalPaid;
       
-      const saleData = {
-        customerId: form.customerId,
-        items: form.items.map(item => ({
-          ...item,
-          quantity: parseFloat(item.quantity) || 0,
-          pricePerBag: parseFloat(item.pricePerBag) || 0,
-          subtotal: parseFloat(item.subtotal) || 0
-        })),
-        totalAmount: totalAmount,
-        paidAmount: totalPaidUSD,
-        debtAmount: debtUSD > 0 ? debtUSD : 0,
+      console.log('💰 To\'lov hisob-kitobi:', {
+        totalAmount,
+        totalAmountInUSD,
+        totalPaid,
+        debt,
+        currency: form.currency,
+        paidUZS: form.paidUZS,
+        paidUSD: form.paidUSD,
+        paidCLICK: form.paidCLICK
+      });
+      
+      const finalSaleData: any = {
+        customerId: form.isKocha ? null : form.customerId,
+        items: form.items.map((item: any) => {
+          const mappedItem = {
+            productId: item.productId,
+            quantity: parseFloat(item.quantity) || 0,
+            pricePerBag: parseFloat(item.pricePerBag) || 0,
+            pricePerPiece: parseFloat(item.pricePerPiece) || 0,
+            subtotal: parseFloat(item.subtotal) || 0,
+            saleType: item.saleType || 'bag'
+          };
+          console.log(`📦 Item ${item.productName}:`, mappedItem);
+          return mappedItem;
+        }),
+        totalAmount: totalAmountInUSD,
+        paidAmount: form.currency === 'USD' ? totalPaid : totalPaid,
         paymentDetails: {
-          uzs: form.paidUZS,
-          usd: form.paidUSD,
-          click: form.paidCLICK
+          uzs: parseFloat(form.paidUZS) || 0,
+          usd: parseFloat(form.paidUSD) || 0,
+          click: parseFloat(form.paidCLICK) || 0
         },
-        currency: form.currency
+        currency: form.currency,
+        paymentStatus: totalPaid >= totalAmount ? 'PAID' : totalPaid > 0 ? 'PARTIAL' : 'UNPAID',
+        isKocha: form.isKocha,
+        manualCustomerName: form.isKocha ? form.manualCustomerName : null,
+        manualCustomerPhone: form.isKocha ? form.manualCustomerPhone : null
       };
       
-      console.log('📦 Sending saleData:', JSON.stringify(saleData, null, 2));
+      if (isEditMode && editSale?.id) {
+        finalSaleData.saleId = editSale.id;
+      }
       
-      const response = await api.post('/sales', saleData);
+      console.log('📤 Serverga yuborilayotgan ma\'lumotlar:', JSON.stringify(finalSaleData, null, 2));
+      
+      const response = isEditMode 
+        ? await api.put(`/sales/${editSale.id}`, finalSaleData)
+        : await api.post('/sales', finalSaleData);
+      
+      console.log('✅ Server javobi:', response.data);
+      
       const createdSale = response.data;
+      
+      // Kassa yangilanganini tekshirish
+      const automationStatus = createdSale?.automationStatus;
+      console.log('📊 Avtomatlashtirish statusi:', automationStatus);
+      
+      if (automationStatus && !automationStatus.cashboxUpdated) {
+        console.warn('⚠️ KASSA YANGILANMADI! Sotuv yaratildi, lekin pul kassaga tushmadi.');
+        const shouldAddManually = confirm(latinToCyrillic('⚠️ DIQQAT: Sotuv saqlandi, lekin pul avtomatik ravishda kassaga tushmadi!\n\nKassaga qo\'lda qo\'shilsinmi?'));
+        if (shouldAddManually) {
+          await addToCashboxManually(createdSale);
+        }
+      }
       
       const userStr = localStorage.getItem('user');
       const user = userStr ? JSON.parse(userStr) : { name: 'Kassir' };
       
-      printSimpleReceipt(createdSale, selectedCustomer, user);
+      const saleWithCustomer = {
+        ...createdSale,
+        manualCustomerName: form.manualCustomerName,
+        manualCustomerPhone: form.manualCustomerPhone
+      };
       
+      let updatedCustomer = null;
+      if (!form.isKocha && form.customerId) {
+        try {
+          const customerResponse = await api.get(`/customers/${form.customerId}`);
+          updatedCustomer = customerResponse.data;
+          console.log('✅ Mijoz ma\'lumotlari yangilandi:', updatedCustomer);
+        } catch (error) {
+          console.error('⚠️ Mijoz ma\'lumotlarini yangilashda xatolik:', error);
+          errorHandler.handleError(error, { action: 'updateCustomer', customerId: form.customerId });
+        }
+      }
+      
+      const customerForReceipt = form.isKocha ? {
+        name: form.manualCustomerName,
+        phone: form.manualCustomerPhone,
+        address: '',
+        debtUZS: 0,
+        debtUSD: 0
+      } : (updatedCustomer || selectedCustomer);
+      
+      console.log('🖨️ Chek chiqarish boshlandi...');
+      printReceipt(saleWithCustomer, customerForReceipt, user);
+      
+      console.log('✅ Sotuv muvaffaqiyatli yaratildi!');
       navigate('/cashier/sales');
     } catch (error: any) {
-      console.error('Error creating sale:', error);
-      console.error('Error response data:', error.response?.data);
-      const errorMsg = error.response?.data?.error || error.response?.data?.details || error.message || 'Noma\'lum xatolik';
-      alert('Sotuvni yaratishda xatolik: ' + errorMsg);
+      console.error('❌ SOTUV YARATISHDA XATOLIK:', error);
+      
+      // Server xatolik xabarini olish
+      const serverError = error.response?.data?.error || error.response?.data?.message || 'Noma\'lum xatolik';
+      const serverDetails = error.response?.data?.details || '';
+      const available = error.response?.data?.available;
+      const requested = error.response?.data?.requested;
+      const unit = error.response?.data?.unit;
+      
+      console.error('🔴 SERVER XABARI:', serverError);
+      console.error('🔴 BATAFSIL:', serverDetails);
+      
+      // Aniq xatolik xabarini tayyorlash
+      let userMessage = `❌ XATOLIK:\n\n${serverError}`;
+      
+      if (serverDetails) {
+        userMessage += `\n\n📋 Batafsil:\n${serverDetails}`;
+      }
+      
+      // Agar omborda mahsulot yetarli bo'lmasa
+      if (available !== undefined && requested !== undefined) {
+        userMessage += `\n\n📊 Omborda: ${available} ${unit || 'dona'}`;
+        userMessage += `\n📊 Kerak: ${requested} ${unit || 'dona'}`;
+        userMessage += `\n\n💡 YECHIM: Ombordagi mahsulot miqdorini tekshiring!`;
+      }
+      
+      // Agar mijoz yoki user topilmasa
+      if (serverError.includes('topilmadi') || serverError.includes('not found') || serverError.includes('aniqlanmadi')) {
+        userMessage += '\n\n💡 YECHIM:\n1. Logout qiling\n2. Qaytadan login qiling\n3. Mijozni to\'g\'ri tanlang';
+      }
+      
+      // Agar mijoz tanlanmagan bo'lsa
+      if (serverError.includes('tanlanmagan') || serverError.includes('Mijoz')) {
+        userMessage += '\n\n💡 YECHIM:\nMijoz tanlang yoki "Ko\'chaga" tugmasini bosing!';
+      }
+      
+      alert(userMessage);
+      
+      errorHandler.handleError(error, { 
+        action: isEditMode ? 'updateSale' : 'createSale',
+        isEditMode,
+        saleId: editSale?.id,
+        resource: 'cashier',
+        url: window.location.href
+      });
+    }
+  };
+
+  // Qo'lda kassaga pul qo'shish (avtomatik ishlamagan bo'lsa)
+  const addToCashboxManually = async (saleData: any) => {
+    try {
+      const paymentDetails = saleData.paymentDetails || {};
+      const transactions = [];
+      
+      // UZS
+      if (paymentDetails.uzs > 0) {
+        transactions.push({
+          type: 'INCOME',
+          amount: paymentDetails.uzs,
+          currency: 'UZS',
+          paymentMethod: 'CASH',
+          description: `Sotuv #${saleData.id} - Qo'lda qo'shildi (UZS)`
+        });
+      }
+      
+      // USD
+      if (paymentDetails.usd > 0) {
+        transactions.push({
+          type: 'INCOME',
+          amount: paymentDetails.usd,
+          currency: 'USD',
+          paymentMethod: 'CASH',
+          description: `Sotuv #${saleData.id} - Qo'lda qo'shildi (USD)`
+        });
+      }
+      
+      // CLICK
+      if (paymentDetails.click > 0) {
+        transactions.push({
+          type: 'INCOME',
+          amount: paymentDetails.click,
+          currency: 'UZS',
+          paymentMethod: 'CLICK',
+          description: `Sotuv #${saleData.id} - Qo'lda qo'shildi (CLICK)`
+        });
+      }
+      
+      for (const transaction of transactions) {
+        await api.post('/cashbox', transaction);
+      }
+      
+      alert(latinToCyrillic('✅ Kassaga pul muvaffaqiyatli qo\'shildi!'));
+      return true;
+    } catch (error: any) {
+      console.error('Kassaga qo\'lda qo\'shishda xatolik:', error);
+      alert(latinToCyrillic(`❌ Kassaga qo\'shishda xatolik: ${error.response?.data?.error || error.message}`));
+      return false;
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-950 p-4 relative overflow-hidden">
-      {/* Background blobs - Login page style */}
-      <div className="absolute top-0 -left-4 w-72 h-72 bg-blue-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob"></div>
-      <div className="absolute top-0 -right-4 w-72 h-72 bg-purple-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-2000"></div>
-      <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-4000"></div>
-
-      <div className="w-full h-full z-10 px-6">
-        {/* Header - Login page style */}
-        <div className="flex items-center gap-4 mb-6">
-          <button
-            type="button"
-            onClick={() => navigate('/cashier/sales')}
-            className="group flex items-center gap-2 px-5 py-3 bg-white dark:bg-gray-800 rounded-2xl font-bold text-gray-700 dark:text-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 border border-gray-200 dark:border-gray-700"
-          >
-            <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-xl flex items-center justify-center group-hover:bg-gray-200 transition-colors">
-              <ArrowLeft className="w-5 h-5" />
+    <div className="modern-bg page-container">
+      <div className="content-wrapper">
+        {/* Header */}
+        <div className="glass-card p-6 mb-8 fade-in">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => navigate('/cashier/sales')}
+                className="btn-gradient-primary px-5 py-3 flex items-center gap-3"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                {latinToCyrillic("Orqaga")}
+              </button>
+              
+              <div>
+                <h1 className="text-3xl font-bold text-primary mb-1">
+                  {isEditMode ? latinToCyrillic("Sotuvni Tahrirlash") : latinToCyrillic("Yangi Sotuv")}
+                </h1>
+                <p className="text-secondary font-medium">
+                  {form.items.length} {latinToCyrillic("ta mahsulot tanlandi")}
+                </p>
+              </div>
             </div>
-            {latinToCyrillic("Orqaga")}
-          </button>
-          
-          <div className="text-center flex-1">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-blue-500/25 mb-2">
-              <Sparkles className="w-4 h-4" />
-              {latinToCyrillic("Yangi Sotuv")}
+            
+            <div className="flex items-center gap-4">
+              <div className="toggle-modern">
+                <button
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, currency: 'UZS' }))}
+                  className={`toggle-option ${form.currency === 'UZS' ? 'active' : ''}`}
+                >
+                  UZS
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, currency: 'USD' }))}
+                  className={`toggle-option ${form.currency === 'USD' ? 'active' : ''}`}
+                >
+                  $
+                </button>
+              </div>
             </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white tracking-tight">
-              <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-emerald-600 bg-clip-text text-transparent">
-                {latinToCyrillic("Savat")}
-              </span>
-            </h1>
-          </div>
-          
-          {/* Item count badge */}
-          <div className="px-5 py-3 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
-            <span className="text-sm font-bold text-gray-500 uppercase">{latinToCyrillic("Mahsulotlar")}</span>
-            <div className="text-2xl font-black text-blue-600">{form.items.length}</div>
-          </div>
-          
-          {/* Currency Selector */}
-          <div className="flex bg-gray-100 dark:bg-gray-800 rounded-2xl p-1 shadow-lg border border-gray-200 dark:border-gray-700">
-            <button
-              type="button"
-              onClick={() => setForm(prev => ({ ...prev, currency: 'UZS' }))}
-              className={`px-4 py-2 rounded-xl font-black text-sm transition-all duration-200 ${
-                form.currency === 'UZS'
-                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-              }`}
-            >
-              UZS
-            </button>
-            <button
-              type="button"
-              onClick={() => setForm(prev => ({ ...prev, currency: 'USD' }))}
-              className={`px-4 py-2 rounded-xl font-black text-sm transition-all duration-200 ${
-                form.currency === 'USD'
-                  ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-              }`}
-            >
-              $
-            </button>
           </div>
         </div>
         
-        {/* Main Card - Login page style */}
-        <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/20 dark:border-gray-800 overflow-hidden">
-          {/* Top Decorative bar - blue for sales */}
-          <div className="h-2 w-full bg-gradient-to-r from-blue-600 via-purple-600 to-emerald-600"></div>
-          
-          <div className="p-8 lg:p-12">
-            <form onSubmit={handleSubmit} className="space-y-8">
-              <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-8">
+        {/* Main Content */}
+        <div className="glass-card p-8 slide-up">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
-                {/* 1-USTUN: Mahsulotlar */}
-                <div className="space-y-5 min-w-0">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                      <Package className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-black text-gray-900 dark:text-white">{latinToCyrillic("Mahsulotlar")}</h2>
-                      <p className="text-sm font-bold text-gray-500 uppercase tracking-wider">{form.items.length} {latinToCyrillic("tanlandi")}</p>
+                {/* Mahsulotlar ustuni */}
+                <div className="space-y-6">
+                  <div className="glass-card p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+                        <Package className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-primary">{latinToCyrillic("Mahsulotlar")}</h2>
+                        <p className="text-secondary">{getFilteredProducts().length} {latinToCyrillic("mahsulot")}</p>
+                      </div>
                     </div>
                   </div>
 
-                  {selectedCustomer && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowPriceModal(true)}
-                      className="w-full text-purple-600 hover:bg-purple-50 border-purple-200 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-sm"
-                    >
-                      <DollarSign className="w-4 h-4 mr-2" />
-                      {latinToCyrillic("Narx Belgilash")}
-                    </Button>
-                  )}
-
                   <div className="space-y-4">
                     <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-1 h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
-                        <label className="text-sm font-black text-gray-800 dark:text-gray-200 uppercase tracking-wider">{latinToCyrillic("Kategoriya")}</label>
+                      <div className="flex items-center gap-3">
+                        <div className="w-2 h-6 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full"></div>
+                        <label className="text-sm font-bold text-gray-700">{latinToCyrillic("Kategoriya")}</label>
                       </div>
                       
-                      <div className="grid grid-cols-5 gap-1 p-1 bg-gray-100 dark:bg-gray-700 rounded-xl">
+                      <div className="grid grid-cols-5 gap-1 p-2 bg-gradient-to-r from-gray-100 to-gray-200 rounded-2xl shadow-inner">
                         {[
-                          { id: 'all', label: 'All', color: 'bg-gray-500' },
-                          { id: 'preform', label: 'Pre', color: 'bg-blue-500' },
-                          { id: 'krishka', label: 'Kri', color: 'bg-orange-500' },
-                          { id: 'ruchka', label: 'Ruc', color: 'bg-emerald-500' },
-                          { id: 'other', label: 'Bsh', color: 'bg-slate-500' }
+                          { id: 'all', label: 'All' },
+                          { id: 'preform', label: 'Pre' },
+                          { id: 'krishka', label: 'Kri' },
+                          { id: 'ruchka', label: 'Ruc' },
+                          { id: 'other', label: 'Bsh' }
                         ].map((cat) => (
                           <button
                             type="button"
                             key={cat.id}
                             onClick={() => setActiveProductCategory(cat.id as any)}
-                            className={`py-2 px-1 rounded-lg text-sm font-black transition-all duration-200 ${
+                            className={`py-2.5 px-2 rounded-xl text-sm font-bold transition-all duration-200 ${
                               activeProductCategory === cat.id 
-                                ? `${cat.color} text-white shadow-md` 
-                                : 'bg-transparent text-gray-600 hover:bg-white dark:hover:bg-gray-600'
+                                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg transform scale-105' 
+                                : 'bg-transparent text-gray-600 hover:bg-white/50'
                             }`}
                           >
                             {cat.label}
@@ -554,587 +913,758 @@ export default function AddSale() {
                         ))}
                       </div>
 
-                      <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                        {(() => {
-                          const filteredProducts = activeProductCategory === 'all' 
-                            ? products 
-                            : products.filter(p => p.warehouse === activeProductCategory || p.bagType?.toLowerCase().includes(activeProductCategory));
-                          
-                          const grouped = groupProductsByType(filteredProducts);
-                          const groupNames = Object.keys(grouped).sort();
-                          
-                          if (groupNames.length === 0) {
-                            return (
-                              <div className="p-8 text-center bg-white dark:bg-gray-800 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700">
-                                <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
-                                  <Package className="w-8 h-8 text-gray-400" />
-                                </div>
-                                <p className="text-gray-500 dark:text-gray-400 font-bold">{latinToCyrillic("Mahsulot topilmadi")}</p>
-                              </div>
+                      <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                        {getFilteredProducts().length === 0 ? (
+                          <div className="p-12 text-center bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl border-2 border-dashed border-gray-300">
+                            <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <Package className="w-10 h-10 text-gray-500" />
+                            </div>
+                            <p className="text-gray-600 font-bold text-lg">{latinToCyrillic("Mahsulot topilmadi")}</p>
+                          </div>
+                        ) : (
+                          (() => {
+                            // Mahsulotlarni turlari bo'yicha alohida guruhlash
+                            const preformProducts = getFilteredProducts().filter((p: any) => 
+                              p.warehouse === 'preform' || 
+                              (p.name.toLowerCase().includes('g') && !p.name.toLowerCase().includes('krishka') && !p.name.toLowerCase().includes('ruchka'))
                             );
-                          }
-                          
-                          return groupNames.map((groupName) => {
-                            const groupProducts = grouped[groupName];
-                            const isExpanded = expandedProductGroups.includes(groupName);
-                            
-                            return (
-                              <div key={groupName} className={`border rounded-xl overflow-hidden transition-all duration-200 ${isExpanded ? 'border-blue-300 bg-blue-50/50 dark:bg-blue-900/20' : 'border-gray-200 bg-white dark:bg-gray-800'}`}>
-                                <button
-                                  type="button"
-                                  onClick={() => toggleProductGroup(groupName)}
-                                  className="w-full flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-bold text-sm text-gray-800 dark:text-gray-200">{groupName}</span>
-                                    <span className="text-sm text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">{groupProducts.length}</span>
+                            const krishkaProducts = getFilteredProducts().filter((p: any) => 
+                              p.warehouse === 'krishka' || p.name.toLowerCase().includes('krishka') || p.name.toLowerCase().includes('cap')
+                            );
+                            const ruchkaProducts = getFilteredProducts().filter((p: any) => 
+                              p.warehouse === 'ruchka' || p.name.toLowerCase().includes('ruchka') || p.name.toLowerCase().includes('handle')
+                            );
+                            const otherProducts = getFilteredProducts().filter((p: any) => 
+                              !preformProducts.includes(p) && !krishkaProducts.includes(p) && !ruchkaProducts.includes(p)
+                            );
+
+                            const renderProductSection = (title: string, productList: any[], bgColor: string, iconColor: string) => {
+                              if (productList.length === 0) return null;
+                              return (
+                                <div key={title} className={`border-2 border-gray-200 rounded-2xl overflow-hidden ${bgColor}`}>
+                                  {/* Section header */}
+                                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200">
+                                    <div className="flex items-center gap-3">
+                                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconColor} text-white shadow-md`}>
+                                        <Package className="w-5 h-5" />
+                                      </div>
+                                      <div>
+                                        <h4 className="font-bold text-gray-900 text-lg">{title}</h4>
+                                        <p className="text-xs text-gray-600">
+                                          {productList.length} {latinToCyrillic("ta mahsulot")}
+                                        </p>
+                                      </div>
+                                    </div>
                                   </div>
-                                  <span className={`text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
-                                </button>
-                                
-                                <div className={`${isExpanded ? 'block' : 'hidden'}`}>
-                                  <div className="p-2 space-y-1 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
-                                    {groupProducts.map((product) => (
+
+                                  {/* Mahsulotlar ro'yxati */}
+                                  <div className="p-3 space-y-2 max-h-48 overflow-y-auto">
+                                    {productList.map((product: any) => (
                                       <div
                                         key={product.id}
                                         onClick={() => {
+                                          const displayPrice = form.currency === 'UZS'
+                                            ? (parseFloat(product.pricePerBag) || 0) * 12500
+                                            : parseFloat(product.pricePerBag) || 0;
                                           setNewItem({
                                             productId: product.id,
                                             productName: product.name,
                                             quantity: '1',
-                                            pricePerBag: product.pricePerBag || '0'
+                                            pricePerBag: displayPrice.toString(),
+                                            saleType: 'bag'
                                           });
                                         }}
-                                        className={`p-3 rounded-xl cursor-pointer text-sm transition-all duration-200 ${
-                                          newItem.productId === product.id 
-                                            ? 'bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-500 shadow-sm' 
-                                            : 'bg-gray-50 dark:bg-gray-700/50 border-2 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700 hover:border-gray-200'
+                                        className={`p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+                                          newItem.productId === product.id
+                                            ? 'bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-500 shadow-md'
+                                            : 'bg-white border-2 border-gray-200 hover:border-blue-400 hover:shadow-sm'
                                         }`}
                                       >
-                                        <div className="flex justify-between items-center">
-                                          <span className="font-bold text-gray-800 dark:text-gray-200 truncate pr-2">{product.name}</span>
-                                          <span className="font-black text-emerald-600">{getCurrencySymbol()}{getDisplayAmount(product.pricePerBag || 0)}</span>
+                                        <div className="flex justify-between items-start">
+                                          <span className="font-bold text-sm truncate">{product.name}</span>
                                         </div>
-                                        <div className="flex justify-between text-sm text-gray-500 mt-1">
-                                          <span>{latinToCyrillic("Zaxira")}: {product.currentStock || 0} {latinToCyrillic("qop")}</span>
-                                          {newItem.productId === product.id && <CheckCircle2 className="w-4 h-4 text-blue-500" />}
+
+                                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200">
+                                          <span className="text-xs text-gray-500 font-medium">
+                                            {getCurrencySymbol()}{getDisplayAmount(parseFloat(product.pricePerBag) || 0)}
+                                          </span>
+                                          <span className="text-xs text-gray-700">
+                                            {product.currentStock || 0} {latinToCyrillic("qop")}
+                                          </span>
                                         </div>
                                       </div>
                                     ))}
                                   </div>
                                 </div>
-                              </div>
+                              );
+                            };
+
+                            return (
+                              <>
+                                {renderProductSection(latinToCyrillic('Preformlar'), preformProducts, 'bg-blue-50/50', 'bg-blue-500')}
+                                {renderProductSection(latinToCyrillic('Qopqoqlar (Krishka)'), krishkaProducts, 'bg-green-50/50', 'bg-green-500')}
+                                {renderProductSection(latinToCyrillic('Ruchkalar'), ruchkaProducts, 'bg-purple-50/50', 'bg-purple-500')}
+                                {otherProducts.length > 0 && renderProductSection(latinToCyrillic('Boshqa mahsulotlar'), otherProducts, 'bg-gray-50/50', 'bg-gray-500')}
+                              </>
                             );
-                          });
-                        })()}
+                          })()
+                        )}
                       </div>
                       
                       {newItem.productName && (
-                        <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl">
-                          <div className="text-sm text-emerald-600 dark:text-emerald-400 font-bold mb-1 uppercase tracking-wider">{latinToCyrillic("Tanlangan")}</div>
-                          <div className="font-bold text-gray-800 dark:text-gray-200 truncate">{newItem.productName}</div>
-                          <div className="text-sm text-emerald-600 dark:text-emerald-400 font-black">{getCurrencySymbol()}{getDisplayAmount(parseFloat(newItem.pricePerBag) || 0)} / {latinToCyrillic("qop")}</div>
+                        <div className="p-4 bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-300 rounded-2xl shadow-md">
+                          <div className="text-sm font-bold text-blue-700 mb-2">{latinToCyrillic("Tanlangan mahsulot")}</div>
+                          <div className="font-bold text-gray-800 truncate text-lg">{newItem.productName}</div>
+                          <div className="text-sm font-bold text-blue-600 mt-1">
+                            {getCurrencySymbol()}{newItem.pricePerBag} / {latinToCyrillic("qop")}
+                          </div>
                         </div>
                       )}
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Qop/Dona tugmalari */}
+                    <div className="flex gap-2 mb-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const selectedProduct = products.find((p: any) => p.id === newItem.productId);
+                          if (selectedProduct) {
+                            const currentPricePerBag = parseFloat(newItem.pricePerBag) || 0;
+                            
+                            setNewItem(prev => ({ 
+                              ...prev, 
+                              saleType: 'bag',
+                              pricePerBag: currentPricePerBag.toString()
+                            }));
+                          }
+                        }}
+                        className={`flex-1 py-3 px-4 rounded-xl font-bold text-base transition-all ${
+                          newItem.saleType === 'bag' 
+                            ? 'bg-blue-500 text-white shadow-md' 
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {latinToCyrillic("Qop")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const selectedProduct = products.find((p: any) => p.id === newItem.productId);
+                          if (selectedProduct) {
+                            const unitsPerBag = selectedProduct.unitsPerBag || 2000;
+                            const currentPricePerBag = parseFloat(newItem.pricePerBag) || 0;
+                            const pricePerPiece = currentPricePerBag / unitsPerBag;
+                            
+                            setNewItem(prev => ({ 
+                              ...prev, 
+                              saleType: 'piece',
+                              pricePerBag: pricePerPiece.toString()
+                            }));
+                          }
+                        }}
+                        className={`flex-1 py-3 px-4 rounded-xl font-bold text-base transition-all ${
+                          newItem.saleType === 'piece' 
+                            ? 'bg-green-500 text-white shadow-md' 
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {latinToCyrillic("Dona")}
+                      </button>
+                    </div>
+                    
+                    <div className="grid grid-cols-4 gap-4">
                       <div>
-                        <label className="block text-sm font-bold text-gray-600 mb-2 uppercase">{latinToCyrillic("Miqdor (qop)")}</label>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">
+                          {latinToCyrillic("Qop")}
+                        </label>
                         <input
                           type="text"
-                          inputMode="decimal"
                           placeholder="0"
-                          value={newItem.quantity}
+                          value={(() => {
+                            const selectedProduct = products.find((p: any) => p.id === newItem.productId);
+                            const unitsPerBag = selectedProduct?.unitsPerBag || 2000;
+                            return newItem.saleType === 'piece' ? (parseFloat(newItem.quantity || '0') / unitsPerBag).toFixed(3) : newItem.quantity;
+                          })()}
                           onChange={(e) => {
                             const val = e.target.value.replace(/[^0-9.]/g, '');
-                            setNewItem(prev => ({ ...prev, quantity: val }));
+                            const bagQuantity = parseFloat(val) || 0;
+                            const selectedProduct = products.find((p: any) => p.id === newItem.productId);
+                            const unitsPerBag = selectedProduct?.unitsPerBag || 2000;
+                            
+                            if (newItem.saleType === 'piece') {
+                              const pieceQuantity = bagQuantity * unitsPerBag;
+                              setNewItem(prev => ({ ...prev, quantity: pieceQuantity.toString() }));
+                            } else {
+                              // Qop holatida faqat qop sonini o'zgartirish
+                              setNewItem(prev => ({ ...prev, quantity: val }));
+                            }
                           }}
-                          className="w-full h-12 px-4 text-base font-black rounded-xl border border-gray-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                          className="w-full h-12 px-4 text-base font-bold rounded-2xl border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white shadow-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-bold text-gray-600 mb-2 uppercase">{latinToCyrillic("Narx")} ({getCurrencySymbol()}/{latinToCyrillic("qop")})</label>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">
+                          {latinToCyrillic("Dona")}
+                        </label>
                         <input
                           type="text"
-                          inputMode="decimal"
-                          placeholder="0.00"
+                          value={(() => {
+                            const selectedProduct = products.find((p: any) => p.id === newItem.productId);
+                            const unitsPerBag = selectedProduct?.unitsPerBag || 2000;
+                            return newItem.saleType === 'piece' ? (newItem.quantity || '0').toString() : (parseFloat(newItem.quantity || '0') * unitsPerBag).toString();
+                          })()}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9.]/g, '');
+                            const pieceQuantity = parseFloat(val) || 0;
+                            const selectedProduct = products.find((p: any) => p.id === newItem.productId);
+                            const unitsPerBag = selectedProduct?.unitsPerBag || 2000;
+                            
+                            if (newItem.saleType === 'piece') {
+                              // Dona holatida faqat dona sonini o'zgartirish
+                              setNewItem(prev => ({ ...prev, quantity: val }));
+                            } else {
+                              // Qop holatida donani qopga aylantirish
+                              const bagQuantity = pieceQuantity / unitsPerBag;
+                              setNewItem(prev => ({ ...prev, quantity: bagQuantity.toString() }));
+                            }
+                          }}
+                          className="w-full h-12 px-4 text-base font-bold rounded-2xl border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white shadow-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">
+                          {latinToCyrillic("Jami (dona)")}
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="0"
+                          value={(() => {
+                            if (!newItem.productId) return '0';
+                            const selectedProduct = products.find((p: any) => p.id === newItem.productId);
+                            const unitsPerBag = selectedProduct?.unitsPerBag || 2000;
+                            const quantity = parseFloat(newItem.quantity || '0');
+                            return newItem.saleType === 'piece' ? quantity.toString() : (quantity * unitsPerBag).toString();
+                          })()}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9.]/g, '');
+                            const totalPieces = parseFloat(val) || 0;
+                            const selectedProduct = products.find((p: any) => p.id === newItem.productId);
+                            const unitsPerBag = selectedProduct?.unitsPerBag || 2000;
+                            
+                            if (newItem.saleType === 'piece') {
+                              // Dona holatida to'g'ridan-to'g'ri dona sonini o'zgartirish
+                              setNewItem(prev => ({ ...prev, quantity: val }));
+                            } else {
+                              // Qop holatida jami donani qopga aylantirish
+                              const bagQuantity = totalPieces / unitsPerBag;
+                              setNewItem(prev => ({ ...prev, quantity: bagQuantity.toString() }));
+                            }
+                          }}
+                          className="w-full h-12 px-4 text-base font-bold rounded-2xl border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white shadow-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">
+                          {latinToCyrillic("Narx")} ({getCurrencySymbol()}/{newItem.saleType === 'piece' ? latinToCyrillic("dona") : latinToCyrillic("qop")})
+                        </label>
+                        <input
+                          type="text"
+                          placeholder={form.currency === 'UZS' ? "1000" : "0.10"}
                           value={newItem.pricePerBag}
                           onChange={(e) => {
                             const val = e.target.value.replace(/[^0-9.]/g, '');
                             setNewItem(prev => ({ ...prev, pricePerBag: val }));
                           }}
-                          className="w-full h-12 px-4 text-base font-black rounded-xl border border-gray-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                          className="w-full h-12 px-4 text-base font-bold rounded-2xl border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white shadow-sm"
                         />
                       </div>
                     </div>
 
-                    <Button
+                    <button
                       type="button"
                       onClick={addProduct}
-                      className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white h-14 rounded-xl font-black text-sm uppercase tracking-wider shadow-lg shadow-emerald-500/25 transition-all hover:shadow-xl hover:-translate-y-0.5"
                       disabled={!newItem.productId || !newItem.quantity}
+                      className={`w-full h-14 rounded-2xl font-bold text-lg transition-all duration-200 transform hover:scale-105 flex items-center justify-center gap-3 ${
+                        !newItem.productId || !newItem.quantity
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl'
+                      }`}
                     >
-                      <Plus className="w-5 h-5 mr-2" />
+                      <Plus className="w-6 h-6" />
                       {latinToCyrillic("Qo'shish")}
-                    </Button>
+                    </button>
                   </div>
                 </div>
 
-                {/* 2-USTUN: Savat */}
-                <div className="space-y-5 min-w-0">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-                      <ShoppingCart className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-black text-gray-900 dark:text-white">{latinToCyrillic("Savat")}</h2>
-                      <p className="text-sm font-bold text-gray-500 uppercase tracking-wider">{form.items.length} {latinToCyrillic("ta mahsulot")}</p>
+                {/* Savat ustuni */}
+                <div className="space-y-6">
+                  <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-2xl p-6 shadow-lg">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center">
+                        <ShoppingCart className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-white">{latinToCyrillic("Savat")}</h2>
+                        <p className="text-sm text-emerald-100">{form.items.length} {latinToCyrillic("ta mahsulot")}</p>
+                      </div>
                     </div>
                   </div>
                   
-                  {form.items.length > 0 && (
+                  {form.items.length > 0 ? (
                     <div className="space-y-4">
-                      <div className="bg-blue-50 dark:bg-blue-900/20 p-5 rounded-2xl border border-blue-200 dark:border-blue-800">
-                        <div className="flex justify-between items-center mb-4">
-                          <h3 className="font-black text-sm text-blue-600 uppercase tracking-wider">{latinToCyrillic("Savat")}</h3>
-                          
-                          <Button type="button" variant="outline" onClick={() => setForm(prev => ({ ...prev, items: [] }))} className="h-10 px-3 text-sm text-red-600 border-red-200 hover:bg-red-50 rounded-xl">
-                            <Trash2 className="w-4 h-4 mr-1" /> {latinToCyrillic("Tozalash")}
-                          </Button>
+                      <div className="bg-white p-4 rounded-xl border border-gray-200">
+                        <div className="flex justify-between items-center mb-3">
+                          <h3 className="font-bold text-gray-900">{latinToCyrillic("Savat")}</h3>
+                          <button 
+                            type="button" 
+                            onClick={() => setForm(prev => ({ ...prev, items: [] }))} 
+                            className="text-xs text-red-600 hover:text-red-700 font-medium"
+                          >
+                            {latinToCyrillic("Tozalash")}
+                          </button>
                         </div>
                         
-                        <div className="grid grid-cols-3 gap-3 text-center">
-                          <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                            <div className="text-sm font-bold text-gray-500 uppercase mb-1">{latinToCyrillic("Dona")}</div>
-                            <div className="text-lg font-black text-blue-600">{form.items.reduce((sum, item) => sum + (item.quantity * (item.unitsPerBag || 2000)), 0).toLocaleString()}</div>
-                          </div>
-                          <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                            <div className="text-sm font-bold text-gray-500 uppercase mb-1">{latinToCyrillic("Narx")}</div>
-                            <div className="text-lg font-black text-emerald-600">{getCurrencySymbol()}{form.items.length > 0 ? getDisplayAmount(form.items.reduce((sum, item) => sum + item.subtotal, 0) / form.items.reduce((sum, item) => sum + item.quantity, 0)) : '0.00'}</div>
-                          </div>
-                          <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                            <div className="text-sm font-bold text-gray-500 uppercase mb-1">{latinToCyrillic("Jami")}</div>
-                            <div className="text-lg font-black text-purple-600">{getCurrencySymbol()}{getDisplayAmount(totalAmount)}</div>
+                        <div className="space-y-2 max-h-96 overflow-y-auto">
+                          {form.items.map((item: any, index: number) => (
+                            <div key={index} className={`bg-gray-50 p-3 rounded-lg border ${editingItemIndex === index ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
+                              <div className="flex justify-between items-start mb-2">
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-gray-900 text-sm">{item.productName}</h4>
+                                  <p className="text-xs text-gray-500">{item.unitsPerBag || 2000} dona/qop</p>
+                                </div>
+                                <div className="flex gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => removeProduct(index)}
+                                    className="text-red-500 hover:text-red-700 p-1"
+                                    title={latinToCyrillic("O'chirish")}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                              
+                              <div className="space-y-2">
+                                  {/* Qop/Dona tugmalari */}
+                                  <div className="flex gap-2 mb-3">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const unitsPerBag = parseFloat(item.unitsPerBag) || 2000;
+                                        const currentPricePerBag = parseFloat(item.pricePerBag) || 0;
+                                        const quantity = parseFloat(item.quantity) || 0;
+                                        
+                                        // If switching from piece to bag, convert price back to bag price
+                                        const bagPrice = item.saleType === 'piece' ? currentPricePerBag * unitsPerBag : currentPricePerBag;
+                                        const subtotal = quantity * bagPrice;
+                                        const pricePerPiece = bagPrice / unitsPerBag;
+                                        
+                                        // Convert quantities to bag format
+                                        const pieceQuantity = parseFloat(item.quantity || '0');
+                                        const bagQuantity = pieceQuantity / unitsPerBag;
+                                        
+                                        updateItem(index, { 
+                                          saleType: 'bag', 
+                                          pricePerBag: bagPrice,
+                                          pricePerPiece: pricePerPiece,
+                                          subtotal: subtotal,
+                                          quantity: bagQuantity.toString(), // Qop formatiga o'tkazish
+                                          bagDisplayValue: bagQuantity.toString(), // Qop qiymatini saqlash
+                                          pieceDisplayValue: pieceQuantity.toString(), // Dona qiymatini saqlash
+                                          totalDisplayValue: pieceQuantity.toString(), // Jami donani saqlash
+                                          priceDisplayValue: bagPrice.toFixed(2) // Narxni saqlash
+                                        });
+                                        console.log('Switched to bag:', { bagPrice, pricePerPiece, subtotal });
+                                      }}
+                                      className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                                        item.saleType === 'bag' 
+                                          ? 'bg-blue-500 text-white shadow-md' 
+                                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                      }`}
+                                    >
+                                      {latinToCyrillic("Qop")}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const unitsPerBag = parseFloat(item.unitsPerBag) || 2000;
+                                        const currentPricePerBag = parseFloat(item.pricePerBag) || 0;
+                                        const quantity = parseFloat(item.quantity) || 0;
+                                        
+                                        // If switching from bag to piece, convert price to piece price
+                                        const bagPrice = item.saleType === 'piece' ? currentPricePerBag * unitsPerBag : currentPricePerBag;
+                                        const pricePerPiece = bagPrice / unitsPerBag;
+                                        const subtotal = quantity * pricePerPiece;
+                                        
+                                        // Convert quantities to piece format
+                                        const bagQuantity = parseFloat(item.quantity || '0');
+                                        const pieceQuantity = bagQuantity * unitsPerBag;
+                                        
+                                        updateItem(index, { 
+                                          saleType: 'piece', 
+                                          pricePerBag: pricePerPiece,
+                                          pricePerPiece: pricePerPiece,
+                                          subtotal: subtotal,
+                                          quantity: pieceQuantity.toString(), // Dona formatiga o'tkazish
+                                          bagDisplayValue: bagQuantity.toString(), // Qop qiymatini saqlash
+                                          pieceDisplayValue: pieceQuantity.toString(), // Dona qiymatini saqlash
+                                          totalDisplayValue: pieceQuantity.toString(), // Jami donani saqlash
+                                          priceDisplayValue: pricePerPiece.toFixed(4) // Narxni saqlash
+                                        });
+                                        console.log('Switched to piece:', { bagPrice, pricePerPiece, subtotal });
+                                      }}
+                                      className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                                        item.saleType === 'piece' 
+                                          ? 'bg-green-500 text-white shadow-md' 
+                                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                      }`}
+                                    >
+                                      {latinToCyrillic("Dona")}
+                                    </button>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-4 gap-2">
+                                    <div>
+                                      <label className="text-xs text-gray-500 block mb-1">{latinToCyrillic("Qop")}</label>
+                                      <input
+                                        type="text"
+                                        value={item.quantity || ''}
+                                        onChange={(e) => {
+                                          const val = e.target.value.replace(/[^0-9.]/g, '');
+                                          const bagQuantity = parseFloat(val) || 0;
+                                          let pricePerBag = parseFloat(item.pricePerBag) || 0;
+                                          let subtotal = 0;
+                                          let updateData: any = {};
+                                          
+                                          if (item.saleType === 'piece') {
+                                            const unitsPerBag = parseFloat(item.unitsPerBag) || 2000;
+                                            const pieceQuantity = bagQuantity * unitsPerBag;
+                                            const pricePerPiece = parseFloat(item.pricePerPiece) || (pricePerBag / unitsPerBag);
+                                            subtotal = pieceQuantity * pricePerPiece;
+                                            updateData = {
+                                              quantity: val,
+                                              subtotal: subtotal,
+                                              bagDisplayValue: val, // Qop input qiymatini saqlash
+                                              totalDisplayValue: (bagQuantity * unitsPerBag).toString() // 'Jami (dona)' ni avtomatik hisoblash
+                                            };
+                                            console.log('Bag quantity change (piece mode):', { bagQuantity, pieceQuantity, pricePerPiece, subtotal });
+                                          } else {
+                                            const unitsPerBag = parseFloat(item.unitsPerBag) || 2000;
+                                            const pieceQuantity = bagQuantity * unitsPerBag;
+                                            const pricePerPiece = pricePerBag / unitsPerBag;
+                                            subtotal = bagQuantity * pricePerBag;
+                                            updateData = {
+                                              quantity: val,
+                                              subtotal: subtotal,
+                                              bagDisplayValue: val, // Qop input qiymatini saqlash
+                                              totalDisplayValue: (bagQuantity * unitsPerBag).toString() // 'Jami (dona)' ni avtomatik hisoblash
+                                            };
+                                            console.log('Bag quantity change (bag mode):', { bagQuantity, pieceQuantity, pricePerBag, pricePerPiece, subtotal });
+                                          }
+                                          
+                                          updateItem(index, updateData);
+                                        }}
+                                        className="w-full h-8 px-2 text-sm font-medium border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-xs text-gray-500 block mb-1">{latinToCyrillic("Bir qopdagi dona")}</label>
+                                      <input
+                                        type="text"
+                                        value={item.unitsPerBag?.toString() || '2000'}
+                                        onChange={(e) => {
+                                          const val = e.target.value.replace(/[^0-9.]/g, '');
+                                          const newPiecesPerBag = parseFloat(val) || 2000;
+                                          let updateData: any = {};
+                                          
+                                          if (item.saleType === 'piece') {
+                                            // Piece mode: Update pieces per bag and recalculate
+                                            const currentTotalPieces = parseFloat(item.totalDisplayValue || '0') || 0;
+                                            const newBagQuantity = currentTotalPieces / newPiecesPerBag;
+                                            const pricePerPiece = parseFloat(item.pricePerPiece) || 0;
+                                            const subtotal = currentTotalPieces * pricePerPiece;
+                                            
+                                            updateData = {
+                                              unitsPerBag: newPiecesPerBag,
+                                              quantity: newBagQuantity.toString(),
+                                              subtotal: subtotal,
+                                              pieceDisplayValue: newPiecesPerBag.toString(), // Bir qopdagi dona qiymatini saqlash
+                                              bagDisplayValue: newBagQuantity.toString(), // Qop sonini yangilash
+                                              totalDisplayValue: currentTotalPieces.toString() // Jami donani o'zgartirmaslik
+                                            };
+                                            console.log('Piece mode - pieces per bag change:', { newPiecesPerBag, currentTotalPieces, newBagQuantity, subtotal });
+                                          } else {
+                                            // Bag mode: Update pieces per bag and recalculate total pieces
+                                            const currentBags = parseFloat(item.quantity || '0') || 0;
+                                            const newTotalPieces = currentBags * newPiecesPerBag;
+                                            const pricePerBag = parseFloat(item.pricePerBag) || 0;
+                                            const subtotal = currentBags * pricePerBag;
+                                            const pricePerPiece = pricePerBag / newPiecesPerBag;
+                                            
+                                            updateData = {
+                                              unitsPerBag: newPiecesPerBag,
+                                              pricePerPiece: pricePerPiece,
+                                              subtotal: subtotal,
+                                              pieceDisplayValue: newPiecesPerBag.toString(), // Bir qopdagi dona qiymatini saqlash
+                                              bagDisplayValue: currentBags.toString(), // Qop sonini o'zgartirmaslik
+                                              totalDisplayValue: newTotalPieces.toString() // Jami donani yangilash
+                                            };
+                                            console.log('Bag mode - pieces per bag change:', { newPiecesPerBag, currentBags, newTotalPieces, pricePerBag, pricePerPiece, subtotal });
+                                          }
+                                          
+                                          updateItem(index, updateData);
+                                        }}
+                                        className="w-full h-8 px-2 text-sm font-medium border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-xs text-gray-500 block mb-1">{latinToCyrillic("Jami (dona)")}</label>
+                                      <input
+                                        type="text"
+                                        value={item.totalDisplayValue || ''}
+                                        onChange={(e) => {
+                                          const val = e.target.value.replace(/[^0-9.]/g, '');
+                                          const totalPieces = parseFloat(val) || 0;
+                                          let updateData: any = {};
+                                          
+                                          if (item.saleType === 'piece') {
+                                            const pricePerPiece = parseFloat(item.pricePerPiece) || 0;
+                                            const subtotal = totalPieces * pricePerPiece;
+                                            const unitsPerBag = parseFloat(item.unitsPerBag) || 2000;
+                                            const bagQuantity = totalPieces / unitsPerBag;
+                                            updateData = {
+                                              quantity: val,
+                                              subtotal: subtotal,
+                                              totalDisplayValue: val, // 'Jami (dona)' input qiymatini saqlash
+                                              bagDisplayValue: bagQuantity.toString() // Qop sonini yangilash
+                                            };
+                                            console.log('Total pieces change (piece mode):', { totalPieces, pricePerPiece, subtotal, bagQuantity });
+                                          } else {
+                                            const unitsPerBag = parseFloat(item.unitsPerBag) || 2000;
+                                            const bagQuantity = totalPieces / unitsPerBag;
+                                            const pricePerBag = parseFloat(item.pricePerBag) || 0;
+                                            const subtotal = bagQuantity * pricePerBag;
+                                            const pricePerPiece = pricePerBag / unitsPerBag;
+                                            updateData = {
+                                              quantity: bagQuantity.toString(),
+                                              subtotal: subtotal,
+                                              totalDisplayValue: val, // 'Jami (dona)' input qiymatini saqlash
+                                              bagDisplayValue: bagQuantity.toString() // Qop sonini yangilash
+                                            };
+                                            console.log('Total pieces change (bag mode):', { totalPieces, bagQuantity, pricePerBag, pricePerPiece, subtotal });
+                                          }
+                                          
+                                          updateItem(index, updateData);
+                                        }}
+                                        className="w-full h-8 px-2 text-sm font-medium border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-xs text-gray-500 block mb-1">{latinToCyrillic("Narx")}</label>
+                                      <input
+                                        type="text"
+                                        value={item.pricePerBag?.toString() || ''}
+                                        onChange={(e) => {
+                                          const val = e.target.value.replace(/[^0-9.]/g, '');
+                                          const newPrice = parseFloat(val) || 0;
+                                          const quantity = parseFloat(item.quantity) || 0;
+                                          let subtotal = 0;
+                                          let updateData: any = {};
+                                          
+                                          if (item.saleType === 'piece') {
+                                            const unitsPerBag = parseFloat(item.unitsPerBag) || 2000;
+                                            updateData.pricePerPiece = newPrice;
+                                            updateData.pricePerBag = newPrice * unitsPerBag;
+                                            updateData.priceDisplayValue = val; // Narx input qiymatini saqlash
+                                            subtotal = quantity * newPrice;
+                                            console.log('Piece price update:', { newPrice, unitsPerBag, pricePerBag: newPrice * unitsPerBag, subtotal });
+                                          } else {
+                                            updateData.pricePerBag = newPrice;
+                                            const unitsPerBag = parseFloat(item.unitsPerBag) || 2000;
+                                            updateData.pricePerPiece = newPrice / unitsPerBag;
+                                            updateData.priceDisplayValue = val; // Narx input qiymatini saqlash
+                                            subtotal = quantity * newPrice;
+                                            console.log('Bag price update:', { newPrice, unitsPerBag, pricePerPiece: newPrice / unitsPerBag, subtotal });
+                                          }
+                                          
+                                          updateData.subtotal = subtotal;
+                                          updateItem(index, updateData);
+                                        }}
+                                        className="w-full h-8 px-2 text-sm font-medium border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                                      />
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-1 gap-2">
+                                    <div>
+                                      <label className="text-xs text-gray-500 block mb-1">{latinToCyrillic("Jami narx")}</label>
+                                      <div className="w-full h-8 px-2 flex items-center bg-white border border-gray-300 rounded text-sm font-bold text-blue-600">
+                                        {getCurrencySymbol()}{getDisplayAmount(item.subtotal)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex gap-2 pt-2 border-t border-gray-200">
+                                    <select
+                                      value={item.productId}
+                                      onChange={(e) => {
+                                        const newProduct = products.find((p: any) => p.id === e.target.value);
+                                        if (newProduct) {
+                                          const upb = newProduct.unitsPerBag || 2000;
+                                          const oldQty = parseFloat(item.quantity) || 0;
+                                          const newPrice = newProduct.pricePerBag || 0;
+                                          updateItem(index, {
+                                            productId: newProduct.id,
+                                            productName: newProduct.name,
+                                            pricePerBag: newPrice,
+                                            pricePerBagDisplay: newPrice.toString(),
+                                            unitsPerBag: upb,
+                                            subtotal: oldQty * newPrice,
+                                            warehouse: newProduct.warehouse,
+                                            subType: newProduct.subType
+                                          });
+                                        }
+                                      }}
+                                      className="flex-1 h-8 px-2 text-sm border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                                    >
+                                      {getFilteredProducts().map((product: any) => (
+                                        <option key={product.id} value={product.id}>{product.name}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                </div>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        <div className="mt-4 pt-3 border-t border-gray-200">
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-gray-900">{latinToCyrillic("Jami")}:</span>
+                            <span className="text-xl font-bold text-blue-600">
+                              {getCurrencySymbol()}{getDisplayAmount(totalAmount)}
+                            </span>
                           </div>
                         </div>
                       </div>
-                      
-                      {/* Savat items - Komplekt va alohida */}
-                      <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                        {(() => {
-                          // Komplektlarni aniqlash
-                          const komplekts: any[] = [];
-                          const usedIndices = new Set<number>();
-                          const items = form.items;
-                          
-                          console.log('🔍 Komplekt tekshirilmoqda...', items.length, 'ta item');
-                          items.forEach((item, idx) => {
-                            console.log(`  Item ${idx}:`, item.productName, '- qty:', item.quantity, '- warehouse:', item.warehouse);
-                          });
-                          
-                          // Har bir preform uchun komplekt qidirish
-                          items.forEach((item, index) => {
-                            if (usedIndices.has(index)) return;
-                            
-                            const nameLower = item.productName.toLowerCase();
-                            const isPreform = nameLower.includes('preform') ||
-                                              nameLower.includes('преформ') ||
-                                              nameLower.includes('празрачни') ||
-                                              nameLower.includes('15g') ||
-                                              nameLower.includes('15г') ||
-                                              nameLower.includes('гидро') ||
-                                              nameLower.includes('gidra') ||
-                                              nameLower.includes('синий') ||
-                                              nameLower.includes('sini');
-                            
-                            console.log(`🔍 Item ${index} (${item.productName}): isPreform=${isPreform}`);
-                            
-                            if (isPreform) {
-                              const preformQtyInPieces = item.quantity * (item.unitsPerBag || 2000);
-                              
-                              const krishkaIndex = items.findIndex((i, idx) => 
-                                !usedIndices.has(idx) && idx !== index &&
-                                (i.productName.toLowerCase().includes('krishka') ||
-                                 i.productName.toLowerCase().includes('крышка') ||
-                                 i.productName.toLowerCase().includes('galuboy') ||
-                                 i.productName.toLowerCase().includes('голубой')) &&
-                                i.quantity === preformQtyInPieces
-                              );
-                              
-                              const ruchkaIndex = items.findIndex((i, idx) => 
-                                !usedIndices.has(idx) && idx !== index && idx !== krishkaIndex &&
-                                (i.productName.toLowerCase().includes('ruchka') ||
-                                 i.productName.toLowerCase().includes('ручка') ||
-                                 i.productName.toLowerCase().includes('qora') ||
-                                 i.productName.toLowerCase().includes('черная')) &&
-                                i.quantity === preformQtyInPieces
-                              );
-                              
-                              console.log(`🔍 Preform ${item.quantity} qop = ${preformQtyInPieces} dona. Krishka: ${krishkaIndex}, Ruchka: ${ruchkaIndex}`);
-                              
-                              if (krishkaIndex !== -1 && ruchkaIndex !== -1) {
-                                console.log('✅ Komplekt topildi!');
-                                komplekts.push({
-                                  type: 'komplekt',
-                                  preform: { ...item, originalIndex: index },
-                                  krishka: { ...items[krishkaIndex], originalIndex: krishkaIndex },
-                                  ruchka: { ...items[ruchkaIndex], originalIndex: ruchkaIndex },
-                                  totalSubtotal: item.subtotal + items[krishkaIndex].subtotal + items[ruchkaIndex].subtotal
-                                });
-                                usedIndices.add(index);
-                                usedIndices.add(krishkaIndex);
-                                usedIndices.add(ruchkaIndex);
-                              }
-                            }
-                          });
-                          
-                          console.log(`📊 Komplekts: ${komplekts.length}, Used indices:`, [...usedIndices]);
-                          
-                          const remainingItems = items.map((item, index) => ({ ...item, originalIndex: index }))
-                            .filter((_, index) => !usedIndices.has(index));
-                          
-                          return (
-                            <>
-                              {/* Komplekt kartalar */}
-                              {komplekts.map((komplekt, idx) => (
-                                <div key={`komplekt-${idx}`} className="bg-white rounded-[2rem] border-2 border-purple-200 shadow-[0_8px_30px_rgba(168,85,247,0.15)] overflow-hidden">
-                                  <div className="bg-gradient-to-r from-purple-600 to-pink-500 p-4">
-                                    <div className="flex justify-between items-center">
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-2xl">🎁</div>
-                                        <div>
-                                          <h4 className="font-black text-white text-lg uppercase tracking-tight">{latinToCyrillic("Komplekt")}</h4>
-                                          <p className="text-white/80 text-sm font-bold">{komplekt.preform.quantity} {latinToCyrillic("qop")} × 3</p>
-                                        </div>
-                                      </div>
-                                      <span className="font-black text-white text-2xl">{getCurrencySymbol()}{getDisplayAmount(komplekt.totalSubtotal)}</span>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="p-4 space-y-3">
-                                    {/* Preform, Krishka, Ruchka - Bitta qatorda 3 ta ustun */}
-                                    <div className="grid grid-cols-3 gap-2">
-                                      {/* Preform */}
-                                      <div className="bg-blue-50 p-2 rounded-xl border border-blue-100">
-                                        <div className="flex justify-between items-center mb-1">
-                                          <span className="font-bold text-gray-800 text-base">📦 {komplekt.preform.productName}</span>
-                                          <button
-                                            type="button"
-                                            onClick={() => removeProduct(komplekt.preform.originalIndex)}
-                                            className="text-red-500 hover:text-red-700 p-0.5"
-                                            title={latinToCyrillic("O'chirish")}
-                                          >
-                                            <Trash2 className="w-5 h-5" />
-                                          </button>
-                                        </div>
-                                        <select
-                                          value={komplekt.preform.productId}
-                                          onChange={(e) => {
-                                            const newProduct = products.find(p => p.id === e.target.value);
-                                            if (newProduct) {
-                                              const upb = newProduct.unitsPerBag || 2000;
-                                              const oldQty = komplekt.preform.quantity;
-                                              updateItem(komplekt.preform.originalIndex, {
-                                                productId: newProduct.id,
-                                                productName: newProduct.name,
-                                                pricePerBag: newProduct.pricePerBag || 0,
-                                                pricePerPiece: (newProduct.pricePerBag || 0) / upb,
-                                                unitsPerBag: upb,
-                                                subtotal: oldQty * (newProduct.pricePerBag || 0)
-                                              });
-                                            }
-                                          }}
-                                          className="text-sm border rounded px-2 py-1 bg-white w-full mb-1"
-                                        >
-                                          {products.filter(p => p.warehouse === 'preform' || p.name.toLowerCase().includes('g')).map(p => (
-                                            <option key={p.id} value={p.id}>{p.name}</option>
-                                          ))}
-                                        </select>
-                                        <div className="flex gap-1 mb-1">
-                                          <button
-                                            type="button"
-                                            onClick={() => { const upb = komplekt.preform.unitsPerBag || 2000; const currentPricePerPiece = komplekt.preform.pricePerPiece || komplekt.preform.pricePerBag / upb; updateItem(komplekt.preform.originalIndex, { priceMode: 'bag', pricePerBag: currentPricePerPiece * upb, pricePerPiece: currentPricePerPiece }); }}
-                                            className={`px-2 py-0.5 text-sm font-bold rounded ${!komplekt.preform.priceMode || komplekt.preform.priceMode === 'bag' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}
-                                          >
-                                            {latinToCyrillic("Qop")}
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => { const upb = komplekt.preform.unitsPerBag || 2000; const currentPricePerPiece = komplekt.preform.pricePerPiece || komplekt.preform.pricePerBag / upb; updateItem(komplekt.preform.originalIndex, { priceMode: 'piece', pricePerPiece: currentPricePerPiece, pricePerBag: currentPricePerPiece * upb }); }}
-                                            className={`px-2 py-0.5 text-sm font-bold rounded ${komplekt.preform.priceMode === 'piece' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}
-                                          >
-                                            {latinToCyrillic("Dona")}
-                                          </button>
-                                        </div>
-                                        <input type="text" inputMode="decimal" value={komplekt.preform.quantity} onChange={(e) => { const v = parseFloat(e.target.value) || 0; const upb = komplekt.preform.unitsPerBag || 2000; const price = komplekt.preform.priceMode === 'piece' ? (komplekt.preform.pricePerPiece || komplekt.preform.pricePerBag / upb) : komplekt.preform.pricePerBag; updateItem(komplekt.preform.originalIndex, { quantity: v, subtotal: komplekt.preform.priceMode === 'piece' ? v * upb * price : v * price }); }} className="w-full h-9 px-2 text-base font-black border rounded mb-2" placeholder={latinToCyrillic("Miqdor")} />
-                                        <input type="text" inputMode="decimal" value={!komplekt.preform.priceMode || komplekt.preform.priceMode === 'bag' ? komplekt.preform.pricePerBag : (komplekt.preform.pricePerPiece || komplekt.preform.pricePerBag / (komplekt.preform.unitsPerBag || 2000))} onChange={(e) => { const v = parseFloat(e.target.value) || 0; const upb = komplekt.preform.unitsPerBag || 2000; if (!komplekt.preform.priceMode || komplekt.preform.priceMode === 'bag') { updateItem(komplekt.preform.originalIndex, { pricePerBag: v, pricePerPiece: v / upb, subtotal: komplekt.preform.quantity * v }); } else { updateItem(komplekt.preform.originalIndex, { pricePerPiece: v, pricePerBag: v * upb, subtotal: komplekt.preform.quantity * upb * v }); } }} className="w-full h-9 px-2 text-base font-black border rounded mb-2" placeholder={latinToCyrillic("Narx")} />
-                                        <div className="text-base font-black text-green-600 text-center">{getCurrencySymbol()}{getDisplayAmount(komplekt.preform.subtotal)}</div>
-                                      </div>
-                                      {/* Krishka */}
-                                      <div className="bg-orange-50 p-2 rounded-xl border border-orange-100">
-                                        <div className="flex justify-between items-center mb-1">
-                                          <span className="font-bold text-gray-800 text-base">⭕ {komplekt.krishka.productName}</span>
-                                          <button
-                                            type="button"
-                                            onClick={() => removeProduct(komplekt.krishka.originalIndex)}
-                                            className="text-red-500 hover:text-red-700 p-0.5"
-                                            title={latinToCyrillic("O'chirish")}
-                                          >
-                                            <Trash2 className="w-5 h-5" />
-                                          </button>
-                                        </div>
-                                        <select
-                                          value={komplekt.krishka.productId}
-                                          onChange={(e) => {
-                                            const newProduct = products.find(p => p.id === e.target.value);
-                                            if (newProduct) {
-                                              const upb = newProduct.unitsPerBag || 1000;
-                                              const oldQty = komplekt.krishka.quantity;
-                                              updateItem(komplekt.krishka.originalIndex, {
-                                                productId: newProduct.id,
-                                                productName: newProduct.name,
-                                                pricePerBag: newProduct.pricePerBag || 0,
-                                                pricePerPiece: (newProduct.pricePerBag || 0) / upb,
-                                                unitsPerBag: upb,
-                                                subtotal: oldQty * ((newProduct.pricePerBag || 0) / upb)
-                                              });
-                                            }
-                                          }}
-                                          className="text-sm border rounded px-2 py-1 bg-white w-full mb-1"
-                                        >
-                                          {products.filter(p => p.warehouse === 'krishka' || p.name.toLowerCase().includes('krishka')).map(p => (
-                                            <option key={p.id} value={p.id}>{p.name}</option>
-                                          ))}
-                                        </select>
-                                        <div className="flex gap-1 mb-1">
-                                          <button
-                                            type="button"
-                                            onClick={() => { const upb = komplekt.krishka.unitsPerBag || 1000; const currentPricePerPiece = komplekt.krishka.pricePerPiece || komplekt.krishka.pricePerBag / upb; updateItem(komplekt.krishka.originalIndex, { priceMode: 'bag', pricePerBag: currentPricePerPiece * upb, pricePerPiece: currentPricePerPiece }); }}
-                                            className={`px-2 py-0.5 text-sm font-bold rounded ${!komplekt.krishka.priceMode || komplekt.krishka.priceMode === 'bag' ? 'bg-orange-600 text-white' : 'bg-gray-200 text-gray-600'}`}
-                                          >
-                                            {latinToCyrillic("Qop")}
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => { const upb = komplekt.krishka.unitsPerBag || 1000; const currentPricePerPiece = komplekt.krishka.pricePerPiece || komplekt.krishka.pricePerBag / upb; updateItem(komplekt.krishka.originalIndex, { priceMode: 'piece', pricePerPiece: currentPricePerPiece, pricePerBag: currentPricePerPiece * upb }); }}
-                                            className={`px-2 py-0.5 text-sm font-bold rounded ${komplekt.krishka.priceMode === 'piece' ? 'bg-orange-600 text-white' : 'bg-gray-200 text-gray-600'}`}
-                                          >
-                                            {latinToCyrillic("Dona")}
-                                          </button>
-                                        </div>
-                                        <input type="text" inputMode="decimal" value={komplekt.krishka.quantity} onChange={(e) => { const v = parseFloat(e.target.value) || 0; const upb = komplekt.krishka.unitsPerBag || 1000; const price = komplekt.krishka.priceMode === 'piece' ? (komplekt.krishka.pricePerPiece || komplekt.krishka.pricePerBag / upb) : komplekt.krishka.pricePerBag; updateItem(komplekt.krishka.originalIndex, { quantity: v, subtotal: komplekt.krishka.priceMode === 'piece' ? v * price : v * price }); }} className="w-full h-9 px-2 text-base font-black border rounded mb-2" placeholder={latinToCyrillic("Miqdor")} />
-                                        <input type="text" inputMode="decimal" value={!komplekt.krishka.priceMode || komplekt.krishka.priceMode === 'bag' ? komplekt.krishka.pricePerBag : (komplekt.krishka.pricePerPiece || komplekt.krishka.pricePerBag / (komplekt.krishka.unitsPerBag || 1000))} onChange={(e) => { const v = parseFloat(e.target.value) || 0; const upb = komplekt.krishka.unitsPerBag || 1000; if (!komplekt.krishka.priceMode || komplekt.krishka.priceMode === 'bag') { const pricePerPiece = v / upb; updateItem(komplekt.krishka.originalIndex, { pricePerBag: v, pricePerPiece: pricePerPiece, subtotal: komplekt.krishka.quantity * pricePerPiece }); } else { updateItem(komplekt.krishka.originalIndex, { pricePerPiece: v, pricePerBag: v * upb, subtotal: komplekt.krishka.quantity * v }); } }} className="w-full h-9 px-2 text-base font-black border rounded mb-2" placeholder={latinToCyrillic("Narx")} />
-                                        <div className="text-base font-black text-green-600 text-center">{getCurrencySymbol()}{getDisplayAmount(komplekt.krishka.subtotal)}</div>
-                                      </div>
-                                      {/* Ruchka */}
-                                      <div className="bg-emerald-50 p-2 rounded-xl border border-emerald-100">
-                                        <div className="flex justify-between items-center mb-1">
-                                          <span className="font-bold text-gray-800 text-base">🎗️ {komplekt.ruchka.productName}</span>
-                                          <button
-                                            type="button"
-                                            onClick={() => removeProduct(komplekt.ruchka.originalIndex)}
-                                            className="text-red-500 hover:text-red-700 p-0.5"
-                                            title={latinToCyrillic("O'chirish")}
-                                          >
-                                            <Trash2 className="w-5 h-5" />
-                                          </button>
-                                        </div>
-                                        <select
-                                          value={komplekt.ruchka.productId}
-                                          onChange={(e) => {
-                                            const newProduct = products.find(p => p.id === e.target.value);
-                                            if (newProduct) {
-                                              const upb = newProduct.unitsPerBag || 1000;
-                                              const oldQty = komplekt.ruchka.quantity;
-                                              updateItem(komplekt.ruchka.originalIndex, {
-                                                productId: newProduct.id,
-                                                productName: newProduct.name,
-                                                pricePerBag: newProduct.pricePerBag || 0,
-                                                pricePerPiece: (newProduct.pricePerBag || 0) / upb,
-                                                unitsPerBag: upb,
-                                                subtotal: oldQty * ((newProduct.pricePerBag || 0) / upb)
-                                              });
-                                            }
-                                          }}
-                                          className="text-sm border rounded px-2 py-1 bg-white w-full mb-1"
-                                        >
-                                          {products.filter(p => p.warehouse === 'ruchka' || p.name.toLowerCase().includes('ruchka')).map(p => (
-                                            <option key={p.id} value={p.id}>{p.name}</option>
-                                          ))}
-                                        </select>
-                                        <div className="flex gap-1 mb-1">
-                                          <button
-                                            type="button"
-                                            onClick={() => { const upb = komplekt.ruchka.unitsPerBag || 1000; const currentPricePerPiece = komplekt.ruchka.pricePerPiece || komplekt.ruchka.pricePerBag / upb; updateItem(komplekt.ruchka.originalIndex, { priceMode: 'bag', pricePerBag: currentPricePerPiece * upb, pricePerPiece: currentPricePerPiece }); }}
-                                            className={`px-2 py-0.5 text-sm font-bold rounded ${!komplekt.ruchka.priceMode || komplekt.ruchka.priceMode === 'bag' ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-600'}`}
-                                          >
-                                            {latinToCyrillic("Qop")}
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => { const upb = komplekt.ruchka.unitsPerBag || 1000; const currentPricePerPiece = komplekt.ruchka.pricePerPiece || komplekt.ruchka.pricePerBag / upb; updateItem(komplekt.ruchka.originalIndex, { priceMode: 'piece', pricePerPiece: currentPricePerPiece, pricePerBag: currentPricePerPiece * upb }); }}
-                                            className={`px-2 py-0.5 text-sm font-bold rounded ${komplekt.ruchka.priceMode === 'piece' ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-600'}`}
-                                          >
-                                            {latinToCyrillic("Dona")}
-                                          </button>
-                                        </div>
-                                        <input type="text" inputMode="decimal" value={komplekt.ruchka.quantity} onChange={(e) => { const v = parseFloat(e.target.value) || 0; const upb = komplekt.ruchka.unitsPerBag || 1000; const price = komplekt.ruchka.priceMode === 'piece' ? (komplekt.ruchka.pricePerPiece || komplekt.ruchka.pricePerBag / upb) : komplekt.ruchka.pricePerBag; updateItem(komplekt.ruchka.originalIndex, { quantity: v, subtotal: komplekt.ruchka.priceMode === 'piece' ? v * price : v * price }); }} className="w-full h-9 px-2 text-base font-black border rounded mb-2" placeholder={latinToCyrillic("Miqdor")} />
-                                        <input type="text" inputMode="decimal" value={!komplekt.ruchka.priceMode || komplekt.ruchka.priceMode === 'bag' ? komplekt.ruchka.pricePerBag : (komplekt.ruchka.pricePerPiece || komplekt.ruchka.pricePerBag / (komplekt.ruchka.unitsPerBag || 1000))} onChange={(e) => { const v = parseFloat(e.target.value) || 0; const upb = komplekt.ruchka.unitsPerBag || 1000; if (!komplekt.ruchka.priceMode || komplekt.ruchka.priceMode === 'bag') { const pricePerPiece = v / upb; updateItem(komplekt.ruchka.originalIndex, { pricePerBag: v, pricePerPiece: pricePerPiece, subtotal: komplekt.ruchka.quantity * pricePerPiece }); } else { updateItem(komplekt.ruchka.originalIndex, { pricePerPiece: v, pricePerBag: v * upb, subtotal: komplekt.ruchka.quantity * v }); } }} className="w-full h-9 px-2 text-base font-black border rounded mb-2" placeholder={latinToCyrillic("Narx")} />
-                                        <div className="text-base font-black text-green-600 text-center">{getCurrencySymbol()}{getDisplayAmount(komplekt.ruchka.subtotal)}</div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="p-4 pt-0">
-                                    <Button type="button" onClick={() => { const indices = [komplekt.preform.originalIndex, komplekt.krishka.originalIndex, komplekt.ruchka.originalIndex].sort((a,b) => b-a); setForm(prev => ({...prev, items: prev.items.filter((_,i) => !indices.includes(i))})); }} className="w-full bg-red-500 hover:bg-red-600 text-white h-14 rounded-xl font-black text-base shadow-lg">
-                                      <Trash2 className="w-5 h-5 mr-3" /> {latinToCyrillic("Komplektni o'chirish")}
-                                    </Button>
-                                  </div>
-                                </div>
-                              ))}
-                              
-                              {/* Alohida mahsulotlar */}
-                              {remainingItems.map((item) => (
-                                <div key={item.originalIndex} className="bg-white rounded-[2rem] border-2 border-gray-200 shadow-[0_8px_30px_rgba(0,0,0,0.08)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] transition-all duration-300">
-                                  <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4">
-                                    <div className="flex justify-between items-center">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-2xl">
-                                          {item.productName.toLowerCase().includes('preform') ? '📦' : 
-                                           item.productName.toLowerCase().includes('krishka') ? '⭕' : 
-                                           item.productName.toLowerCase().includes('ruchka') ? '🎗️' : '📦'}
-                                        </div>
-                                        <div>
-                                          <h4 className="font-black text-white text-lg">{item.productName}</h4>
-                                          <select
-                                            value={item.productId}
-                                            onChange={(e) => {
-                                              const newProduct = products.find(p => p.id === e.target.value);
-                                              if (newProduct && newProduct.id !== item.productId) {
-                                                const upb = newProduct.unitsPerBag || 2000;
-                                                const oldQty = item.quantity;
-                                                updateItem(item.originalIndex, {
-                                                  productId: newProduct.id,
-                                                  productName: newProduct.name,
-                                                  pricePerBag: newProduct.pricePerBag || 0,
-                                                  pricePerPiece: (newProduct.pricePerBag || 0) / upb,
-                                                  unitsPerBag: upb,
-                                                  subtotal: oldQty * (newProduct.pricePerBag || 0)
-                                                });
-                                              }
-                                            }}
-                                            className="text-base border rounded px-2 py-1 bg-white text-gray-800"
-                                          >
-                                            {products
-                                              .filter(p => {
-                                                if (item.productName.toLowerCase().includes('preform')) return p.warehouse === 'preform' || p.name.toLowerCase().includes('g');
-                                                if (item.productName.toLowerCase().includes('krishka')) return p.warehouse === 'krishka' || p.name.toLowerCase().includes('krishka');
-                                                if (item.productName.toLowerCase().includes('ruchka')) return p.warehouse === 'ruchka' || p.name.toLowerCase().includes('ruchka');
-                                                return p.warehouse === item.warehouse || p.bagType === item.bagType;
-                                              })
-                                              .map(p => (
-                                                <option key={p.id} value={p.id}>{p.name}</option>
-                                              ))}
-                                          </select>
-                                        </div>
-                                      </div>
-                                      <div className="flex gap-1">
-                                        <button
-                                          type="button"
-                                          onClick={() => { const upb = item.unitsPerBag || 2000; const currentPricePerPiece = item.pricePerPiece || item.pricePerBag / upb; updateItem(item.originalIndex, { priceMode: 'bag', pricePerBag: currentPricePerPiece * upb, pricePerPiece: currentPricePerPiece }); }}
-                                          className={`px-3 py-1.5 text-base font-bold rounded ${!item.priceMode || item.priceMode === 'bag' ? 'bg-white text-blue-600' : 'bg-white/30 text-white'}`}
-                                        >
-                                          {latinToCyrillic("Qop")}
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => { const upb = item.unitsPerBag || 2000; const currentPricePerPiece = item.pricePerPiece || item.pricePerBag / upb; updateItem(item.originalIndex, { priceMode: 'piece', pricePerPiece: currentPricePerPiece, pricePerBag: currentPricePerPiece * upb }); }}
-                                          className={`px-3 py-1.5 text-base font-bold rounded ${item.priceMode === 'piece' ? 'bg-white text-blue-600' : 'bg-white/30 text-white'}`}
-                                        >
-                                          {latinToCyrillic("Dona")}
-                                        </button>
-                                        <Button type="button" onClick={() => removeProduct(item.originalIndex)} className="bg-red-500 hover:bg-red-600 text-white w-10 h-10 p-0 rounded-xl shadow-lg ml-2">
-                                          <Trash2 className="w-5 h-5" />
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="p-4">
-                                    <div className="grid grid-cols-4 gap-2 mb-4">
-                                      <div className="bg-gray-50 p-2 rounded-xl border-2 border-gray-100">
-                                        <label className="text-base font-bold text-gray-500 uppercase block mb-1">{!item.priceMode || item.priceMode === 'bag' ? latinToCyrillic("Qop") : latinToCyrillic("Dona")}</label>
-                                        <input type="text" inputMode="decimal" value={item.quantity} onChange={(e) => { const v = parseFloat(e.target.value) || 0; const upb = item.unitsPerBag || 2000; const price = !item.priceMode || item.priceMode === 'bag' ? item.pricePerBag : (item.pricePerPiece || item.pricePerBag / upb); updateItem(item.originalIndex, { quantity: v, subtotal: v * price }); }} className="w-full h-10 px-3 text-base font-black border rounded" />
-                                      </div>
-                                      <div className="bg-blue-50 p-2 rounded-xl border-2 border-blue-100">
-                                        <label className="text-base font-bold text-blue-600 uppercase block mb-1">{!item.priceMode || item.priceMode === 'bag' ? latinToCyrillic("Dona") : latinToCyrillic("Qop")}</label>
-                                        <div className="h-8 flex items-center text-base font-black text-blue-700">{!item.priceMode || item.priceMode === 'bag' ? (item.quantity * (item.unitsPerBag || 2000)).toLocaleString() : (item.quantity / (item.unitsPerBag || 2000)).toFixed(2)}</div>
-                                      </div>
-                                      <div className="bg-green-50 p-2 rounded-xl border-2 border-green-100">
-                                        <label className="text-base font-bold text-green-600 uppercase block mb-1">{latinToCyrillic("Narx")} ({!item.priceMode || item.priceMode === 'bag' ? latinToCyrillic("qop") : latinToCyrillic("dona")})</label>
-                                        <input type="text" inputMode="decimal" value={!item.priceMode || item.priceMode === 'bag' ? item.pricePerBag : (item.pricePerPiece || item.pricePerBag / (item.unitsPerBag || 2000))} onChange={(e) => { const v = parseFloat(e.target.value) || 0; const upb = item.unitsPerBag || 2000; if (!item.priceMode || item.priceMode === 'bag') { updateItem(item.originalIndex, { pricePerBag: v, pricePerPiece: v / upb, subtotal: item.quantity * v }); } else { updateItem(item.originalIndex, { pricePerPiece: v, pricePerBag: v * upb, subtotal: item.quantity * v }); } }} className="w-full h-10 px-3 text-base font-black border rounded" />
-                                      </div>
-                                      <div className="bg-purple-50 p-2 rounded-xl border-2 border-purple-100">
-                                        <label className="text-base font-bold text-purple-600 uppercase block mb-1">{latinToCyrillic("Jami")}</label>
-                                        <div className="h-8 flex items-center text-base font-black text-purple-700">{getCurrencySymbol()}{getDisplayAmount(item.subtotal)}</div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </>
-                          );
-                        })()}
+                    </div>
+                  ) : (
+                    <div className="p-12 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <ShoppingCart className="w-10 h-10 text-gray-400" />
                       </div>
-                      
-                      {form.items.length === 0 && (
-                        <div className="p-12 text-center bg-gray-50 dark:bg-gray-800/50 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700">
-                          <div className="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
-                            <ShoppingCart className="w-10 h-10 text-gray-400" />
-                          </div>
-                          <p className="text-gray-500 dark:text-gray-400 font-bold mb-2 text-lg">{latinToCyrillic("Savat bo'sh")}</p>
-                          <p className="text-gray-400 dark:text-gray-500 text-base">{latinToCyrillic("Mahsulot qo'shing")}</p>
-                        </div>
-                      )}
+                      <p className="text-gray-500 font-bold mb-2">{latinToCyrillic("Savat bo'sh")}</p>
+                      <p className="text-gray-400">{latinToCyrillic("Mahsulot qo'shing")}</p>
                     </div>
                   )}
                 </div>
 
-                {/* 3-USTUN: Mijoz va To'lov */}
-                <div className="space-y-5 min-w-0">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/20">
-                      <User className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-black text-gray-900 dark:text-white">{latinToCyrillic("Mijoz va To'lov")}</h2>
-                      <p className="text-sm font-bold text-gray-500 uppercase tracking-wider">{latinToCyrillic("Sotuvni yakunlash")}</p>
+                {/* Mijoz va To'lov ustuni */}
+                <div className="space-y-6">
+                  <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl p-6 shadow-lg">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center">
+                        <User className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-white">{latinToCyrillic("Mijoz va To'lov")}</h2>
+                        <p className="text-sm text-purple-100">{latinToCyrillic("Sotuvni yakunlash")} ({customers.length} {latinToCyrillic("ta mijoz")})</p>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Mijoz tanlash */}
-                  <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-200 dark:border-gray-700">
-                    <label className="block text-base font-bold text-gray-600 mb-2 uppercase">{latinToCyrillic("Mijoz")}</label>
-                    <CustomerSelector
-                      customers={customers}
-                      selectedId={form.customerId}
-                      onSelect={(id, name) => setForm(prev => ({ ...prev, customerId: id, customerName: name }))}
-                      searchValue={customerSearch}
-                      onSearchChange={setCustomerSearch}
-                    />
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-6 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full"></div>
+                      <label className="text-base font-bold text-primary">
+                        {latinToCyrillic("Mijoz")} ({customers.length} ta)
+                      </label>
+                    </div>
+                    
+                    <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                        <User className="w-5 h-5" />
+                      </div>
+                      <select 
+                        value={form.isKocha ? 'kocha' : form.customerId}
+                        onChange={(e) => {
+                          const selectedValue = e.target.value;
+                          
+                          if (selectedValue === 'kocha') {
+                            // Ko'chaga tanlandi
+                            console.log('✅ Ko\'chaga tanlandi');
+                            setForm(prev => ({ 
+                              ...prev, 
+                              customerId: '',
+                              customerName: '',
+                              isKocha: true,
+                              manualCustomerName: '',
+                              manualCustomerPhone: ''
+                            }));
+                          } else {
+                            // Oddiy mijoz tanlandi
+                            const customer = customers.find(c => c.id === selectedValue);
+                            console.log('✅ Mijoz tanlandi:', customer?.name, 'ID:', selectedValue);
+                            setForm(prev => ({ 
+                              ...prev, 
+                              customerId: selectedValue, 
+                              customerName: customer?.name || '',
+                              isKocha: false,
+                              manualCustomerName: '',
+                              manualCustomerPhone: ''
+                            }));
+                          }
+                        }}
+                        className="input-modern w-full pl-12"
+                      >
+                        <option value="">{latinToCyrillic("Mijozni tanlang")}</option>
+                        {customers.map((customer: any) => (
+                          <option key={customer.id} value={customer.id}>
+                            {customer.name} - {customer.phone || 'Noma\'lum'}
+                          </option>
+                        ))}
+                        <option value="kocha">{latinToCyrillic("Ko'chaga (qo'l mijoz)")}</option>
+                      </select>
+                    </div>
+                    
+                    {form.isKocha && (
+                      <div className="space-y-3 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+                        <p className="text-sm font-semibold text-yellow-800">
+                          {latinToCyrillic("Mijoz ma'lumotlari")}
+                        </p>
+                        <input
+                          type="text"
+                          placeholder={latinToCyrillic("Mijoz ismi")}
+                          value={form.manualCustomerName}
+                          onChange={(e) => setForm(prev => ({ ...prev, manualCustomerName: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white"
+                        />
+                        <input
+                          type="text"
+                          placeholder={latinToCyrillic("Telefon raqami")}
+                          value={form.manualCustomerPhone}
+                          onChange={(e) => setForm(prev => ({ ...prev, manualCustomerPhone: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {form.items.length > 0 && (
                     <div className="space-y-4">
-                      <label className="block text-xl font-bold text-purple-600">
-                        💳 {latinToCyrillic("To'lov")}
+                      <label className="block text-lg font-semibold text-gray-700">
+                        {latinToCyrillic("To'lov")}
                       </label>
                       
                       <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-4">
                         <div>
-                          <label className="block text-base font-bold text-gray-600 mb-1">{latinToCyrillic("To'lov turi")}</label>
-                          <select value={form.paymentType} onChange={(e) => setForm(prev => ({ ...prev, paymentType: e.target.value }))} className="w-full h-12 px-3 text-base font-bold border rounded bg-white">
+                          <label className="block text-base font-medium text-gray-600 mb-1">
+                            {latinToCyrillic("To'lov turi")}
+                          </label>
+                          <select 
+                            value={form.paymentType} 
+                            onChange={(e) => setForm(prev => ({ ...prev, paymentType: e.target.value }))} 
+                            className="w-full h-12 px-3 text-base font-medium border rounded-lg bg-white"
+                          >
                             <option value="cash">{latinToCyrillic("Naqd")}</option>
                             <option value="debt">{latinToCyrillic("Qarz")}</option>
                             <option value="partial">{latinToCyrillic("Qisman")}</option>
@@ -1143,74 +1673,116 @@ export default function AddSale() {
 
                         <div className="space-y-2">
                           <div>
-                            <label className="block text-base text-gray-500 font-bold">UZS</label>
-                            <input type="text" inputMode="decimal" placeholder="0" value={form.paidUZS} onChange={(e) => setForm(prev => ({ ...prev, paidUZS: e.target.value.replace(/[^0-9.]/g, '') }))} className="w-full h-12 px-3 text-base font-bold border rounded" />
+                            <label className="block text-base text-gray-600 font-medium">UZS</label>
+                            <input 
+                              type="text" 
+                              inputMode="decimal" 
+                              placeholder="0" 
+                              value={form.paidUZS} 
+                              onChange={(e) => setForm(prev => ({ ...prev, paidUZS: e.target.value.replace(/[^0-9.]/g, '') }))} 
+                              className="w-full h-12 px-3 text-base font-medium border rounded-lg" 
+                            />
                           </div>
                           <div>
-                            <label className="block text-base text-gray-500 font-bold">USD</label>
-                            <input type="text" inputMode="decimal" placeholder="0.00" value={form.paidUSD} onChange={(e) => setForm(prev => ({ ...prev, paidUSD: e.target.value.replace(/[^0-9.]/g, '') }))} className="w-full h-12 px-3 text-base font-bold border rounded" />
+                            <label className="block text-base text-gray-600 font-medium">USD</label>
+                            <input 
+                              type="text" 
+                              inputMode="decimal" 
+                              placeholder="0.00" 
+                              value={form.paidUSD} 
+                              onChange={(e) => setForm(prev => ({ ...prev, paidUSD: e.target.value.replace(/[^0-9.]/g, '') }))} 
+                              className="w-full h-12 px-3 text-base font-medium border rounded-lg" 
+                            />
                           </div>
                           <div>
-                            <label className="block text-base text-gray-500 font-bold">CLICK</label>
-                            <input type="text" inputMode="decimal" placeholder="0" value={form.paidCLICK} onChange={(e) => setForm(prev => ({ ...prev, paidCLICK: e.target.value.replace(/[^0-9.]/g, '') }))} className="w-full h-12 px-3 text-base font-bold border rounded" />
+                            <label className="block text-base text-gray-600 font-medium">CLICK</label>
+                            <input 
+                              type="text" 
+                              inputMode="decimal" 
+                              placeholder="0" 
+                              value={form.paidCLICK} 
+                              onChange={(e) => setForm(prev => ({ ...prev, paidCLICK: e.target.value.replace(/[^0-9.]/g, '') }))} 
+                              className="w-full h-12 px-3 text-base font-medium border rounded-lg" 
+                            />
                           </div>
                         </div>
 
-                        <div className="bg-white p-3 rounded border">
-                          <div className="flex justify-between text-base">
+                        <div className="bg-white p-3 rounded-lg border">
+                          <div className="flex justify-between text-base mb-2">
                             <span className="text-gray-500">{latinToCyrillic("Qarz")}:</span>
-                            <span className="font-bold text-red-600">{getCurrencySymbol()}{debtAmount.toFixed(form.currency === 'UZS' ? 0 : 2)}</span>
+                            <span className="font-bold text-red-600">
+                              {getCurrencySymbol()}{debtAmount.toFixed(form.currency === 'UZS' ? 0 : 2)}
+                            </span>
                           </div>
                           <div className="flex justify-between text-base">
                             <span className="text-gray-500">{latinToCyrillic("To'langan")}:</span>
-                            <span className="font-bold text-green-600">{getCurrencySymbol()}{paidAmount.toFixed(form.currency === 'UZS' ? 0 : 2)}</span>
+                            <span className="font-bold text-green-600">
+                              {getCurrencySymbol()}{paidAmount.toFixed(form.currency === 'UZS' ? 0 : 2)}
+                            </span>
                           </div>
                         </div>
 
-                        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-5 rounded-2xl shadow-lg shadow-blue-500/25">
+                        <div className="bg-blue-600 text-white p-4 rounded-xl">
                           <div className="flex justify-between items-center">
-                            <span className="font-black uppercase tracking-wider">{latinToCyrillic("JAMI")}:</span>
-                            <span className="text-3xl font-black">{getCurrencySymbol()}{getDisplayAmount(totalAmount)}</span>
+                            <span className="font-medium">{latinToCyrillic("JAMI")}:</span>
+                            <span className="text-2xl font-bold">{getCurrencySymbol()}{getDisplayAmount(totalAmount)}</span>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )}
 
-                  {form.items.length > 0 && (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 bg-amber-50 p-3 rounded border border-amber-200">
-                        <label className="text-base font-bold text-amber-700">{latinToCyrillic("Kurs")}:</label>
-                        <input type="text" inputMode="decimal" placeholder="12500" value={exchangeRate} onChange={(e) => setExchangeRate(e.target.value.replace(/[^0-9.]/g, ''))} className="flex-1 h-12 px-3 border rounded text-base" />
-                        <Button type="button" onClick={() => { const rate = parseFloat(exchangeRate) || 12500; const totalUZS = totalAmount * rate; setForm(prev => ({ ...prev, paidUZS: totalUZS.toFixed(0), paidUSD: totalAmount.toFixed(2) })); }} className="h-12 px-4 bg-amber-500 hover:bg-amber-600 text-white text-base font-bold">
-                          UZS/$</Button>
-                      </div>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 bg-amber-50 p-3 rounded border border-amber-200">
+                          <label className="text-base font-medium text-amber-700">{latinToCyrillic("Kurs")}:</label>
+                          <input 
+                            type="text" 
+                            inputMode="decimal" 
+                            placeholder="12500" 
+                            value={exchangeRate} 
+                            onChange={(e) => setExchangeRate(e.target.value.replace(/[^0-9.]/g, ''))} 
+                            className="flex-1 h-12 px-3 border rounded-lg text-base" 
+                          />
+                          <span className="text-amber-700 font-medium">UZS/$</span>
+                        </div>
 
-                      <Button 
-                        type="submit" 
-                        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white h-16 rounded-xl font-black text-xl uppercase tracking-wider shadow-lg shadow-blue-500/25 transition-all hover:shadow-xl hover:-translate-y-0.5"
-                      >
-                        <ShoppingCart className="w-6 h-6 mr-3" />
-                        {latinToCyrillic("Sotuvni rasmiylashtirish")}
-                      </Button>
-                      
-                      <div className="grid grid-cols-2 gap-3">
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          onClick={() => navigate('/cashier/sales')} 
-                          className="h-14 border-red-200 text-red-600 hover:bg-red-50 font-bold text-base rounded-xl"
+                        <button
+                          type="submit"
+                          className="btn-gradient-primary w-full h-16 text-lg flex items-center justify-center gap-3"
                         >
-                          <X className="w-5 h-5 mr-2" /> {latinToCyrillic("Bekor")}
-                        </Button>
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          onClick={() => { const currentCurrency = form.currency; setForm({ customerId: '', customerName: '', items: [], paymentType: 'cash', paidUZS: '', paidUSD: '', paidCLICK: '', currency: currentCurrency }); setNewItem({ productId: '', productName: '', quantity: '', pricePerBag: '' }); }} 
-                          className="h-14 border-gray-200 text-gray-600 hover:bg-gray-50 font-bold text-base rounded-xl"
-                        >
-                          <RotateCcw className="w-5 h-5 mr-2" /> {latinToCyrillic("Tozalash")}
-                        </Button>
+                          <ShoppingCart className="w-6 h-6" />
+                          {isEditMode ? latinToCyrillic("Sotuvni saqlash") : latinToCyrillic("Sotuvni rasmiylashtirish")}
+                        </button>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <button 
+                            type="button" 
+                            onClick={() => navigate('/cashier/sales')} 
+                            className="btn-gradient-danger h-14 text-base flex items-center justify-center gap-2"
+                          >
+                            <X className="w-5 h-5" /> {latinToCyrillic("Bekor")}
+                          </button>
+                          <button 
+                            type="button" 
+                            onClick={() => { 
+                              setForm({ 
+                                customerId: '', 
+                                customerName: '', 
+                                items: [], 
+                                paymentType: 'cash', 
+                                paidUZS: '', 
+                                paidUSD: '', 
+                                paidCLICK: '', 
+                                currency: form.currency, 
+                                isKocha: false, 
+                                manualCustomerName: '', 
+                                manualCustomerPhone: '' 
+                              }); 
+                              setNewItem({ productId: '', productName: '', quantity: '', pricePerBag: '', saleType: 'bag' }); 
+                            }} 
+                            className="btn-gradient-secondary h-14 text-base flex items-center justify-center gap-2"
+                          >
+                            <RotateCcw className="w-5 h-5" /> {latinToCyrillic("Tozalash")}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1219,57 +1791,6 @@ export default function AddSale() {
             </form>
           </div>
         </div>
-      </div>
-
-      {/* Price Modal */}
-      {showPriceModal && selectedCustomer && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-purple-600">{selectedCustomer.name} - {latinToCyrillic("Narx")}</h2>
-              <button onClick={() => setShowPriceModal(false)} className="w-10 h-10 flex items-center justify-center rounded bg-gray-100 text-gray-500 hover:text-red-500">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="space-y-3 max-h-[50vh] overflow-y-auto">
-              {products.map((product) => (
-                <div key={product.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded border">
-                  <div className="flex-1">
-                    <h3 className="font-bold text-base">{product.name}</h3>
-                    <p className="text-base text-gray-500">${product.pricePerBag}/qop</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-400">$</span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={customerPrices[product.id] || ''}
-                      onChange={(e) => {
-                        const newPrices = { ...customerPrices };
-                        if (e.target.value) newPrices[product.id] = e.target.value.replace(/[^0-9.]/g, '');
-                        else delete newPrices[product.id];
-                        setCustomerPrices(newPrices);
-                      }}
-                      placeholder={product.pricePerBag.toString()}
-                      className="w-28 h-10 px-3 border rounded text-base font-bold"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <Button type="button" variant="outline" onClick={() => setShowPriceModal(false)} className="flex-1 h-12 border-gray-200 font-bold text-base">
-                {latinToCyrillic("Bekor")}
-              </Button>
-              <Button type="button" onClick={async () => { try { await api.put(`/customers/${selectedCustomer.id}`, { productPrices: JSON.stringify(customerPrices) }); setShowPriceModal(false); const res = await api.get('/customers'); setCustomers(res.data); } catch (err) { console.error(err); } }} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white h-12 font-bold text-base">
-                {latinToCyrillic("Saqlash")}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

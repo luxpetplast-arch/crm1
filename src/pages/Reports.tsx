@@ -113,23 +113,23 @@ export default function Reports() {
 
   return (
     <div className="min-h-screen space-y-10 pb-20 animate-in fade-in duration-1000 bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
-      {/* Premium Header Section */}
-      <div className="relative overflow-hidden bg-white dark:bg-gray-900 rounded-b-[3rem] p-10 sm:p-16 shadow-[0_20px_60px_rgba(0,0,0,0.08)] border-b border-gray-100 dark:border-gray-800">
+      {/* Premium Header Section - Login Page Style */}
+      <div className="relative overflow-hidden login-card rounded-[2.5rem] mx-4 sm:mx-8">
         {/* Background blobs */}
         <div className="absolute top-0 -left-20 w-96 h-96 bg-gradient-to-br from-blue-200/30 to-indigo-200/30 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob pointer-events-none"></div>
         <div className="absolute -bottom-20 -right-20 w-96 h-96 bg-gradient-to-br from-purple-200/30 to-pink-200/30 dark:from-purple-900/20 dark:to-pink-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000 pointer-events-none"></div>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-cyan-100/20 to-blue-100/20 dark:from-cyan-900/10 dark:to-blue-900/10 rounded-full mix-blend-multiply filter blur-3xl opacity-40 pointer-events-none"></div>
 
-        <div className="relative z-10">
+        <div className="relative z-10 p-10 sm:p-16">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-10">
             <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-50 dark:bg-blue-900/30 rounded-full border border-blue-100 dark:border-blue-800 text-[10px] font-black uppercase tracking-[0.3em] text-blue-600 dark:text-blue-400 shadow-sm">
+              <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full text-[10px] font-semibold uppercase tracking-[0.3em] text-white shadow-lg shadow-blue-500/25">
                 <Sparkles className="w-3 h-3 animate-pulse" />
                 ANALYTICS & REPORTS
               </div>
-              <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black text-gray-900 dark:text-white tracking-tighter leading-[0.9]">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white tracking-tight leading-[0.9]">
                 {latinToCyrillic("Hisobotlar")} <br />
-                <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">{latinToCyrillic("Markazi")}</span>
+                <span className="text-blue-600">{latinToCyrillic("Markazi")}</span>
               </h1>
               <p className="text-gray-500 dark:text-gray-400 font-bold text-lg max-w-md">
                 {latinToCyrillic("Barcha turdagi hisobotlarni yuklab olish va tahlil qilish")}
@@ -140,8 +140,8 @@ export default function Reports() {
               <div className="flex items-center gap-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 px-6 py-4 rounded-2xl border border-blue-100 dark:border-blue-800">
                 <BarChart3 className="w-8 h-8 text-blue-600" />
                 <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{latinToCyrillic("Turlari")}</p>
-                  <p className="text-2xl font-black text-gray-900 dark:text-white">4</p>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">{latinToCyrillic("Turlari")}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">4</p>
                 </div>
               </div>
             </div>
@@ -157,7 +157,7 @@ export default function Reports() {
               <Filter className="w-7 h-7" />
             </div>
             <div>
-              <h2 className="text-2xl font-black text-gray-900 dark:text-white">{latinToCyrillic("Hisobot Yaratish")}</h2>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{latinToCyrillic("Hisobot Yaratish")}</h2>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{latinToCyrillic("Parametrlarni tanlang")}</p>
             </div>
           </div>
@@ -165,7 +165,7 @@ export default function Reports() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Report Type */}
             <div className="space-y-3">
-              <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em]">{latinToCyrillic("Hisobot Turi")}</label>
+              <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-[0.2em]">{latinToCyrillic("Hisobot Turi")}</label>
               <div className="relative">
                 <select
                   className="w-full h-14 px-5 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-bold text-gray-900 dark:text-white appearance-none cursor-pointer transition-all outline-none"
@@ -188,7 +188,7 @@ export default function Reports() {
 
             {/* Start Date */}
             <div className="space-y-3">
-              <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em]">{latinToCyrillic("Boshlanish")}</label>
+              <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-[0.2em]">{latinToCyrillic("Boshlanish")}</label>
               <div className="relative">
                 <input
                   type="date"
@@ -202,7 +202,7 @@ export default function Reports() {
 
             {/* End Date */}
             <div className="space-y-3">
-              <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em]">{latinToCyrillic("Tugash")}</label>
+              <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-[0.2em]">{latinToCyrillic("Tugash")}</label>
               <div className="relative">
                 <input
                   type="date"
@@ -216,12 +216,12 @@ export default function Reports() {
 
             {/* Actions */}
             <div className="space-y-3">
-              <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em]">{latinToCyrillic("Amallar")}</label>
+              <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-[0.2em]">{latinToCyrillic("Amallar")}</label>
               <div className="flex gap-3">
                 <button 
                   onClick={generateReport} 
                   disabled={loading}
-                  className="flex-1 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-black text-sm tracking-widest transition-all shadow-lg shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-semibold text-sm tracking-widest transition-all shadow-lg shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   <FileText className="w-5 h-5" />
                   {loading ? latinToCyrillic('Yuklanmoqda...') : latinToCyrillic('YARATISH')}
@@ -229,7 +229,7 @@ export default function Reports() {
                 {data.length > 0 && (
                   <button 
                     onClick={exportToCSV}
-                    className="h-14 px-5 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-600 rounded-2xl font-black text-sm transition-all flex items-center justify-center"
+                    className="h-14 px-5 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-600 rounded-2xl font-semibold text-sm transition-all flex items-center justify-center"
                     title={latinToCyrillic("Excelga yuklash")}
                   >
                     <FileSpreadsheet className="w-5 h-5" />
@@ -254,13 +254,13 @@ export default function Reports() {
                   })()}
                 </div>
                 <div>
-                  <h3 className="text-xl font-black text-gray-900 dark:text-white">{getReportLabel(reportType)} {latinToCyrillic("Hisoboti")}</h3>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">{getReportLabel(reportType)} {latinToCyrillic("Hisoboti")}</h3>
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{latinToCyrillic("Jami qaydlar:")} {data.length}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 px-4 py-2 rounded-xl">
                 <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">LIVE</span>
+                <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">LIVE</span>
               </div>
             </div>
             
@@ -269,7 +269,7 @@ export default function Reports() {
                 <thead>
                   <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
                     {Object.keys(data[0]).slice(0, 6).map((key) => (
-                      <th key={key} className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                      <th key={key} className="px-6 py-4 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-[0.2em]">
                         {key}
                       </th>
                     ))}
@@ -307,7 +307,7 @@ export default function Reports() {
             <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
               <BarChart3 className="w-12 h-12 text-blue-500" />
             </div>
-            <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-3">{latinToCyrillic("Hisobot Tayyor Emas")}</h3>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">{latinToCyrillic("Hisobot Tayyor Emas")}</h3>
             <p className="text-gray-500 font-medium max-w-md mx-auto">
               {latinToCyrillic("Hisobot yaratish uchun yuqoridagi parametrlarni tanlang va 'Yaratish' tugmasini bosing")}
             </p>

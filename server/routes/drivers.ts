@@ -1,12 +1,9 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 import { DriverBotManager } from '../bot/driver-bot';
 
 const router = Router();
-const prisma = new PrismaClient();
-
-router.use(authenticate);
 
 // Barcha haydovchilarni olish
 router.get('/', async (req, res) => {

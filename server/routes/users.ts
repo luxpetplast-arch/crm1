@@ -1,10 +1,9 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.use(authenticate);
 router.use(authorize('ADMIN'));
@@ -25,6 +24,40 @@ router.get('/', async (req, res) => {
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+router.post('/', async (req, res) => {
+  try {
+    const { name, email, password, role, login } = req.body;
+    
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        login,
+        password: hashedPassword,
+        role: role || 'cashier',
+        active: true,
+      },
+      select: {
+        id: true,
+        email: true,
+        login: true,
+        name: true,
+        role: true,
+        active: true,
+        createdAt: true,
+      },
+    });
+    
+    res.json(user);
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ error: 'Failed to create user' });
   }
 });
 

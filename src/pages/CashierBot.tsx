@@ -179,7 +179,7 @@ export default function CashierBot() {
             <div className="flex items-center gap-4">
               <Bot className="w-12 h-12 animate-pulse" />
               <div>
-                <h1 className="text-4xl font-black">{latinToCyrillic('Кассир Боти')}</h1>
+                <h1 className="text-4xl font-bold">{latinToCyrillic('Кассир Боти')}</h1>
                 <p className="text-blue-100 mt-2">{latinToCyrillic('Mijozlar bilan Telegram orqali muloqot')}</p>
               </div>
             </div>

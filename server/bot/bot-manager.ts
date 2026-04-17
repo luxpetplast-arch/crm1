@@ -254,6 +254,21 @@ export class BotManager {
       }
     }
   }
+
+  // Xabar yuborish (worker uchun)
+  public async sendMessage(chatId: string, message: string, options?: any) {
+    const customerBot = this.bots.get('customer');
+    if (customerBot && typeof customerBot.sendMessage === 'function') {
+      try {
+        await customerBot.sendMessage(chatId, message, options);
+        return { success: true };
+      } catch (error) {
+        console.error('❌ Xabar yuborishda xatolik:', error);
+        return { success: false, error };
+      }
+    }
+    return { success: false, error: 'Bot not found' };
+  }
 }
 
 // Singleton instance export

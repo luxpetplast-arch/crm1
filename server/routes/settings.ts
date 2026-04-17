@@ -1,9 +1,8 @@
-import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import { Router } from 'express';
+import { prisma } from '../utils/prisma';
 import { authenticate } from '../middleware/auth';
 
-const router = express.Router();
-const prisma = new PrismaClient();
+const router = Router();
 
 // Get all settings
 router.get('/', authenticate, async (req, res) => {

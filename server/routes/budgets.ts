@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 import { authenticate } from '../middleware/auth';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // ============ BUDGET MANAGEMENT ============
 
@@ -61,9 +60,11 @@ router.post('/', authenticate, async (req, res) => {
         year,
         month,
         amount: parseFloat(amount),
+        remaining: parseFloat(amount),
         currency: currency || 'UZS',
         description,
-        alertThreshold: alertThreshold || 80
+        alertThreshold: alertThreshold || 80,
+        createdBy: (req as any).user?.id || 'system'
       }
     });
     

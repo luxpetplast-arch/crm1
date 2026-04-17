@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 async function fixProductUnits() {
   console.log('🔧 Mahsulot donalarini to\'g\'rilash...');
-  
+    
   try {
     // Barcha mahsulotlarni olish
     const products = await prisma.product.findMany();

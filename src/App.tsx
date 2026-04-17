@@ -1,89 +1,106 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { useThemeStore } from './store/themeStore';
-import { useEffect } from 'react';
-import './i18n'; // i18n konfiguratsiyasini yuklash
+import { useEffect, useState, Suspense, lazy } from 'react';
+import './i18n';
 import { LanguageProvider } from './contexts/LanguageContext';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Products from './pages/Products';
+
+// Lazy loading for better performance
+const Login = lazy(() => import('./pages/Login'));
+const CashierLogin = lazy(() => import('./pages/CashierLogin'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Products = lazy(() => import('./pages/ProductsModern'));
+const Sales = lazy(() => import('./pages/Sales'));
+const Customers = lazy(() => import('./pages/CustomersModern'));
+const Reports = lazy(() => import('./pages/ReportsModern'));
+const Settings = lazy(() => import('./pages/Settings'));
+
+// Core pages
 import ProductDetail from './pages/ProductDetail';
-import RawMaterials from './pages/RawMaterials';
-import Suppliers from './pages/Suppliers';
-import Production from './pages/Production';
-import QualityControl from './pages/QualityControl';
-import Sales from './pages/Sales';
-import Customers from './pages/Customers';
+import SimplifiedInventory from './pages/SimplifiedInventory';
 import CustomerProfile from './pages/CustomerProfile';
-import CustomerPortalPage from './pages/CustomerPortalPage';
-import RealTelegramFeaturesPage from './pages/RealTelegramFeaturesPage';
-import Expenses from './pages/Expenses';
-import Forecast from './pages/Forecast';
-import Settings from './pages/Settings';
-import Reports from './pages/Reports';
-import Notifications from './pages/Notifications';
-import Users from './pages/Users';
-import AuditLog from './pages/AuditLog';
-import CashierShift from './pages/CashierShift';
-import Tasks from './pages/Tasks';
-import Analytics from './pages/Analytics';
-import Statistics from './pages/Statistics';
-import AIManager from './pages/AIManager';
-import BusinessAI from './pages/BusinessAI';
-import Cashbox from './pages/Cashbox';
 import Orders from './pages/Orders';
-import InventoryAI from './pages/InventoryAI';
-import Logistics from './pages/Logistics';
-import SuperManager from './pages/SuperManager';
-import PublicOrder from './pages/PublicOrder';
-import { Drivers } from './pages/Drivers';
-import BotManagement from './pages/BotManagement';
-import { CustomerChat } from './pages/CustomerChat';
-import CustomerChats from './pages/CustomerChats';
-import CashierBot from './pages/CashierBot';
-import AddProduct from './pages/AddProduct';
-import CashierAddStock from './pages/CashierAddStock';
-import ProductsGrouped from './pages/Products-Grouped';
-import SalesGrouped from './pages/Sales-Grouped';
-import AddSale from './pages/AddSale';
-import DebugCharts from './pages/DebugCharts';
-import Layout from './components/Layout';
-import Debtors from './pages/Debtors';
-import CashierLayout from './layouts/CashierLayout';
+import Cashbox from './pages/Cashbox';
+const AddSale = lazy(() => import('./pages/AddSale'));
+const CashierManagement = lazy(() => import('./pages/CashierManagement'));
+
+// Layouts
+const ProfessionalLayout = lazy(() => import('./components/ProfessionalLayout'));
+const CashierLayout = lazy(() => import('./layouts/CashierLayout'));
+
+// Loading component
+const LoadingSpinner = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div className="relative">
+      <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full animate-pulse"></div>
+      </div>
+    </div>
+  </div>
+);
 
 function App() {
-  const { token, user } = useAuthStore();
+  const { token: storeToken, user } = useAuthStore();
   const { theme } = useThemeStore();
+  const [isRehydrated, setIsRehydrated] = useState(false);
+  const [localToken, setLocalToken] = useState<string | null>(null);
+  
+  useEffect(() => {
+    // Rehydrate auth state from localStorage
+    const storage = localStorage.getItem('auth-storage');
+    if (storage) {
+      try {
+        const parsed = JSON.parse(storage);
+        if (parsed.state?.token) {
+          setLocalToken(parsed.state.token);
+        }
+      } catch (e) {
+        console.error('Failed to parse auth-storage:', e);
+      }
+    }
+    setIsRehydrated(true);
+  }, []);
 
   useEffect(() => {
-    // Dark mode ni o'chirish
+    // Apply theme
     document.documentElement.classList.remove('dark');
+    document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
-  // Kassir routes (faqat Ombor, Sotuv, Kassa)
+  const token = storeToken || localToken;
   const isCashier = user?.role?.toUpperCase() === 'CASHIER' || user?.role?.toUpperCase() === 'SELLER';
-  
+
+  if (!isRehydrated) {
+    return <LoadingSpinner />;
+  }
+
+  // Cashier routes
   if (window.location.pathname.startsWith('/cashier') || (token && isCashier)) {
     if (!token) {
       return (
         <LanguageProvider>
           <BrowserRouter>
-            <Routes>
-              <Route path="*" element={<Login />} />
-            </Routes>
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes>
+                <Route path="/cashier/login" element={<CashierLogin />} />
+                <Route path="*" element={<Navigate to="/cashier/login" replace />} />
+              </Routes>
+            </Suspense>
           </BrowserRouter>
         </LanguageProvider>
       );
     }
 
-    // Agar kassir bo'lsa va /cashier bilan boshlanmagan joyda bo'lsa, /cashier/sales ga yo'naltirish
     if (isCashier && !window.location.pathname.startsWith('/cashier')) {
       return (
         <LanguageProvider>
           <BrowserRouter>
-            <Routes>
-              <Route path="*" element={<Navigate to="/cashier/sales" replace />} />
-            </Routes>
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes>
+                <Route path="*" element={<Navigate to="/cashier/sales" replace />} />
+              </Routes>
+            </Suspense>
           </BrowserRouter>
         </LanguageProvider>
       );
@@ -92,75 +109,59 @@ function App() {
     return (
       <LanguageProvider>
         <BrowserRouter>
-          <CashierLayout>
+          <Suspense fallback={<LoadingSpinner />}>
+            <CashierLayout>
+              <Routes>
+                <Route path="/cashier/sales" element={<Sales />} />
+                <Route path="/cashier/sales/add" element={<AddSale />} />
+                <Route path="/cashier/products" element={<Products />} />
+                <Route path="/cashier/products/:id" element={<ProductDetail />} />
+                <Route path="/cashier/inventory" element={<SimplifiedInventory />} />
+                <Route path="/cashier/orders" element={<Orders />} />
+                <Route path="/cashier/customers" element={<Customers />} />
+                <Route path="/cashier/customers/:id" element={<CustomerProfile />} />
+                <Route path="/cashier/cashbox" element={<Cashbox />} />
+                <Route path="/cashier/expenses" element={<div className="p-8 text-center"><h2 className="text-2xl font-bold">Xarajatlar</h2><p className="text-gray-500">Tez kunda...</p></div>} />
+                <Route path="*" element={<Navigate to="/cashier/sales" />} />
+              </Routes>
+            </CashierLayout>
+          </Suspense>
+        </BrowserRouter>
+      </LanguageProvider>
+    );
+  }
+
+  // Public routes
+  if (window.location.pathname === '/order' || 
+      window.location.pathname === '/customer-portal' || 
+      window.location.pathname === '/telegram-features') {
+    return (
+      <LanguageProvider>
+        <BrowserRouter>
+          <Suspense fallback={<LoadingSpinner />}>
             <Routes>
-              <Route path="/cashier/inventory" element={<ProductsGrouped />} />
-              <Route path="/cashier/add-product" element={<CashierAddStock />} />
-              <Route path="/cashier/products/:id" element={<ProductDetail />} />
-              <Route path="/cashier/sales" element={<Sales />} />
-              <Route path="/cashier/sales/add" element={<AddSale />} />
-              <Route path="/cashier/orders" element={<Orders />} />
-              <Route path="/cashier/customers" element={<Customers />} />
-              <Route path="/cashier/drivers" element={<Drivers />} />
-              <Route path="/cashier/cashbox" element={<Cashbox />} />
-              <Route path="/cashier/bots" element={<BotManagement />} />
-              <Route path="*" element={<Navigate to="/cashier/sales" />} />
+              <Route path="/order" element={<div className="min-h-screen flex items-center justify-center text-2xl">Public Order Page</div>} />
+              <Route path="/customer-portal" element={<div className="min-h-screen flex items-center justify-center text-2xl">Customer Portal</div>} />
+              <Route path="/telegram-features" element={<div className="min-h-screen flex items-center justify-center text-2xl">Telegram Features</div>} />
             </Routes>
-          </CashierLayout>
+          </Suspense>
         </BrowserRouter>
       </LanguageProvider>
     );
   }
 
-  // Public routes (autentifikatsiya kerak emas)
-  if (window.location.pathname === '/order') {
-    return (
-      <LanguageProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/order" element={<PublicOrder />} />
-          </Routes>
-        </BrowserRouter>
-      </LanguageProvider>
-    );
-  }
-
-  // Customer Portal (autentifikatsiya kerak emas)
-  if (window.location.pathname === '/customer-portal') {
-    return (
-      <LanguageProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/customer-portal" element={<CustomerPortalPage />} />
-          </Routes>
-        </BrowserRouter>
-      </LanguageProvider>
-    );
-  }
-
-  // Real Telegram Features (autentifikatsiya kerak emas)
-  if (window.location.pathname === '/telegram-features') {
-    return (
-      <LanguageProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/telegram-features" element={<RealTelegramFeaturesPage />} />
-          </Routes>
-        </BrowserRouter>
-      </LanguageProvider>
-    );
-  }
-
-  // Login qilmagan foydalanuvchilar faqat login sahifasini ko'radi
+  // Auth required routes
   if (!token) {
     return (
       <LanguageProvider>
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Login />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="*" element={<Login />} />
-          </Routes>
+          <Suspense fallback={<LoadingSpinner />}>
+            <Routes>
+              <Route path="/" element={<Login />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="*" element={<Login />} />
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </LanguageProvider>
     );
@@ -169,50 +170,29 @@ function App() {
   return (
     <LanguageProvider>
       <BrowserRouter>
-        <Layout>
-          <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/products" element={<Products />} />
-          <Route path="/products-grouped" element={<ProductsGrouped />} />
-          <Route path="/products/:id" element={<ProductDetail />} />
-          <Route path="/add-product" element={<AddProduct />} />
-          <Route path="/raw-materials" element={<RawMaterials />} />
-          <Route path="/suppliers" element={<Suppliers />} />
-          <Route path="/production" element={<Production />} />
-          <Route path="/quality-control" element={<QualityControl />} />
-          <Route path="/sales" element={<Sales />} />
-          <Route path="/sales-grouped" element={<SalesGrouped />} />
-          <Route path="/orders" element={<Orders />} />
-          <Route path="/customers" element={<Customers />} />
-          <Route path="/customers/:id" element={<CustomerProfile />} />
-          <Route path="/debtors" element={<Debtors />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/statistics" element={<Statistics />} />
-          <Route path="/debug-charts" element={<DebugCharts />} />
-          <Route path="/ai-manager" element={<AIManager />} />
-          <Route path="/business-ai" element={<BusinessAI />} />
-          <Route path="/inventory-ai" element={<InventoryAI />} />
-          <Route path="/logistics" element={<Logistics />} />
-          <Route path="/super-manager" element={<SuperManager />} />
-          <Route path="/drivers" element={<Drivers />} />
-          <Route path="/bots" element={<BotManagement />} />
-          <Route path="/cashier-bot" element={<CashierBot />} />
-          <Route path="/customer-chat" element={<CustomerChat />} />
-          <Route path="/customer-chats" element={<CustomerChats />} />
-          <Route path="/cashbox" element={<Cashbox />} />
-          <Route path="/expenses" element={<Expenses />} />
-          <Route path="/forecast" element={<Forecast />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/notifications" element={<Notifications />} />
-          <Route path="/users" element={<Users />} />
-          <Route path="/audit-log" element={<AuditLog />} />
-          <Route path="/cashier-shift" element={<CashierShift />} />
-          <Route path="/tasks" element={<Tasks />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </Layout>
-    </BrowserRouter>
+        <Suspense fallback={<LoadingSpinner />}>
+          <ProfessionalLayout>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/products" element={<Products />} />
+              <Route path="/products/:id" element={<ProductDetail />} />
+              <Route path="/inventory" element={<SimplifiedInventory />} />
+              <Route path="/sales" element={<Sales />} />
+              <Route path="/sales/add" element={<AddSale />} />
+              <Route path="/orders" element={<Orders />} />
+              <Route path="/customers" element={<Customers />} />
+              <Route path="/customers/:id" element={<CustomerProfile />} />
+              <Route path="/cashbox" element={<Cashbox />} />
+              <Route path="/expenses" element={<div className="p-8 text-center"><h2 className="text-2xl font-bold">Xarajatlar</h2><p className="text-gray-500">Tez kunda...</p></div>} />
+              <Route path="/cashiers" element={<CashierManagement />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+          </ProfessionalLayout>
+        </Suspense>
+      </BrowserRouter>
     </LanguageProvider>
   );
 }

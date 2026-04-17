@@ -1,10 +1,9 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 import { authenticate, authorizeAnalytics } from '../middleware/auth';
 import { calculateAllMetrics } from '../utils/business-metrics';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.use(authenticate);
 router.use(authorizeAnalytics);
@@ -349,10 +348,10 @@ router.get('/export', async (req, res) => {
 
     // Bu yerda PDF yoki Excel generatsiya qilish kerak
     // Hozircha oddiy JSON qaytaramiz
-    const { data } = await prisma.$queryRaw`
+    const data = await prisma.$queryRaw`
       SELECT * FROM "Sale" 
       WHERE "createdAt" >= NOW() - INTERVAL '${days} days'
-    `;
+    ` as any;
 
     res.json({
       message: 'Export funksiyasi ishlab chiqilmoqda',

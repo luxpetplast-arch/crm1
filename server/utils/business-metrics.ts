@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from './prisma';
 
 // 1. SAVDO METRIKALARI
 export interface SalesMetrics {
@@ -34,8 +32,9 @@ export async function calculateSalesMetrics(startDate: Date, endDate: Date): Pro
   const revenue = sales.reduce((sum, s) => sum + s.totalAmount, 0);
   const prevRevenue = prevSales.reduce((sum, s) => sum + s.totalAmount, 0);
 
-  const customerPurchases = sales.reduce((acc: any, sale) => {
-    acc[sale.customerId] = (acc[sale.customerId] || 0) + 1;
+  const customerPurchases = sales.reduce((acc: Record<string, number>, sale) => {
+    const key = sale.customerId || 'unknown';
+    acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
   const repeatCustomers = Object.values(customerPurchases).filter((count: any) => count > 1).length;
@@ -339,7 +338,7 @@ export async function calculateGrowthMetrics(startDate: Date, endDate: Date): Pr
   });
 
   const newCustomerIds = currentCustomers.map(c => c.id);
-  const newCustomerSales = sales.filter(s => newCustomerIds.includes(s.customerId)).length;
+  const newCustomerSales = sales.filter(s => s.customerId && newCustomerIds.includes(s.customerId)).length;
   const returningCustomerSales = sales.length - newCustomerSales;
 
   return {

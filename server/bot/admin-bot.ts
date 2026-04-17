@@ -1,7 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 
-const prisma = new PrismaClient();
 let adminBot: TelegramBot | null = null;
 
 // Admin chat ID'lari (xavfsizlik uchun)
@@ -118,15 +117,15 @@ Salom Admin! Men tizim boshqaruv botiman.
   });
 
   adminBot.onText(/📦 Buyurtmalar/, async (msg) => {
-    await handleOrdersList(msg.chat.id);
+    await handleSalesManagement(msg.chat.id);
   });
 
   adminBot.onText(/🚚 Haydovchilar/, async (msg) => {
-    await handleDriversList(msg.chat.id);
+    await adminBot?.sendMessage(msg.chat.id, '🚚 Haydovchilar ro\'yxati tez orada qo\'shiladi');
   });
 
   adminBot.onText(/💳 Kassa/, async (msg) => {
-    await handleCashboxInfo(msg.chat.id);
+    await adminBot?.sendMessage(msg.chat.id, '💳 Kassa ma\'lumotlari tez orada qo\'shiladi');
   });
 
   adminBot.onText(/📊 Statistika/, async (msg) => {
@@ -217,7 +216,7 @@ async function handleSystemStatus(chatId: number) {
 • Buyurtmalar: ${orderCount} ta
 
 💾 **Server resurslari:**
-• RAM: ${Math.round(memoryUsage.used / 1024 / 1024)} MB
+• RAM: ${Math.round(memoryUsage.heapUsed / 1024 / 1024)} MB
 • Ishlash vaqti: ${Math.round(uptime / 3600)} soat
 • Holat: ✅ Faol
 
@@ -314,6 +313,7 @@ async function handleSalesManagement(chatId: number) {
 `;
 
     for (const product of topProducts) {
+      if (!product.productId) continue;
       const productInfo = await prisma.product.findUnique({
         where: { id: product.productId }
       });

@@ -1,7 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 
-const prisma = new PrismaClient();
 let productionBot: TelegramBot | null = null;
 
 export function initProductionBot() {
@@ -49,9 +48,9 @@ Salom! Men ishlab chiqarish bo'limi botiman.
       parse_mode: 'Markdown',
       reply_markup: {
         keyboard: [
-          ['📊 Ishlab chiqarish', '🔍 Sifat nazorati'],
-          ['📦 Xom ashyo', '📋 Vazifalar'],
-          ['📈 Hisobotlar', '❓ Yordam']
+          [{ text: '📊 Ishlab chiqarish' }, { text: '🔍 Sifat nazorati' }],
+          [{ text: '📦 Xom ashyo' }, { text: '📋 Vazifalar' }],
+          [{ text: '📈 Hisobotlar' }, { text: '❓ Yordam' }]
         ],
         resize_keyboard: true,
         one_time_keyboard: false
@@ -103,11 +102,16 @@ Salom! Men ishlab chiqarish bo'limi botiman.
 async function handleProductionStatus(chatId: number) {
   try {
     // Ishlab chiqarish statistikasi
-    const [products, tasks, materials] = await Promise.all([
+    const [products, tasks, materialsRaw] = await Promise.all([
       prisma.product.count(),
       prisma.task.count({ where: { status: 'IN_PROGRESS' } }),
-      prisma.rawMaterial.count({ where: { currentStock: { lt: prisma.rawMaterial.fields.minStockLimit } } })
+      prisma.rawMaterial.findMany({
+        select: { currentStock: true, minStockLimit: true }
+      })
     ]);
+
+    // Count materials below min stock limit
+    const materials = materialsRaw.filter((m: { currentStock: number; minStockLimit: number }) => m.currentStock < m.minStockLimit).length;
 
     const message = `
 🏭 **ISHLAB CHIQARISH HOLATI**
@@ -146,8 +150,7 @@ async function handleQualityControl(chatId: number) {
   try {
     const qualityChecks = await prisma.qualityCheck.findMany({
       take: 5,
-      orderBy: { createdAt: 'desc' },
-      include: { product: true }
+      orderBy: { createdAt: 'desc' }
     });
 
     let message = '🔍 **SIFAT NAZORATI**\n\n';
@@ -157,7 +160,7 @@ async function handleQualityControl(chatId: number) {
     } else {
       qualityChecks.forEach((check, index) => {
         const status = check.status === 'PASSED' ? '✅' : check.status === 'FAILED' ? '❌' : '⏳';
-        message += `${index + 1}. ${status} ${check.product?.name || 'Noma\'lum'}\n`;
+        message += `${index + 1}. ${status} Mahsulot ID: ${check.productId.slice(-6)}\n`;
         message += `   📅 ${new Date(check.createdAt).toLocaleDateString()}\n\n`;
       });
     }
@@ -179,12 +182,11 @@ async function handleQualityControl(chatId: number) {
 
 async function handleRawMaterials(chatId: number) {
   try {
-    const materials = await prisma.rawMaterial.findMany({
-      where: {
-        currentStock: { lt: prisma.rawMaterial.fields.minStockLimit }
-      },
-      take: 10
+    const allMaterials = await prisma.rawMaterial.findMany({
+      take: 20
     });
+    
+    const materials = allMaterials.filter((m: { currentStock: number; minStockLimit: number }) => m.currentStock < m.minStockLimit);
 
     let message = '📦 **XOM ASHYO HOLATI**\n\n';
 
@@ -256,12 +258,12 @@ async function handleProductionReports(chatId: number) {
     const startOfDay = new Date(today.setHours(0, 0, 0, 0));
     
     const [todayProduction, weeklyProduction, qualityStats] = await Promise.all([
-      prisma.production.count({
-        where: { createdAt: { gte: startOfDay } }
+      prisma.batch.count({
+        where: { productionDate: { gte: startOfDay } }
       }),
-      prisma.production.count({
+      prisma.batch.count({
         where: { 
-          createdAt: { 
+          productionDate: { 
             gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) 
           } 
         }

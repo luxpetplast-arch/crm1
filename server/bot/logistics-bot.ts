@@ -1,7 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 
-const prisma = new PrismaClient();
 let logisticsBot: TelegramBot | null = null;
 
 export function initLogisticsBot() {
@@ -50,10 +49,10 @@ Salom! Men logistika bo'limi botiman.
       parse_mode: 'Markdown',
       reply_markup: {
         keyboard: [
-          ['🚚 Yetkazib berish', '🗺️ Marshrutlar'],
-          ['🚛 Transport', '📍 Kuzatuv'],
-          ['📈 Hisobotlar', '📤 Eksport'],
-          ['❓ Yordam']
+          [{ text: '🚚 Yetkazib berish' }, { text: '🗺️ Marshrutlar' }],
+          [{ text: '🚛 Transport' }, { text: '📍 Kuzatuv' }],
+          [{ text: '📈 Hisobotlar' }, { text: '📤 Eksport' }],
+          [{ text: '❓ Yordam' }]
         ],
         resize_keyboard: true,
         one_time_keyboard: false
@@ -113,12 +112,7 @@ async function handleDeliveries(chatId: number) {
   try {
     const deliveries = await prisma.delivery.findMany({
       take: 10,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        order: {
-          include: { customer: true }
-        }
-      }
+      orderBy: { createdAt: 'desc' }
     });
 
     let message = '🚚 **YETKAZIB BERISH**\n\n';
@@ -128,10 +122,10 @@ async function handleDeliveries(chatId: number) {
     } else {
       deliveries.forEach((delivery, index) => {
         const status = getDeliveryStatusEmoji(delivery.status);
-        message += `${index + 1}. ${status} ${delivery.order?.customer?.name || 'Noma\'lum'}\n`;
-        message += `   📍 Manzil: ${delivery.deliveryAddress}\n`;
-        message += `   📅 Sana: ${new Date(delivery.scheduledDate || '').toLocaleDateString()}\n`;
-        message += `   🚛 Haydovchi: ${delivery.driverName || 'Tayinlanmagan'}\n\n`;
+        message += `${index + 1}. ${status} Buyurtma #${delivery.saleId?.slice(-4) || 'N/A'}\n`;
+        message += `   📍 Manzil: ${delivery.address}\n`;
+        message += `   📅 Sana: ${new Date(delivery.scheduledDate).toLocaleDateString()}\n`;
+        message += `   🚛 Haydovchi: ${delivery.driverId ? 'Tayinlangan' : 'Tayinlanmagan'}\n\n`;
       });
     }
 
@@ -155,21 +149,23 @@ async function handleDeliveries(chatId: number) {
 
 async function handleRoutes(chatId: number) {
   try {
-    const routes = await prisma.route.findMany({
+    // Route model yo'q - Deliverylarni ishlatamiz
+    const deliveries = await prisma.delivery.findMany({
+      where: { status: { in: ['PENDING', 'IN_TRANSIT'] } },
       take: 10,
       orderBy: { createdAt: 'desc' }
     });
 
     let message = '🗺️ **MARSHRUTLAR**\n\n';
 
-    if (routes.length === 0) {
-      message += '📝 Hozircha marshrutlar yo\'q';
+    if (deliveries.length === 0) {
+      message += '📝 Hozircha aktiv marshrutlar yo\'q';
     } else {
-      routes.forEach((route, index) => {
-        message += `${index + 1}. 📍 ${route.name}\n`;
-        message += `   🛣️ Masofa: ${route.distance || 0} km\n`;
-        message += `   ⏱️ Vaqt: ${route.estimatedTime || 0} daqiqa\n`;
-        message += `   💰 Narx: $${route.cost || 0}\n\n`;
+      deliveries.forEach((delivery, index) => {
+        message += `${index + 1}. 📍 Buyurtma #${delivery.saleId?.slice(-4) || 'N/A'}\n`;
+        message += `   🛣️ Manzil: ${delivery.address}\n`;
+        message += `   📅 Reja: ${new Date(delivery.scheduledDate).toLocaleDateString()}\n`;
+        message += `   💰 Narx: $${delivery.cost || 0}\n\n`;
       });
     }
 
@@ -208,7 +204,7 @@ async function handleVehicles(chatId: number) {
         message += `${index + 1}. ${status} ${vehicle.plateNumber}\n`;
         message += `   🚚 Turi: ${vehicle.type}\n`;
         message += `   📦 Sig'im: ${vehicle.capacity} kg\n`;
-        message += `   👤 Haydovchi: ${vehicle.driverName || 'Tayinlanmagan'}\n\n`;
+        message += `   👤 Model: ${vehicle.model || 'Noma\'lum'}\n\n`;
       });
     }
 
@@ -236,11 +232,6 @@ async function handleTracking(chatId: number) {
       where: {
         status: { in: ['PENDING', 'IN_TRANSIT'] }
       },
-      include: {
-        order: {
-          include: { customer: true }
-        }
-      },
       take: 10
     });
 
@@ -251,10 +242,10 @@ async function handleTracking(chatId: number) {
     } else {
       activeDeliveries.forEach((delivery, index) => {
         const status = getDeliveryStatusEmoji(delivery.status);
-        message += `${index + 1}. ${status} ${delivery.order?.customer?.name}\n`;
-        message += `   📍 Manzil: ${delivery.deliveryAddress}\n`;
+        message += `${index + 1}. ${status} Buyurtma #${delivery.saleId?.slice(-4) || 'N/A'}\n`;
+        message += `   📍 Manzil: ${delivery.address}\n`;
         message += `   🕐 Holat: ${getDeliveryStatusText(delivery.status)}\n`;
-        message += `   📱 Telefon: ${delivery.order?.customer?.phone || 'Noma\'lum'}\n\n`;
+        message += `   📱 Telefon: ${delivery.notes || 'Noma\'lum'}\n\n`;
       });
     }
 

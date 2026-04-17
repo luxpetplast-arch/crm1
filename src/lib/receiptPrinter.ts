@@ -1474,7 +1474,7 @@ export function prepareSaleReceipt(
   
   // Mijoz telefonini aniqlash
   const displayPhone = isKocha ? kochaPhone : customer?.phone;
-  const currency = sale.currency || 'USD';
+  const currency = (sale.currency || 'USD').toUpperCase();
   const isUZS = currency === 'UZS';
   // rate variable used for future currency conversion features
   

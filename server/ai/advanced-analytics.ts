@@ -244,7 +244,7 @@ function calculateGrowthPotential(data: any): number {
 
 // Anomaliya Aniqlash
 export function detectAnomalies(dailyTrends: any[], sales: any[]) {
-  const anomalies = [];
+  const anomalies: any[] = [];
   
   if (dailyTrends.length < 7) return anomalies;
   
@@ -276,7 +276,7 @@ export function detectAnomalies(dailyTrends: any[], sales: any[]) {
 
 // Mahsulot Tavsiyalari
 export function generateProductRecommendations(productSales: any, sales: any[], totalRevenue: number) {
-  const recommendations = [];
+  const recommendations: any[] = [];
   const products = Object.values(productSales);
   
   products.forEach((product: any) => {
@@ -377,7 +377,7 @@ export function segmentCustomers(customers: any[], sales: any[]) {
 
 // Xavf Baholash
 export function assessBusinessRisks(metrics: any, advancedMetrics: any, dailyTrends: any[]) {
-  const risks = [];
+  const risks: any[] = [];
   
   // Financial risks
   if (advancedMetrics.profitabilityIndex < 0.1) {
@@ -465,7 +465,7 @@ export function generateStrategicRecommendations(
   customerSegments: any,
   productRecommendations: any[]
 ) {
-  const recommendations = [];
+  const recommendations: any[] = [];
   
   // Growth strategy
   if (advancedMetrics.growthPotential > 70) {

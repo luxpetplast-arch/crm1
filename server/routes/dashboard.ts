@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 import { authenticate } from '../middleware/auth';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.use(authenticate);
 
@@ -101,10 +100,10 @@ router.get('/stats', async (req, res) => {
       }),
     ]);
 
-    const productIds = topProducts.map(p => p.productId);
+    const productIds = topProducts.map(p => p.productId).filter((id): id is string => id !== null);
     const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
 
-    const customerIds = topCustomers.map(c => c.customerId);
+    const customerIds = topCustomers.map(c => c.customerId).filter((id): id is string => id !== null);
     const customers = await prisma.customer.findMany({ where: { id: { in: customerIds } } });
 
     const revenue = monthlySales._sum.totalAmount || 0;

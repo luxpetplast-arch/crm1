@@ -1,8 +1,7 @@
 import TelegramBot from 'node-telegram-bot-api';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 import { OrderWorkflow } from '../services/order-workflow';
 
-const prisma = new PrismaClient();
 let customerBot: TelegramBot | null = null;
 
 export function initCustomerBot() {
@@ -58,9 +57,9 @@ Bu bot orqali siz:
       parse_mode: 'Markdown',
       reply_markup: {
         keyboard: [
-          ['🛒 Buyurtma berish', '💰 Balans'],
-          ['📊 Mening sotuvlarim', '📋 Katalog'],
-          ['👤 Profil', '❓ Yordam']
+          [{ text: '🛒 Buyurtma berish' }, { text: '💰 Balans' }],
+          [{ text: '📊 Mening sotuvlarim' }, { text: '📋 Katalog' }],
+          [{ text: '👤 Profil' }, { text: '❓ Yordam' }]
         ],
         resize_keyboard: true,
         one_time_keyboard: false
@@ -98,7 +97,7 @@ Bu bot orqali siz:
     try {
       if (data.startsWith('product_')) {
         const productId = data.replace('product_', '');
-        await handleProductSelect(chatId, productId, query.id);
+        await handleProductSelect(chatId, productId, query.id, query.message?.message_id);
       } else if (data.startsWith('add_cart_')) {
         const [, productId, quantity] = data.split('_');
         await handleAddToCart(chatId, productId, parseInt(quantity), query.id);
@@ -195,7 +194,7 @@ async function handleNewOrder(chatId: number) {
 }
 
 // Mahsulot tanlash
-async function handleProductSelect(chatId: number, productId: string, queryId: string) {
+async function handleProductSelect(chatId: number, productId: string, queryId: string, messageId?: number) {
   try {
     const product = await prisma.product.findUnique({
       where: { id: productId }
@@ -216,14 +215,14 @@ async function handleProductSelect(chatId: number, productId: string, queryId: s
 💰 **Narx:** $${product.pricePerBag} / qop
 📊 **Mavjud:** ${product.currentStock} qop
 📏 **Qop turi:** ${product.bagType}
-📝 **Tavsif:** ${product.description || 'Tavsif yo\'q'}
+📝 **Tavsif:** ${(product as any).description || 'Tavsif yo\'q'}
 
 🛒 **Miqdorni tanlang:**
     `;
 
     await customerBot?.editMessageText(message, {
       chat_id: chatId,
-      message_id: queryId,
+      message_id: messageId,
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [

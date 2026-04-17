@@ -1,8 +1,8 @@
 // Mijozlar qarzini boshqarish tugmalari
-import React, { useState, useEffect } from 'react';
-import { api } from '../utils/api';
-import { Button } from '../components/ui/Button';
-import { DollarSign, AlertCircle, CreditCard, TrendingUp } from 'lucide-react';
+import React, { useState } from 'react';
+import { api } from '../lib/api';
+import Button from '../components/Button';
+import { DollarSign, AlertCircle } from 'lucide-react';
 
 interface CustomerDebtManagerProps {
   customerId: string;
@@ -26,7 +26,7 @@ const CustomerDebtManager: React.FC<CustomerDebtManagerProps> = ({
 
   const handlePayment = async () => {
     if (!amount || isNaN(parseFloat(amount))) {
-      alert('Iltimos, to\\'g\\'ri summa kiriting!');
+      alert('Iltimos, to\'g\'ri summa kiriting!');
       return;
     }
 
@@ -35,12 +35,12 @@ const CustomerDebtManager: React.FC<CustomerDebtManagerProps> = ({
       const response = await api.put(`/customers/${customerId}/debt`, {
         amount: parseFloat(amount),
         currency,
-        description: description || 'To\\'lov qilindi',
+        description: description || 'To\'lov qilindi',
         type: 'PAYMENT'
       });
 
       if (response.data.success) {
-        alert('To\\'lov muvaffaqiyatli amalga oshirildi!');
+        alert('To\'lov muvaffaqiyatli amalga oshirildi!');
         setAmount('');
         setDescription('');
         onUpdate();
@@ -48,7 +48,7 @@ const CustomerDebtManager: React.FC<CustomerDebtManagerProps> = ({
         alert(response.data.error || 'Xatolik yuz berdi!');
       }
     } catch (error) {
-      console.error('To\\'lov xatoligi:', error);
+      console.error('To\'lov xatoligi:', error);
       alert('Server xatoligi!');
     } finally {
       setLoading(false);
@@ -66,12 +66,12 @@ const CustomerDebtManager: React.FC<CustomerDebtManagerProps> = ({
       const response = await api.put(`/customers/${customerId}/debt`, {
         amount: parseFloat(amount),
         currency,
-        description: description || 'Qarz qo\\'shildi',
+        description: description || 'Qarz qo\'shildi',
         type: 'DEBT'
       });
 
       if (response.data.success) {
-        alert('Qarz muvaffaqiyatli qo\\'shildi!');
+        alert('Qarz muvaffaqiyatli qo\'shildi!');
         setAmount('');
         setDescription('');
         onUpdate();
@@ -94,7 +94,7 @@ const CustomerDebtManager: React.FC<CustomerDebtManagerProps> = ({
 
   const currentDebtInSelectedCurrency = currency === 'USD' ? currentDebtUSD : currentDebtUZS;
   const newTotalDebt = currentDebtInSelectedCurrency + parseFloat(amount || '0');
-  const limitExceeded = newTotalDebt > debtLimits[currency];
+  const limitExceeded = newTotalDebt > (debtLimits[currency as keyof typeof debtLimits] || 0);
 
   return (
     <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -208,7 +208,7 @@ const CustomerDebtManager: React.FC<CustomerDebtManagerProps> = ({
             {loading ? (
               <div className="flex items-center">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-r-2 border-t-2 border-l-2 border-green-500"></div>
-                <span className="ml-2">To\\'lov...</span>
+                <span className="ml-2">To'lov...</span>
               </div>
             ) : (
               <div className="flex items-center">

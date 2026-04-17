@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 router.use(authenticate);
 
@@ -12,7 +11,6 @@ router.get('/', async (req, res) => {
     const checks = await prisma.qualityCheck.findMany({
       include: {
         product: true,
-        checker: { select: { name: true } },
       },
       orderBy: { checkDate: 'desc' },
       take: 100,

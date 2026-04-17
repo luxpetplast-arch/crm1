@@ -1,12 +1,11 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
-import { authenticateToken } from '../middleware/auth';
+import { prisma } from '../utils/prisma';
+import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Barcha kartlarni olish
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
   try {
     const cards = await prisma.$queryRaw`
       SELECT 
@@ -27,31 +26,47 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // Yangi kart yaratish
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
   try {
     const { name, description, price } = req.body;
 
-    // Kart nomini tekshirish
-    const existingCard = await prisma.$queryRaw`
-      SELECT id FROM Card WHERE name = ${name}
-    ` as any[];
+    // Input validation
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return res.status(400).json({ error: 'Name is required and must be a non-empty string' });
+    }
+    if (name.length > 100) {
+      return res.status(400).json({ error: 'Name must not exceed 100 characters' });
+    }
+    if (description && typeof description !== 'string') {
+      return res.status(400).json({ error: 'Description must be a string' });
+    }
+    if (price !== undefined && (typeof price !== 'number' || price < 0)) {
+      return res.status(400).json({ error: 'Price must be a non-negative number' });
+    }
 
-    if (existingCard.length > 0) {
+    // Sanitize input
+    const sanitizedName = name.trim();
+    const sanitizedDescription = description ? description.trim() : null;
+
+    // Kart nomini tekshirish - use Prisma ORM
+    const existingCard = await prisma.card.findFirst({
+      where: { name: sanitizedName }
+    });
+
+    if (existingCard) {
       return res.status(400).json({ error: 'Card with this name already exists' });
     }
 
-    const cardId = `card_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    await prisma.$executeRaw`
-      INSERT INTO Card (id, name, description, price, active, createdAt, updatedAt)
-      VALUES (${cardId}, ${name}, ${description}, ${price || 0}, true, datetime('now'), datetime('now'))
-    `;
+    const card = await prisma.card.create({
+      data: {
+        name: sanitizedName,
+        description: sanitizedDescription,
+        price: price || 0,
+        active: true
+      }
+    });
 
-    const card = await prisma.$queryRaw`
-      SELECT * FROM Card WHERE id = ${cardId}
-    ` as any[];
-
-    res.status(201).json(card[0]);
+    res.status(201).json(card);
   } catch (error) {
     console.error('Error creating card:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -59,22 +74,46 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 // Kartni yangilash
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, price, active } = req.body;
 
-    await prisma.$executeRaw`
-      UPDATE Card 
-      SET name = ${name}, description = ${description}, price = ${price}, active = ${active}, updatedAt = datetime('now')
-      WHERE id = ${id}
-    `;
+    // Input validation
+    if (name && (typeof name !== 'string' || name.trim().length === 0 || name.length > 100)) {
+      return res.status(400).json({ error: 'Name must be a non-empty string with max 100 characters' });
+    }
+    if (description && typeof description !== 'string') {
+      return res.status(400).json({ error: 'Description must be a string' });
+    }
+    if (price !== undefined && (typeof price !== 'number' || price < 0)) {
+      return res.status(400).json({ error: 'Price must be a non-negative number' });
+    }
+    if (active !== undefined && typeof active !== 'boolean') {
+      return res.status(400).json({ error: 'Active must be a boolean' });
+    }
 
-    const card = await prisma.$queryRaw`
-      SELECT * FROM Card WHERE id = ${id}
-    ` as any[];
+    // Check if card exists
+    const existingCard = await prisma.card.findUnique({ where: { id } });
+    if (!existingCard) {
+      return res.status(404).json({ error: 'Card not found' });
+    }
 
-    res.json(card[0]);
+    // Sanitize input
+    const sanitizedName = name ? name.trim() : undefined;
+    const sanitizedDescription = description ? description.trim() : undefined;
+
+    const card = await prisma.card.update({
+      where: { id },
+      data: {
+        name: sanitizedName,
+        description: sanitizedDescription,
+        price,
+        active
+      }
+    });
+
+    res.json(card);
   } catch (error) {
     console.error('Error updating card:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -82,13 +121,20 @@ router.put('/:id', authenticateToken, async (req, res) => {
 });
 
 // Kartni o'chirish (deactivate)
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
 
-    await prisma.$executeRaw`
-      UPDATE Card SET active = false WHERE id = ${id}
-    `;
+    // Check if card exists
+    const existingCard = await prisma.card.findUnique({ where: { id } });
+    if (!existingCard) {
+      return res.status(404).json({ error: 'Card not found' });
+    }
+
+    await prisma.card.update({
+      where: { id },
+      data: { active: false }
+    });
 
     res.json({ message: 'Card deactivated successfully' });
   } catch (error) {
@@ -98,49 +144,65 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 });
 
 // Kartga mahsulot qo'shish
-router.post('/:id/products', authenticateToken, async (req, res) => {
+router.post('/:id/products', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
     const { productId, quantity } = req.body;
 
-    // Mahsulot va kartni tekshirish
+    // Input validation
+    if (!productId || typeof productId !== 'string') {
+      return res.status(400).json({ error: 'Product ID is required and must be a string' });
+    }
+    if (quantity !== undefined && (typeof quantity !== 'number' || quantity < 1)) {
+      return res.status(400).json({ error: 'Quantity must be a positive number' });
+    }
+
+    // Mahsulot va kartni tekshirish - use Prisma ORM
     const [card, product] = await Promise.all([
-      prisma.$queryRaw`SELECT id FROM Card WHERE id = ${id}` as any[],
-      prisma.$queryRaw`SELECT id FROM Product WHERE id = ${productId}` as any[]
+      prisma.card.findUnique({ where: { id } }),
+      prisma.product.findUnique({ where: { id: productId } })
     ]);
 
-    if (card.length === 0) {
+    if (!card) {
       return res.status(404).json({ error: 'Card not found' });
     }
 
-    if (product.length === 0) {
+    if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    // Avvaldan qo'shilganligini tekshirish
-    const existingCardProduct = await prisma.$queryRaw`
-      SELECT id FROM CardProduct WHERE cardId = ${id} AND productId = ${productId}
-    ` as any[];
+    // Avvaldan qo'shilganligini tekshirish - use Prisma ORM
+    const existingCardProduct = await prisma.cardProduct.findFirst({
+      where: { cardId: id, productId: productId }
+    });
 
-    if (existingCardProduct.length > 0) {
+    if (existingCardProduct) {
       return res.status(400).json({ error: 'Product already added to this card' });
     }
 
-    const cardProductId = `cp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    await prisma.$executeRaw`
-      INSERT INTO CardProduct (id, cardId, productId, quantity, active, createdAt)
-      VALUES (${cardProductId}, ${id}, ${productId}, ${quantity || 1}, true, datetime('now'))
-    `;
+    // Use Prisma ORM to create
+    const cardProduct = await prisma.cardProduct.create({
+      data: {
+        cardId: id,
+        productId: productId,
+        quantity: quantity || 1,
+        active: true
+      },
+      include: {
+        product: {
+          select: { name: true, pricePerBag: true }
+        }
+      }
+    });
 
-    const cardProduct = await prisma.$queryRaw`
-      SELECT cp.*, p.name as productName, p.pricePerBag 
-      FROM CardProduct cp
-      LEFT JOIN Product p ON cp.productId = p.id
-      WHERE cp.id = ${cardProductId}
-    ` as any[];
+    // Format response
+    const response = {
+      ...cardProduct,
+      productName: cardProduct.product.name,
+      pricePerBag: cardProduct.product.pricePerBag
+    };
 
-    res.status(201).json(cardProduct[0]);
+    res.status(201).json(response);
   } catch (error) {
     console.error('Error adding product to card:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -148,13 +210,22 @@ router.post('/:id/products', authenticateToken, async (req, res) => {
 });
 
 // Kartdan mahsulotni olib tashlash
-router.delete('/:id/products/:productId', authenticateToken, async (req, res) => {
+router.delete('/:id/products/:productId', authenticate, async (req, res) => {
   try {
     const { id, productId } = req.params;
 
-    await prisma.$executeRaw`
-      DELETE FROM CardProduct WHERE cardId = ${id} AND productId = ${productId}
-    `;
+    // Input validation
+    if (!id || typeof id !== 'string') {
+      return res.status(400).json({ error: 'Card ID is required' });
+    }
+    if (!productId || typeof productId !== 'string') {
+      return res.status(400).json({ error: 'Product ID is required' });
+    }
+
+    // Use Prisma ORM to delete
+    await prisma.cardProduct.deleteMany({
+      where: { cardId: id, productId: productId }
+    });
 
     res.json({ message: 'Product removed from card successfully' });
   } catch (error) {

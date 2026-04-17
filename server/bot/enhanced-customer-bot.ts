@@ -1,7 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 
-const prisma = new PrismaClient();
 let enhancedCustomerBot: TelegramBot | null = null;
 
 // Mijozlar uchun yaxshilangan bot
@@ -58,11 +57,11 @@ Bu bot orqali siz:
       parse_mode: 'Markdown',
       reply_markup: {
         keyboard: [
-          ['🛒 Tezkor buyurtma', '💰 Mening balansim'],
-          ['📊 Sotuvlar tarixi', '🎁 Chegirmalar'],
-          ['👤 Profil', '📞 Yordam'],
-          ['📋 Katalog', '🔔 Bildirishnomalar'],
-          ['🆔 Mening ID\'im']
+          [{ text: '🛒 Tezkor buyurtma' }, { text: '💰 Mening balansim' }],
+          [{ text: '📊 Sotuvlar tarixi' }, { text: '🎁 Chegirmalar' }],
+          [{ text: '👤 Profil' }, { text: '📞 Yordam' }],
+          [{ text: '📋 Katalog' }, { text: '🔔 Bildirishnomalar' }],
+          [{ text: '🆔 Mening ID\'im' }]
         ],
         resize_keyboard: true,
         one_time_keyboard: false
@@ -213,8 +212,9 @@ async function handleQuickOrder(chatId: number) {
 
     const products = await Promise.all(
       topProducts.map(async (item) => {
+        if (!item.productId) return null;
         return await prisma.product.findUnique({
-          where: { id: item.productId }
+          where: { id: item.productId! }
         });
       })
     );
@@ -229,20 +229,22 @@ async function handleQuickOrder(chatId: number) {
     let message = '🛒 **TEZKOR BUYURTMA**\n\n';
     message += '⭐ **Mashhur mahsulotlar:**\n\n';
 
-    const keyboard = [];
+    const keyboard: { text: string; callback_data: string; }[][] = [];
     for (let i = 0; i < validProducts.length; i += 2) {
-      const row = [];
-      if (validProducts[i]) {
+      const row: { text: string; callback_data: string; }[] = [];
+      const product1 = validProducts[i];
+      const product2 = validProducts[i + 1];
+      if (product1) {
         row.push({
-          text: `${validProducts[i].name} - $${validProducts[i].pricePerBag}`,
-          callback_data: `quick_product_${validProducts[i].id}`
+          text: `${product1.name} - $${product1.pricePerBag}`,
+          callback_data: `quick_product_${product1.id}`
         });
       }
       
-      if (validProducts[i + 1]) {
+      if (product2) {
         row.push({
-          text: `${validProducts[i + 1].name} - $${validProducts[i + 1].pricePerBag}`,
-          callback_data: `quick_product_${validProducts[i + 1].id}`
+          text: `${product2.name} - $${product2.pricePerBag}`,
+          callback_data: `quick_product_${product2.id}`
         });
       }
       keyboard.push(row);
@@ -286,7 +288,7 @@ async function handleEnhancedBalance(chatId: number) {
           customerId: customer.id,
           createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
         },
-        _count: true
+        take: 100
       }),
       calculateLoyaltyPoints(customer.id)
     ]);
