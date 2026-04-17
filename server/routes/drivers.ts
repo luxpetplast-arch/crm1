@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
   try {
     const drivers = await prisma.driver.findMany({
       include: {
-        user: { select: { name: true, email: true } },
+        user: { select: { name: true, login: true } },
         _count: {
           select: {
             assignments: {
@@ -36,17 +36,17 @@ router.post('/', authorize('ADMIN'), async (req: AuthRequest, res) => {
       phone, 
       licenseNumber, 
       vehicleNumber, 
-      email, 
+      login, 
       password,
       telegramBotToken 
     } = req.body;
 
     // Avval User yaratish
     let user = null;
-    if (email && password) {
+    if (login && password) {
       user = await prisma.user.create({
         data: {
-          email,
+          login,
           password, // Haqiqiy loyihada hash qilish kerak
           name,
           role: 'DRIVER'
@@ -65,7 +65,7 @@ router.post('/', authorize('ADMIN'), async (req: AuthRequest, res) => {
         status: 'AVAILABLE'
       },
       include: {
-        user: { select: { name: true, email: true } }
+        user: { select: { name: true, login: true } }
       }
     });
 
@@ -91,7 +91,7 @@ router.put('/:id', authorize('ADMIN'), async (req: AuthRequest, res) => {
       where: { id },
       data: updateData,
       include: {
-        user: { select: { name: true, email: true } }
+        user: { select: { name: true, login: true } }
       }
     });
 
@@ -374,7 +374,7 @@ router.get('/:id', async (req, res) => {
     const driver = await prisma.driver.findUnique({
       where: { id },
       include: {
-        user: { select: { name: true, email: true } },
+        user: { select: { name: true, login: true } },
         assignments: {
           include: {
             order: {

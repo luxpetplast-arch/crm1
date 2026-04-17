@@ -252,13 +252,13 @@ router.post('/', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthReques
         userExists = await prisma.user.create({
           data: {
             id: userId,
-            email: `user_${userId.slice(0, 8)}@luxpetplast.uz`,
+            login: `cashier_${userId.slice(0, 8)}`,
             name: 'Kassir',
             role: 'CASHIER',
             password: hashedPassword
           }
         });
-        console.log('✅ Yangi user yaratildi:', userExists.email);
+        console.log('✅ Yangi user yaratildi:', userExists.login);
       } catch (createError: any) {
         console.error('❌ User yaratishda xatolik:', createError);
         console.error('❌ Xatolik ma\'lumotlari:', createError.message);
@@ -268,7 +268,7 @@ router.post('/', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthReques
         });
       }
     }
-    console.log('✅ User topildi:', userExists.email);
+    console.log('✅ User topildi:', userExists.login);
     
     // Customer mavjudligini tekshirish (agar Ko'chaga bo'lmasa)
     if (!isKocha && customerId) {

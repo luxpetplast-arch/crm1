@@ -92,7 +92,7 @@ export async function getInventoryHistory(filters?: {
           select: {
             id: true,
             name: true,
-            email: true,
+            login: true,
             role: true,
           },
         },
@@ -250,7 +250,7 @@ export async function getProductHistory(productId: string) {
           select: {
             id: true,
             name: true,
-            email: true,
+            login: true,
             role: true,
           },
         },
@@ -348,7 +348,7 @@ export async function detectSuspiciousInventoryActivity(userId?: string) {
           select: {
             id: true,
             name: true,
-            email: true,
+            login: true,
           },
         },
       },

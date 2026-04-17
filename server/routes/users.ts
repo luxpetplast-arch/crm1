@@ -13,7 +13,6 @@ router.get('/', async (req, res) => {
     const users = await prisma.user.findMany({
       select: {
         id: true,
-        email: true,
         login: true,
         name: true,
         role: true,
@@ -29,7 +28,7 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { name, email, password, role, login } = req.body;
+    const { name, password, role, login } = req.body;
     
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -37,7 +36,6 @@ router.post('/', async (req, res) => {
     const user = await prisma.user.create({
       data: {
         name,
-        email,
         login,
         password: hashedPassword,
         role: role || 'cashier',
@@ -45,7 +43,6 @@ router.post('/', async (req, res) => {
       },
       select: {
         id: true,
-        email: true,
         login: true,
         name: true,
         role: true,
@@ -63,8 +60,8 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const { name, email, password, role, active, login } = req.body;
-    const data: any = { name, email, role, active, login };
+    const { name, password, role, active, login } = req.body;
+    const data: any = { name, role, active, login };
 
     if (password) {
       data.password = await bcrypt.hash(password, 10);
@@ -75,7 +72,6 @@ router.put('/:id', async (req, res) => {
       data,
       select: {
         id: true,
-        email: true,
         login: true,
         name: true,
         role: true,

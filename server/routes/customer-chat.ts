@@ -59,7 +59,7 @@ router.get('/conversations/:customerId/messages', async (req, res) => {
       where: { customerId },
       include: {
         admin: {
-          select: { name: true, email: true }
+          select: { name: true, login: true }
         }
       },
       orderBy: { createdAt: 'desc' },
@@ -127,7 +127,7 @@ router.post('/:customerId/send', async (req: AuthRequest, res) => {
       },
       include: {
         admin: {
-          select: { name: true, email: true }
+          select: { name: true, login: true }
         }
       }
     });

@@ -14,7 +14,7 @@ router.get('/', async (req, res) => {
         user: {
           select: {
             name: true,
-            email: true,
+            login: true,
           },
         },
       },

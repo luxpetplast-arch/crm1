@@ -94,7 +94,7 @@ export async function getSalesHistory(filters?: {
           select: {
             id: true,
             name: true,
-            email: true,
+            login: true,
             role: true,
           },
         },
@@ -260,7 +260,7 @@ export async function getCustomerSalesHistory(customerId: string) {
           select: {
             id: true,
             name: true,
-            email: true,
+            login: true,
             role: true,
           },
         },
@@ -311,6 +311,21 @@ export async function detectSuspiciousSalesActivity(userId?: string) {
       where.userId = userId;
     }
 
+    type AuditLogWithUser = {
+      id: string;
+      createdAt: Date;
+      action: string;
+      entity: string;
+      entityId: string;
+      changes: string | null;
+      userId: string;
+      user: {
+        id: string;
+        name: string;
+        login: string;
+      };
+    };
+
     const logs = await prisma.auditLog.findMany({
       where,
       include: {
@@ -318,12 +333,12 @@ export async function detectSuspiciousSalesActivity(userId?: string) {
           select: {
             id: true,
             name: true,
-            email: true,
+            login: true,
           },
         },
       },
       orderBy: { createdAt: 'desc' },
-    });
+    }) as AuditLogWithUser[];
 
     const suspicious: Array<{
       type: string;
@@ -345,10 +360,11 @@ export async function detectSuspiciousSalesActivity(userId?: string) {
 
     Object.entries(userCounts).forEach(([userId, count]) => {
       if (count > 100) { // 50 dan 100 ga oshirdik
-        const user = logs.find(l => l.userId === userId)?.user;
+        const foundLog = logs.find(l => l.userId === userId);
+        const userName = foundLog?.user?.name || 'Unknown';
         suspicious.push({
           type: 'HIGH_FREQUENCY',
-          message: `${user?.name} 24 soat ichida ${count} ta savdo amalga oshirdi`,
+          message: `${userName} 24 soat ichida ${count} ta savdo amalga oshirdi`,
           userId,
           count,
           severity: 'WARNING',
@@ -418,10 +434,11 @@ export async function detectSuspiciousSalesActivity(userId?: string) {
 
     Object.entries(cancelCounts).forEach(([userId, count]) => {
       if (count > 5) {
-        const user = logs.find(l => l.userId === userId)?.user;
+        const foundLog = logs.find(l => l.userId === userId);
+        const userName = foundLog?.user?.name || 'Unknown';
         suspicious.push({
           type: 'FREQUENT_CANCELLATIONS',
-          message: `${user?.name} 24 soat ichida ${count} marta savdoni bekor qildi`,
+          message: `${userName} 24 soat ichida ${count} marta savdoni bekor qildi`,
           userId,
           count,
           severity: 'WARNING',

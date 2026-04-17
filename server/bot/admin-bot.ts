@@ -258,7 +258,7 @@ async function handleUsers(chatId: number) {
         const role = user.role === 'ADMIN' ? '👑' : user.role === 'CASHIER' ? '💰' : '👤';
         const status = user.active ? '✅' : '❌';
         message += `${index + 1}. ${role} ${user.name}\n`;
-        message += `   📧 ${user.email}\n`;
+        message += `   � ${user.login}\n`;
         message += `   ${status} ${user.active ? 'Faol' : 'Nofaol'}\n`;
         message += `   📅 ${new Date(user.createdAt).toLocaleDateString()}\n\n`;
       });

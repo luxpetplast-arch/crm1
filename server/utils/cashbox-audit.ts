@@ -83,7 +83,7 @@ export async function getCashboxHistory(filters?: {
           select: {
             id: true,
             name: true,
-            email: true,
+            login: true,
             role: true,
           },
         },
@@ -210,7 +210,7 @@ export async function getTransactionHistory(entityId: string) {
           select: {
             id: true,
             name: true,
-            email: true,
+            login: true,
             role: true,
           },
         },
@@ -292,7 +292,7 @@ export async function detectSuspiciousActivity(userId?: string) {
           select: {
             id: true,
             name: true,
-            email: true,
+            login: true,
           },
         },
       },
