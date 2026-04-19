@@ -95,7 +95,7 @@ export class SalesService {
         }
       },
       orderBy: { createdAt: 'desc' },
-    }) as Promise<SaleWithRelations[]>;
+    }) as unknown as Promise<SaleWithRelations[]>;
   }
 
   // Bitta sotuvni olish
@@ -120,7 +120,7 @@ export class SalesService {
         },
         invoice: true,
       },
-    }) as Promise<SaleWithRelations | null>;
+    }) as unknown as Promise<SaleWithRelations | null>;
   }
 
   // Sotuv yaratish (transaction bilan)
