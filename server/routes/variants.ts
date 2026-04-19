@@ -5,7 +5,7 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 const router = express.Router();
 
 // Get all variants for a parent product
-router.get('/parent/:parentId', authenticateToken, async (req: AuthRequest, res) => {
+router.get('/parent/:parentId', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { parentId } = req.params;
     
@@ -22,7 +22,7 @@ router.get('/parent/:parentId', authenticateToken, async (req: AuthRequest, res)
 });
 
 // Get all variants for a product
-router.get('/products/:productId/variants', authenticateToken, async (req, res) => {
+router.get('/products/:productId/variants', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { productId } = req.params;
     
@@ -39,7 +39,7 @@ router.get('/products/:productId/variants', authenticateToken, async (req, res) 
 });
 
 // Get single variant with details
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
@@ -94,7 +94,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // Create variant
-router.post('/', authenticateToken, async (req: AuthRequest, res) => {
+router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { parentProductId, variantName, pricePerBag, initialStock, minStockLimit, optimalStock, maxCapacity, productionCost } = req.body;
     
@@ -158,7 +158,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 });
 
 // Create variant (old endpoint for compatibility)
-router.post('/products/:productId/variants', authenticateToken, async (req: AuthRequest, res) => {
+router.post('/products/:productId/variants', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { productId } = req.params;
     const { variantName, currentStock, pricePerBag, sku } = req.body;
@@ -217,7 +217,7 @@ router.post('/products/:productId/variants', authenticateToken, async (req: Auth
 });
 
 // Update variant
-router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
+router.put('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { variantName, active } = req.body;
@@ -238,7 +238,7 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res) => {
 });
 
 // Adjust variant stock
-router.post('/:id/stock', authenticateToken, async (req: AuthRequest, res) => {
+router.post('/:id/stock', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { type, quantity, reason, notes } = req.body;
@@ -305,7 +305,7 @@ router.post('/:id/stock', authenticateToken, async (req: AuthRequest, res) => {
 });
 
 // Update variant price
-router.post('/:id/price', authenticateToken, async (req: AuthRequest, res) => {
+router.post('/:id/price', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { newPrice, reason } = req.body;
@@ -350,7 +350,7 @@ router.post('/:id/price', authenticateToken, async (req: AuthRequest, res) => {
 });
 
 // Bulk update prices for all variants of a parent
-router.post('/products/:productId/variants/bulk-price', authenticateToken, async (req: AuthRequest, res) => {
+router.post('/products/:productId/variants/bulk-price', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { productId } = req.params;
     const { adjustment, type, increase } = req.body;
@@ -408,7 +408,7 @@ router.post('/products/:productId/variants/bulk-price', authenticateToken, async
 });
 
 // Delete variant
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     

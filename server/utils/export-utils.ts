@@ -1,6 +1,6 @@
 import { prisma } from './prisma';
 import * as XLSX from 'xlsx';
-import { Response } from 'express';
+import type { Response } from 'express';
 
 export interface ExportOptions {
   format?: 'json' | 'excel' | 'csv';

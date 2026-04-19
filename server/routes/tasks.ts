@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { prisma } from '../utils/prisma';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 
@@ -6,7 +6,7 @@ const router = Router();
 
 router.use(authenticate);
 
-router.get('/', async (req, res) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     const tasks = await prisma.task.findMany({
       orderBy: [
@@ -22,7 +22,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', async (req: AuthRequest, res) => {
+router.post('/', async (req: AuthRequest, res: Response) => {
   try {
     const task = await prisma.task.create({
       data: {
@@ -37,7 +37,7 @@ router.post('/', async (req: AuthRequest, res) => {
   }
 });
 
-router.put('/:id/status', async (req, res) => {
+router.put('/:id/status', async (req: Request, res: Response) => {
   try {
     const { status } = req.body;
     const updateData: any = { status };
@@ -57,7 +57,7 @@ router.put('/:id/status', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', async (req: Request, res: Response) => {
   try {
     const { title, description, status, priority, dueDate, assignedTo } = req.body;
     const updateData: any = {};
@@ -86,7 +86,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req: Request, res: Response) => {
   try {
     await prisma.task.delete({
       where: { id: req.params.id },
@@ -98,7 +98,7 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-router.get('/my-tasks', async (req: AuthRequest, res) => {
+router.get('/my-tasks', async (req: AuthRequest, res: Response) => {
   try {
     const tasks = await prisma.task.findMany({
       where: { assignedTo: req.user!.id },
