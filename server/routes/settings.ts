@@ -79,27 +79,38 @@ router.put('/:key', authenticate, async (req, res) => {
 router.put('/', authenticate, async (req, res) => {
   try {
     const settings = req.body;
-    const userId = (req as any).user.id;
+    const userId = (req as any).user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Foydalanuvchi ID topilmadi. Iltimos, qayta kiring.' });
+    }
 
     for (const [key, value] of Object.entries(settings)) {
+      // Har qanday qiymatni string ga aylantirish
+      const stringValue = value === null || value === undefined ? '' : String(value);
+      
       await prisma.systemSettings.upsert({
         where: { key },
         update: {
-          value: value as string,
+          value: stringValue,
           updatedBy: userId,
           updatedAt: new Date(),
         },
         create: {
           key,
-          value: value as string,
+          value: stringValue,
           updatedBy: userId,
         },
       });
     }
 
     res.json({ message: 'Barcha sozlamalar yangilandi' });
-  } catch (error) {
-    res.status(500).json({ error: 'Sozlamalarni yangilashda xatolik' });
+  } catch (error: any) {
+    console.error('Settings update error:', error);
+    res.status(500).json({ 
+      error: 'Sozlamalarni yangilashda xatolik',
+      details: error.message 
+    });
   }
 });
 

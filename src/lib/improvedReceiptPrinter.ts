@@ -456,6 +456,14 @@ export function generateImprovedReceiptHTML(data: ImprovedReceiptData): string {
     <div style="width: 100%; max-width: 80mm; margin: 0 auto; position: relative;">
         <div class="watermark">LUX PET PLAST</div>
         
+        <!-- Logo Section -->
+        <div style="text-align: center; padding: 8px 0; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-bottom: 2px solid #0ea5e9;">
+            <img src="/logo.png" alt="LUX PET PLAST" style="max-width: 60mm; max-height: 20mm; object-fit: contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+            <div style="display: none; font-size: 14px; font-weight: 900; color: #0ea5e9; letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.2);">
+                LUX PET PLAST
+            </div>
+        </div>
+        
         <!-- Header -->
         <div class="header">
             <div class="company-name">LUX PET PLAST</div>
@@ -465,7 +473,7 @@ export function generateImprovedReceiptHTML(data: ImprovedReceiptData): string {
         
         <!-- Customer Info -->
         <div class="customer-info">
-            <div style="font-weight: bold; color: #111827; margin-bottom: 6px; font-size: 10px; border-bottom: 1px solid #d1d5db; padding-bottom: 3px;">MIJOZ MA'LUMOTLARI</div>
+            <div style="font-weight: bold; color: #111827; margin-bottom: 6px; font-size: 10px; padding-bottom: 3px;">MIJOZ MA'LUMOTLARI</div>
             <div style="color: #374151; font-size: 8px; line-height: 1.5;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
                     <span><strong>Ismi:</strong></span>
@@ -954,6 +962,14 @@ export function generateUzbekReceiptHTML(data: ImprovedReceiptData): string {
     <div style="width: 100%; max-width: 80mm; margin: 0 auto; position: relative;">
         <div class="watermark">LUX PET PLAST</div>
         
+        <!-- Logo Section -->
+        <div style="text-align: center; padding: 8px 0; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-bottom: 2px solid #0ea5e9;">
+            <img src="/logo.png" alt="LUX PET PLAST" style="max-width: 60mm; max-height: 20mm; object-fit: contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+            <div style="display: none; font-size: 14px; font-weight: 900; color: #0ea5e9; letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.2);">
+                LUX PET PLAST
+            </div>
+        </div>
+        
         <!-- Header -->
         <div class="header">
             <div class="company-name">LUX PET PLAST</div>
@@ -963,7 +979,7 @@ export function generateUzbekReceiptHTML(data: ImprovedReceiptData): string {
         
         <!-- Customer Info -->
         <div class="customer-info">
-            <div style="font-weight: bold; color: #111827; margin-bottom: 6px; font-size: 10px; border-bottom: 1px solid #d1d5db; padding-bottom: 3px;">${encodeUzbekText('MIJOZ MAʼLUMOTLARI')}</div>
+            <div style="font-weight: bold; color: #111827; margin-bottom: 6px; font-size: 10px; padding-bottom: 3px;">${encodeUzbekText('MIJOZ MAʼLUMOTLARI')}</div>
             <div style="color: #374151; font-size: 8px; line-height: 1.5;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
                     <span><strong>${encodeUzbekText('Ismi:')}</strong></span>

@@ -29,6 +29,7 @@ export default function AddSale() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [exchangeRate, setExchangeRate] = useState('12500');
   const [activeProductCategory, setActiveProductCategory] = useState<'all' | 'preform' | 'krishka' | 'ruchka' | 'other'>('all');
+  const [productSearch, setProductSearch] = useState('');
   
   const [form, setForm] = useState({
     customerId: '',
@@ -49,12 +50,15 @@ export default function AddSale() {
     productName: '',
     quantity: '',
     pricePerBag: '',
+    priceDisplayValue: '',
+    unitsPerBag: '2000',
     saleType: 'bag',
   });
 
   const [customerPrices, setCustomerPrices] = useState<Record<string, string>>({});
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(0);
-  const [expandedGroups, setExpandedGroups] = useState<string[]>(['15gr', '20gr', '25gr']); // Default expanded groups
+  const [expandedGroups, setExpandedGroups] = useState<string[]>(['15gr', '21gr']); // Default: only 15gr and 21gr expanded
+  const [customerSearch, setCustomerSearch] = useState('');
 
   const selectedCustomer = customers.find((c: any) => c.id === form.customerId);
 
@@ -71,24 +75,23 @@ export default function AddSale() {
     }
   }, [selectedCustomer?.productPrices]);
 
+  // Mijoz narxini yuklash - faqat mijoz o'zgarganda ishlaydi, mahsulot o'zgarganda emas
   useEffect(() => {
-    if (selectedCustomer && newItem.productId) {
+    // Agar mahsulot tanlanmagan bo'lsa, narxni yangilash shart emas
+    if (!newItem.productId) return;
+    
+    // Agar mijoz tanlangan bo'lsa va mijozning maxsus narxi bo'lsa
+    if (selectedCustomer) {
       const productPrice = customerPrices[newItem.productId];
       if (productPrice) {
-        setNewItem(prev => ({ ...prev, pricePerBag: productPrice }));
+        setNewItem(prev => ({ ...prev, pricePerBag: productPrice, priceDisplayValue: productPrice }));
       } else if (selectedCustomer.pricePerBag) {
-        setNewItem(prev => ({ ...prev, pricePerBag: selectedCustomer.pricePerBag.toString() }));
-      }
-    } else if (!selectedCustomer && newItem.productId) {
-      const selectedProduct = products.find((p: any) => p.id === newItem.productId);
-      if (selectedProduct) {
-        const displayPrice = form.currency === 'UZS'
-          ? (parseFloat(selectedProduct.pricePerBag) || 0) * 12500
-          : parseFloat(selectedProduct.pricePerBag) || 0;
-        setNewItem(prev => ({ ...prev, pricePerBag: displayPrice.toString() }));
+        const price = selectedCustomer.pricePerBag.toString();
+        setNewItem(prev => ({ ...prev, pricePerBag: price, priceDisplayValue: price }));
       }
     }
-  }, [form.customerId, selectedCustomer, newItem.productId, customerPrices, products, form.currency]);
+    // Mijoz tanlanmagan bo'lsa, ombor narxini qo'llash (mahsulot tanlanganda onClick da o'rnatiladi)
+  }, [form.customerId, selectedCustomer, customerPrices]);
 
   // Buyurtma ma'lumotlarini avtomatik yuklash
   useEffect(() => {
@@ -137,76 +140,107 @@ export default function AddSale() {
     }
   }, [orderData, products]);
 
+  // Valyuta o'zgarganda barcha mahsulotlarni konvertatsiya qilish
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        console.log('Loading data...');
+    const exchangeRateNum = parseFloat(exchangeRate) || 12500;
+    
+    setForm(prev => ({
+      ...prev,
+      items: prev.items.map(item => {
+        const newPricePerBag = form.currency === 'UZS' 
+          ? item.pricePerBag * exchangeRateNum 
+          : item.pricePerBag / exchangeRateNum;
+        const newSubtotal = item.quantity * newPricePerBag;
         
-        // Check if user is authenticated
-        const storage = localStorage.getItem('auth-storage');
-        const token = storage ? JSON.parse(storage)?.state?.token : null;
-        console.log('Auth token found:', !!token);
-        
-        if (!token) {
-          console.log('No auth token found, using fallback customers');
-          setCustomers([
-            { id: '1', name: 'Mijoz 1', phone: '+998901234567', address: 'Toshkent' },
-            { id: '2', name: 'Mijoz 2', phone: '+998907654321', address: 'Buxoro' },
-            { id: '3', name: 'Mijoz 3', phone: '+998901112233', address: 'Samarqand' },
-            { id: '4', name: 'Mijoz 4', phone: '+998904445566', address: 'Farg\'ona' },
-            { id: '5', name: 'Mijoz 5', phone: '+998907778899', address: 'Namangan' }
-          ]);
-          return;
+        return {
+          ...item,
+          pricePerBag: newPricePerBag,
+          pricePerPiece: newPricePerBag / (item.unitsPerBag || 2000),
+          subtotal: newSubtotal
+        };
+      })
+    }));
+  }, [form.currency]);
+
+  const getCurrencySymbol = () => form.currency === 'UZS' ? 'UZS ' : '$';
+
+  const getDisplayAmount = (amount: number) => {
+    if (form.currency === 'UZS') {
+      return Math.round(amount).toString();
+    }
+    return amount.toFixed(2);
+  };
+
+  // Calculate totals
+  const totalAmount = form.items.reduce((sum, item) => sum + (item.subtotal || 0), 0);
+  const exchangeRateNum = parseFloat(exchangeRate) || 12500;
+  const paidUZS = parseFloat(form.paidUZS) || 0;
+  const paidUSD = parseFloat(form.paidUSD) || 0;
+  const paidCLICK = parseFloat(form.paidCLICK) || 0;
+  const paidAmount = form.currency === 'UZS' 
+    ? paidUZS + (paidUSD * exchangeRateNum) + paidCLICK
+    : paidUZS / exchangeRateNum + paidUSD + (paidCLICK / exchangeRateNum);
+  const debtAmount = Math.max(0, totalAmount - paidAmount);
+
+  const getFilteredProducts = () => {
+    let filtered = products;
+    
+    // Kategoriya bo'yicha filter
+    if (activeProductCategory !== 'all') {
+      filtered = filtered.filter((p: any) => {
+        if (activeProductCategory === 'preform') {
+          return p.warehouse === 'preform' || p.name.toLowerCase().includes('gr');
         }
-        
-        // Load products
-        try {
-          const productsResponse = await api.get('/products');
-          console.log('Products loaded:', productsResponse.data?.length || 0);
-          if (productsResponse.data) {
-            setProducts(productsResponse.data);
-          }
-        } catch (productError) {
-          console.error('Error loading products:', productError);
+        if (activeProductCategory === 'krishka') {
+          return p.warehouse === 'krishka' || p.name.toLowerCase().includes('krishka');
         }
-        
-        // Load customers
-        try {
-          const customersResponse = await api.get('/customers');
-          console.log('Customers loaded:', customersResponse.data?.length || 0);
-          if (customersResponse.data && customersResponse.data.length > 0) {
-            setCustomers(customersResponse.data);
-          } else {
-            // Fallback customers if API returns empty
-            console.log('API returned empty customers, using fallback...');
-            setCustomers([
-              { id: '1', name: 'Mijoz 1', phone: '+998901234567', address: 'Toshkent' },
-              { id: '2', name: 'Mijoz 2', phone: '+998907654321', address: 'Buxoro' },
-              { id: '3', name: 'Mijoz 3', phone: '+998901112233', address: 'Samarqand' },
-              { id: '4', name: 'Mijoz 4', phone: '+998904445566', address: 'Farg\'ona' },
-              { id: '5', name: 'Mijoz 5', phone: '+998907778899', address: 'Namangan' }
-            ]);
-          }
-        } catch (customerError) {
-          console.error('Error loading customers:', customerError);
-          // Fallback customers if API fails
-          console.log('Using fallback customers due to error...');
-          setCustomers([
-            { id: '1', name: 'Mijoz 1', phone: '+998901234567', address: 'Toshkent' },
-            { id: '2', name: 'Mijoz 2', phone: '+998907654321', address: 'Buxoro' },
-            { id: '3', name: 'Mijoz 3', phone: '+998901112233', address: 'Samarqand' },
-            { id: '4', name: 'Mijoz 4', phone: '+998904445566', address: 'Farg\'ona' },
-            { id: '5', name: 'Mijoz 5', phone: '+998907778899', address: 'Namangan' },
-            { id: '6', name: 'Mijoz 6', phone: '+998905556677', address: 'Andijon' },
-            { id: '7', name: 'Mijoz 7', phone: '+998908889900', address: 'Qashqadaryo' },
-            { id: '8', name: 'Mijoz 8', phone: '+998902223344', address: 'Surxondaryo' }
-          ]);
+        if (activeProductCategory === 'ruchka') {
+          return p.warehouse === 'ruchka' || p.name.toLowerCase().includes('ruchka');
         }
-      } catch (error) {
-        console.error('Unexpected error loading data:', error);
-        errorHandler.handleError(error, { action: 'loadData' });
-        
-        // Fallback customers for any error
+        return p.warehouse !== 'preform' && p.warehouse !== 'krishka' && p.warehouse !== 'ruchka';
+      });
+    }
+    
+    // Qidiruv bo'yicha filter
+    if (productSearch) {
+      const search = productSearch.toLowerCase();
+      filtered = filtered.filter((p: any) => 
+        p.name?.toLowerCase().includes(search)
+      );
+    }
+    
+    return filtered;
+  };
+
+  useEffect(() => {
+    loadData();
+    
+    // Sahifa fokus bo'lganda mahsulotlarni qayta yuklash
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('🔄 Sahifa fokuslandi - mahsulotlarni yangilash');
+        loadData();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  const loadData = async () => {
+    try {
+      console.log('Loading data...');
+      
+      // Check if user is authenticated
+      const storage = localStorage.getItem('auth-storage');
+      const token = storage ? JSON.parse(storage)?.state?.token : null;
+      console.log('Auth token found:', !!token);
+      
+      if (!token) {
+        console.log('No auth token found, using fallback customers');
         setCustomers([
           { id: '1', name: 'Mijoz 1', phone: '+998901234567', address: 'Toshkent' },
           { id: '2', name: 'Mijoz 2', phone: '+998907654321', address: 'Buxoro' },
@@ -214,168 +248,85 @@ export default function AddSale() {
           { id: '4', name: 'Mijoz 4', phone: '+998904445566', address: 'Farg\'ona' },
           { id: '5', name: 'Mijoz 5', phone: '+998907778899', address: 'Namangan' }
         ]);
+        return;
       }
-    };
-
-    loadData();
-  }, []);
-
-  const getFilteredProducts = () => {
-    if (activeProductCategory === 'all') {
-      return products;
-    }
-    return products.filter((p: any) => 
-      p.warehouse === activeProductCategory || 
-      p.bagType?.toLowerCase().includes(activeProductCategory)
-    );
-  };
-
-  // Mahsulot turini aniqlash (gramm yoki tur bo'yicha)
-  const extractProductType = (productName: string): string => {
-    const name = productName.toLowerCase();
-    
-    // Gramajni topish (masalan: 15gr, 20gr, 15g, 20g)
-    const weightMatch = name.match(/(\d+)\s*(g|gr|gram)/i);
-    if (weightMatch) {
-      return `${weightMatch[1]}gr`;
-    }
-    
-    // Agar gramaj topilmasa, mahsulot turini aniqlash
-    if (name.includes('krishka') || name.includes('cap')) {
-      return latinToCyrillic('Krishka');
-    }
-    if (name.includes('ruchka') || name.includes('handle')) {
-      return latinToCyrillic('Ruchka');
-    }
-    if (name.includes('preform') || (name.includes('g') || name.includes('gr'))) {
-      return latinToCyrillic('Preform');
-    }
-    
-    return latinToCyrillic('Boshqa');
-  };
-
-  // Mahsulotlarni tur bo'yicha guruhlash
-  const groupProducts = (products: any[]) => {
-    const groups: { [key: string]: any[] } = {};
-    
-    products.forEach((product) => {
-      const groupName = extractProductType(product.name);
       
-      if (!groups[groupName]) {
-        groups[groupName] = [];
+      // Load products
+      try {
+        const productsResponse = await api.get('/products');
+        console.log('Products loaded:', productsResponse.data?.length || 0);
+        if (productsResponse.data) {
+          setProducts(productsResponse.data);
+          // Barcha mahsulotlarni konsolga chiqarish
+          console.log('📋 BARCHA MAHSULOTLAR:');
+          productsResponse.data.forEach((p: any, idx: number) => {
+            console.log(`${idx + 1}. ${p.name} - $${p.pricePerBag || 0} (1 qopda: ${p.unitsPerBag || 0} dona)`);
+          });
+        }
+      } catch (productError) {
+        console.error('Error loading products:', productError);
       }
-      groups[groupName].push(product);
-    });
-    
-    return groups;
+      
+      // Load customers
+      try {
+        const customersResponse = await api.get('/customers');
+        console.log('Customers loaded:', customersResponse.data?.length || 0);
+        if (customersResponse.data && customersResponse.data.length > 0) {
+          setCustomers(customersResponse.data);
+        } else {
+          // Fallback customers if API returns empty
+          console.log('API returned empty customers, using fallback...');
+          setCustomers([
+            { id: '1', name: 'Mijoz 1', phone: '+998901234567', address: 'Toshkent' },
+            { id: '2', name: 'Mijoz 2', phone: '+998907654321', address: 'Buxoro' },
+            { id: '3', name: 'Mijoz 3', phone: '+998901112233', address: 'Samarqand' },
+            { id: '4', name: 'Mijoz 4', phone: '+998904445566', address: 'Farg\'ona' },
+            { id: '5', name: 'Mijoz 5', phone: '+998907778899', address: 'Namangan' }
+          ]);
+        }
+      } catch (customerError) {
+        console.error('Error loading customers:', customerError);
+        // Fallback customers if API fails
+        console.log('Using fallback customers due to error...');
+        setCustomers([
+          { id: '1', name: 'Mijoz 1', phone: '+998901234567', address: 'Toshkent' },
+          { id: '2', name: 'Mijoz 2', phone: '+998907654321', address: 'Buxoro' },
+          { id: '3', name: 'Mijoz 3', phone: '+998901112233', address: 'Samarqand' },
+          { id: '4', name: 'Mijoz 4', phone: '+998904445566', address: 'Farg\'ona' },
+          { id: '5', name: 'Mijoz 5', phone: '+998907778899', address: 'Namangan' },
+          { id: '6', name: 'Mijoz 6', phone: '+998905556677', address: 'Andijon' },
+          { id: '7', name: 'Mijoz 7', phone: '+998908889900', address: 'Qashqadaryo' },
+          { id: '8', name: 'Mijoz 8', phone: '+998902223344', address: 'Surxondaryo' }
+        ]);
+      }
+    } catch (error) {
+      console.error('Unexpected error loading data:', error);
+      errorHandler.handleError(error, { action: 'loadData' });
+      
+      // Fallback customers for any error
+      setCustomers([
+        { id: '1', name: 'Mijoz 1', phone: '+998901234567', address: 'Toshkent' },
+        { id: '2', name: 'Mijoz 2', phone: '+998907654321', address: 'Buxoro' },
+        { id: '3', name: 'Mijoz 3', phone: '+998901112233', address: 'Samarqand' },
+        { id: '4', name: 'Mijoz 4', phone: '+998904445566', address: 'Farg\'ona' },
+        { id: '5', name: 'Mijoz 5', phone: '+998907778899', address: 'Namangan' }
+      ]);
+    }
   };
 
-  // Guruhni kengaytirish/yopish
-  const toggleGroup = (groupName: string) => {
-    setExpandedGroups(prev => 
-      prev.includes(groupName) 
-        ? prev.filter(g => g !== groupName)
-        : [...prev, groupName]
-    );
-  };
+  // ...
 
-  const addProduct = () => {
-    if (!newItem.productId || !newItem.quantity) {
-      alert(latinToCyrillic('Iltimos, mahsulot va miqdorni to\'ldiring!'));
-      return;
-    }
-    
-    const selectedProduct = products.find((p: any) => p.id === newItem.productId);
-    if (!selectedProduct) {
-      alert(latinToCyrillic('Mahsulot topilmadi!'));
-      return;
-    }
-
-    const quantity = parseFloat(newItem.quantity);
-    const pricePerBag = parseFloat(newItem.pricePerBag) || 0;
-    const unitsPerBag = selectedProduct.unitsPerBag || 2000;
-    const saleType = newItem.saleType || 'bag';
-    
-    console.log('🔍 Mahsulot qo\'shilmoqda:', {
-      productName: selectedProduct.name,
-      quantity,
-      pricePerBag,
-      unitsPerBag,
-      saleType,
-      currentStock: selectedProduct.currentStock,
-      currentUnits: selectedProduct.currentUnits
-    });
-    
-    // Ombor tekshiruvi - qop yoki dona bo'yicha
-    const isPieceSale = saleType === 'piece';
-    const currentStock = isPieceSale ? selectedProduct.currentUnits : selectedProduct.currentStock;
-    const unitLabel = isPieceSale ? 'dona' : 'qop';
-    
-    if (quantity > currentStock) {
-      alert(latinToCyrillic(`Zaxirada yetarli mahsulot yo'q! \nOmborda: ${currentStock} ${unitLabel} \nSotmoqchisiz: ${quantity} ${unitLabel}`));
-      return;
-    }
-    
-    // Narx va subtotal hisoblash
-    let pricePerPiece = pricePerBag / unitsPerBag;
-    let finalSubtotal = 0;
-    
-    if (isPieceSale) {
-      // Dona savdo: quantity - dona soni, narx - dona narxi
-      finalSubtotal = quantity * pricePerPiece;
-      console.log('📊 Dona savdo:', {
-        quantity: `${quantity} dona`,
-        pricePerPiece,
-        subtotal: finalSubtotal
-      });
-    } else {
-      // Qop savdo: quantity - qop soni, narx - qop narxi
-      finalSubtotal = quantity * pricePerBag;
-      console.log('📊 Qop savdo:', {
-        quantity: `${quantity} qop`,
-        pricePerBag,
-        subtotal: finalSubtotal
-      });
-    }
-    
-    const newItemToAdd = {
-      productId: selectedProduct.id,
-      productName: selectedProduct.name,
-      quantity: quantity,
-      pricePerBag: pricePerBag,
-      pricePerBagDisplay: pricePerBag.toString(),
-      subtotal: finalSubtotal,
-      saleType: saleType,
-      pricePerPiece: pricePerPiece,
-      unitsPerBag: unitsPerBag,
-      warehouse: selectedProduct.warehouse,
-      subType: selectedProduct.subType,
-      // Add missing display values for cart inputs
-      bagDisplayValue: quantity.toString(),
-      pieceDisplayValue: (quantity * unitsPerBag).toString(),
-      totalDisplayValue: (quantity * unitsPerBag).toString(),
-      priceDisplayValue: isPieceSale ? pricePerPiece.toFixed(4) : pricePerBag.toFixed(2)
-    };
-    
-    console.log('✅ Mahsulot qo\'shildi:', newItemToAdd);
-    
-    setForm(prev => ({ 
-      ...prev, 
-      items: [...prev.items, newItemToAdd] 
+  // Update a specific item in the items array
+  const updateItem = (index: number, updates: any) => {
+    setForm(prev => ({
+      ...prev,
+      items: prev.items.map((item, i) => 
+        i === index ? { ...item, ...updates } : item
+      )
     }));
-    
-    // Yangi qo'shilgan mahsulotni avtomatik tahrirlash rejimiga o'tkazish
-    setEditingItemIndex(form.items.length);
-    
-    setNewItem({
-      productId: '',
-      productName: '',
-      quantity: '',
-      pricePerBag: '',
-      saleType: 'bag'
-    });
   };
 
+  // Remove a product from the items array
   const removeProduct = (index: number) => {
     setForm(prev => ({
       ...prev,
@@ -383,437 +334,377 @@ export default function AddSale() {
     }));
   };
 
-  const updateItem = (index: number, updates: any) => {
-    setForm(prev => ({
-      ...prev,
-      items: prev.items.map((item, idx) => 
-        idx === index ? { ...item, ...updates } : item
-      )
-    }));
-  };
-
-  const totalAmountInUSD = form.items.reduce((sum, item) => sum + item.subtotal, 0);
-  const totalAmount = form.currency === 'UZS' 
-    ? totalAmountInUSD * 12500
-    : totalAmountInUSD;
-  
-  const getDisplayAmount = (amount: number) => {
-    if (form.currency === 'UZS') {
-      return Math.round(amount).toString();
+  // Add a product to the items array
+  const addProduct = () => {
+    if (!newItem.productId || !newItem.quantity) {
+      return;
     }
-    return amount.toFixed(2);
-  };
-  
-  const getCurrencySymbol = () => form.currency === 'UZS' ? 'UZS' : '$';
-  
-  const calculatePaidInSelectedCurrency = () => {
-    const paidUZS = parseFloat(form.paidUZS) || 0;
-    const paidUSD = parseFloat(form.paidUSD) || 0;
-    const paidCLICK = parseFloat(form.paidCLICK) || 0;
-    
-    if (form.currency === 'UZS') {
-      return paidUZS + paidCLICK + (paidUSD * 12500);
-    }
-    return paidUSD + (paidUZS / 12500) + (paidCLICK / 12500);
-  };
-  
-  const paidAmount = calculatePaidInSelectedCurrency();
-  const debtAmount = totalAmount - paidAmount;
 
-  const printReceipt = (sale: any, customer: any, user: any) => {
-    try {
-      const now = new Date();
-      const dateStr = now.toLocaleDateString('uz-UZ');
-      const timeStr = now.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+    const product = products.find((p: any) => p.id === newItem.productId);
+    if (!product) return;
 
-      // Parse payment details properly
-      let paymentDetails = sale?.paymentDetails;
-      if (typeof paymentDetails === 'string') {
-        try {
-          paymentDetails = JSON.parse(paymentDetails);
-        } catch (e) {
-          paymentDetails = {};
-        }
-      }
+    const quantity = parseFloat(newItem.quantity) || 0;
 
-      // Extract items with complete product information
-      const receiptItems = (sale?.items || []).map((item: any) => {
-        const productName = item?.product?.name || item?.productName || item?.name || 'Noma\'lum mahsulot';
-        const isPieceSale = item?.saleType === 'piece';
-        const pricePerBag = parseFloat(item?.pricePerBag) || 0;
-        const unitsPerBag = item?.product?.unitsPerBag || item?.unitsPerBag || item?.piecesPerBag || 2000;
-        const pricePerPiece = pricePerBag / unitsPerBag;
-        const quantity = parseFloat(item?.quantity) || 0;
-        const subtotal = parseFloat(item?.subtotal) || 0;
-        
-        return {
-          id: item?.id || Math.random().toString(),
-          name: productName,
-          quantity: quantity,
-          unit: isPieceSale ? 'dona' : 'qop',
-          piecesPerBag: unitsPerBag,
-          pricePerBag: pricePerBag,
-          pricePerPiece: pricePerPiece,
-          pricePerUnit: isPieceSale ? pricePerPiece : pricePerBag,
-          subtotal: subtotal,
-          warehouse: item?.product?.warehouse || 'other'
-        };
-      });
-
-      // Calculate debt and balances correctly
-      const oldDebtUZS = customer?.debtUZS || 0;
-      const oldDebtUSD = customer?.debtUSD || 0;
-      const totalAmount = parseFloat(sale?.totalAmount) || 0;
-      const paidAmount = parseFloat(sale?.paidAmount) || 0;
-      const debtAmount = sale?.debtAmount || (totalAmount - paidAmount);
+    // Komplekt rejimida - preform + krishka + ruchka qo'shish
+    if (newItem.saleType === 'komplekt') {
+      console.log('🔄 KOMPLEKT REJIMI:', product.name, 'soni:', quantity);
       
-      let newBalanceUZS = oldDebtUZS;
-      let newBalanceUSD = oldDebtUSD;
-      
-      // Update balances based on currency
-      if (sale?.currency === 'UZS') {
-        newBalanceUZS = oldDebtUZS + (debtAmount > 0 ? debtAmount : 0);
-      } else {
-        newBalanceUSD = oldDebtUSD + (debtAmount > 0 ? debtAmount : 0);
-      }
-
-      const receiptData = {
-        saleId: sale?.id || 'N/A',
-        receiptNumber: sale?.receiptNumber?.toString() || sale?.id?.slice(0, 8).toUpperCase() || 'N/A',
-        date: dateStr,
-        time: timeStr,
-        cashier: user?.name || user?.email || 'Kassir',
-        currency: sale?.currency || 'USD',
-        exchangeRate: parseFloat(exchangeRate) || 12500,
-        customer: {
-          name: sale?.manualCustomerName || customer?.name || 'Noma\'lum',
-          phone: sale?.manualCustomerPhone || customer?.phone || '',
-          address: customer?.address || '',
-          previousBalanceUZS: oldDebtUZS > 0 ? oldDebtUZS : undefined,
-          previousBalanceUSD: oldDebtUSD > 0 ? oldDebtUSD : undefined,
-          newBalanceUZS: newBalanceUZS > 0 ? newBalanceUZS : undefined,
-          newBalanceUSD: newBalanceUSD > 0 ? newBalanceUSD : undefined
-        },
-        items: receiptItems,
-        subtotal: totalAmount,
-        total: totalAmount,
-        totalPaid: paidAmount,
-        debt: debtAmount > 0 ? debtAmount : 0,
-        payments: {
-          uzs: parseFloat(paymentDetails?.uzs) || 0,
-          usd: parseFloat(paymentDetails?.usd) || 0,
-          click: parseFloat(paymentDetails?.click) || 0
-        },
-        companyInfo: {
-          name: 'LUX PET PLAST',
-          address: 'Buxoro viloyati, Vobkent tumani',
-          phone: '+998 91 414 44 58, +998 91 920 07 00'
+      // Maxsus narxlar funksiyasi (komplekt uchun)
+      const getPiecePrice = (productName: string, gramSize: number | null = null) => {
+        const name = productName?.toLowerCase() || '';
+        // 48 krishka - $0.012
+        if (name.includes('48') && (name.includes('krishka') || name.includes('qopqoq') || name.includes('cap'))) {
+          return 0.012;
         }
+        // 48 ruchka - $0.016
+        if (name.includes('48') && (name.includes('ruchka') || name.includes('handle'))) {
+          return 0.016;
+        }
+        // 28 ruchka - $0.007
+        if (name.includes('28') && (name.includes('ruchka') || name.includes('handle'))) {
+          return 0.007;
+        }
+        // 28 krishka - $0.007 (36 preform uchun)
+        if (name.includes('28') && (name.includes('krishka') || name.includes('qopqoq') || name.includes('cap'))) {
+          // 28 dkm krishka uchun $0.0012
+          if (name.includes('dkm')) {
+            return 0.0012;
+          }
+          return 0.007;
+        }
+        // 38 krishka - $0.012 (dkm krishka)
+        if (name.includes('38') && (name.includes('krishka') || name.includes('qopqoq') || name.includes('cap'))) {
+          return 0.012;
+        }
+        return null;
+      };
+      
+      const getUnitsPerBag = (productName: string) => {
+        const name = productName?.toLowerCase() || '';
+        if (name.includes('krishka') || name.includes('qopqoq') || name.includes('cap')) {
+          return 2000;
+        }
+        if (name.includes('ruchka') || name.includes('handle')) {
+          return 1000;
+        }
+        return 2000;
+      };
+      
+      // Preformni qo'shish
+      const pricePerBag = parseFloat(newItem.pricePerBag || '0') || product.pricePerBag || 0;
+      const unitsPerBag = parseFloat(newItem.unitsPerBag || '0') || product.unitsPerBag || 2000;
+      const pricePerPiece = pricePerBag / unitsPerBag;
+      const subtotal = quantity * pricePerBag;
+
+      const preformItem = {
+        productId: newItem.productId,
+        productName: product.name,
+        quantity: newItem.quantity,
+        bagDisplayValue: newItem.quantity,
+        pricePerBag,
+        pricePerPiece,
+        unitsPerBag,
+        subtotal,
+        warehouse: product.warehouse || 'other',
+        saleType: 'bag'  // Savatda to'g'ri ko'rsatish uchun bag rejimi
       };
 
-      console.log('📄 Receipt data prepared:', receiptData);
+      // Krishka va ruchkalarni topish - MAXSUS QOIDALAR BO'YICHA
+      const gramMatch = product.name?.match(/(\d+)\s*(gr|g|гр|г)/i);
+      const gramSize = gramMatch ? parseInt(gramMatch[1]) : null;
+      console.log('🔍 Gram size:', gramSize, 'from name:', product.name);
 
-      const simpleReceiptData = convertToSimpleFormat(receiptData, parseFloat(exchangeRate) || 12500);
-      const receiptHTML = generateSimpleReceiptHTML(simpleReceiptData);
-      const printWindow = window.open('', '_blank', 'width=400,height=600');
-      if (printWindow) {
-        printWindow.document.write(receiptHTML);
-        printWindow.document.close();
-      } else {
-        console.error('❌ Popup oynasi ochilmadi - brauzer bloklagan bo\'lishi mumkin');
-        alert('Chek chiqarish uchun popup oynalariga ruxsat bering!');
+      // QOIDALAR:
+      // 15, 21, 26, 30 → 28 krishka (faqat krishka)
+      // 36 → 28 krishka + 28 ruchka (maxsus narxlar)
+      // 52, 70 → 38 krishka + ruchka
+      // 75, 80, 85, 86, 135 → 48 krishka + ruchka
+      
+      let targetKrishkaGram: number | null = null;
+      let targetRuchkaGram: number | null = null;
+      let needsRuchka = false;
+
+      if (gramSize) {
+        if ([15, 21, 26, 30].includes(gramSize)) {
+          targetKrishkaGram = 28;
+          needsRuchka = false;
+          console.log('✅ Qoida 1: 15/21/26/30 → 28 krishka');
+        } else if (gramSize === 36) {
+          // 36 preform uchun maxsus qoida: 28 krishka + 28 ruchka
+          targetKrishkaGram = 28;
+          targetRuchkaGram = 28;
+          needsRuchka = true;
+          console.log('✅ Qoida 2: 36 → 28 krishka + 28 ruchka (maxsus narxlar: ruchka $0.006, krishka $0.007)');
+        } else if ([52, 70].includes(gramSize)) {
+          targetKrishkaGram = 38;
+          targetRuchkaGram = 38;
+          needsRuchka = true;
+          console.log('✅ Qoida 3: 52/70 → 38 krishka + ruchka');
+        } else if ([75, 80, 85, 86, 135].includes(gramSize)) {
+          targetKrishkaGram = 48;
+          targetRuchkaGram = 48;
+          needsRuchka = true;
+          console.log('✅ Qoida 4: 75/80/85/86/135 → 48 krishka + ruchka');
+        } else {
+          console.log('❌ Gram size mos kelmedi:', gramSize);
+        }
       }
-    } catch (error) {
-      console.error('❌ Chek chiqarishda xatolik:', error);
-      alert('Chek chiqarishda xatolik yuz berdi! Konsolni tekshiring.');
+
+      console.log('🎯 Target krishka gram:', targetKrishkaGram, 'Ruchka kerakmi:', needsRuchka);
+
+      // Mos keluvchi krishkani topish
+      let krishkaProduct = null;
+      let ruchkaProduct = null;
+
+      if (targetKrishkaGram) {
+        // Maqsadli gramli krishkani qidirish
+        krishkaProduct = products.find((p: any) => {
+          const name = p.name?.toLowerCase() || '';
+          const isKrishka = p.warehouse === 'krishka' || name.includes('krishka') || name.includes('qopqoq') || name.includes('cap') || name.includes('крышка');
+          const hasGram = name.includes(targetKrishkaGram!.toString()) || 
+                         name.includes(targetKrishkaGram + 'gr') || 
+                         name.includes(targetKrishkaGram + 'g') ||
+                         name.includes(targetKrishkaGram + ' гр') ||
+                         name.includes(targetKrishkaGram + ' г');
+          return isKrishka && hasGram;
+        });
+        console.log('🔍 Krishka qidirilmoqda:', targetKrishkaGram, 'Topildi:', krishkaProduct?.name || 'YOQ');
+
+        // Ruchka kerak bo'lsa, shu gramli ruchkani qidirish
+        if (needsRuchka && targetRuchkaGram) {
+          ruchkaProduct = products.find((p: any) => {
+            const name = p.name?.toLowerCase() || '';
+            const isRuchka = p.warehouse === 'ruchka' || name.includes('ruchka') || name.includes('handle') || name.includes('ручка');
+            const hasGram = name.includes(targetRuchkaGram!.toString()) || 
+                           name.includes(targetRuchkaGram + 'gr') || 
+                           name.includes(targetRuchkaGram + 'g') ||
+                           name.includes(targetRuchkaGram + ' гр') ||
+                           name.includes(targetRuchkaGram + ' г');
+            return isRuchka && hasGram;
+          });
+          console.log('🔍 Ruchka qidirilmoqda:', targetRuchkaGram, 'Topildi:', ruchkaProduct?.name || 'YOQ');
+        }
+      }
+      
+
+      // Agar mos krishka topilmasa, umumiy krishkani olish
+      if (!krishkaProduct && targetKrishkaGram) {
+        krishkaProduct = products.find((p: any) => {
+          const name = p.name?.toLowerCase() || '';
+          return (p.warehouse === 'krishka' || name.includes('krishka') || name.includes('qopqoq') || name.includes('cap')) &&
+                 name.includes(targetKrishkaGram.toString());
+        });
+        if (krishkaProduct) {
+          console.log('🔍 Umumiy krishka topildi:', krishkaProduct.name);
+        }
+      }
+
+      // Agar mos ruchka topilmasa, targetRuchkaGram bo'yicha qidirish
+      if (!ruchkaProduct && needsRuchka && targetRuchkaGram) {
+        ruchkaProduct = products.find((p: any) => {
+          const name = p.name?.toLowerCase() || '';
+          const isRuchka = p.warehouse === 'ruchka' || name.includes('ruchka') || name.includes('handle');
+          const hasGram = name.includes(targetRuchkaGram.toString());
+          return isRuchka && hasGram;
+        });
+        if (ruchkaProduct) {
+          console.log('🔍 Target ruchka topildi:', ruchkaProduct.name);
+        }
+      }
+      
+      // Agar hamon topilmasa, umumiy ruchkani olish
+      if (!ruchkaProduct && needsRuchka) {
+        ruchkaProduct = products.find((p: any) => {
+          const name = p.name?.toLowerCase() || '';
+          return p.warehouse === 'ruchka' || name.includes('ruchka') || name.includes('handle');
+        });
+        if (ruchkaProduct) {
+          console.log('🔍 Umumiy ruchka topildi:', ruchkaProduct.name);
+        }
+      }
+
+      // Barcha mahsulotlarni bir vaqtda qo'shish
+      const itemsToAdd = [preformItem];
+      console.log('📦 Preform qoshildi:', preformItem.productName, 'soni:', quantity, 'qop,', quantity * unitsPerBag, 'dona');
+
+      // Jami dona sonini hisoblash
+      const totalPieces = quantity * unitsPerBag;
+      console.log('🔢 Jami dona soni:', totalPieces);
+
+      if (krishkaProduct) {
+        const krishkaUnits = getUnitsPerBag(krishkaProduct.name);
+        const krishkaPiecePrice = getPiecePrice(krishkaProduct.name) || (parseFloat(krishkaProduct.pricePerBag) || 0) / krishkaUnits;
+        const krishkaPrice = krishkaPiecePrice * krishkaUnits; // Qop narxi
+        
+        // Jami dona soniga mos keladigan krishka qop soni
+        const krishkaQuantity = Math.ceil(totalPieces / krishkaUnits);
+        
+        console.log('🧮 Krishka hisoblash:', totalPieces, 'dona /', krishkaUnits, 'dona/qop =', krishkaQuantity, 'qop, narx:', krishkaPrice);
+        
+        itemsToAdd.push({
+          productId: krishkaProduct.id,
+          productName: krishkaProduct.name,
+          quantity: krishkaQuantity.toString(),
+          bagDisplayValue: krishkaQuantity.toString(),
+          pricePerBag: krishkaPrice,
+          pricePerPiece: krishkaPiecePrice,
+          unitsPerBag: krishkaUnits,
+          subtotal: krishkaQuantity * krishkaPrice,
+          warehouse: krishkaProduct.warehouse || 'krishka',
+          saleType: 'bag'
+        });
+      }
+
+      if (ruchkaProduct) {
+        const ruchkaUnits = getUnitsPerBag(ruchkaProduct.name);
+        const ruchkaPiecePrice = getPiecePrice(ruchkaProduct.name) || (parseFloat(ruchkaProduct.pricePerBag) || 0) / ruchkaUnits;
+        const ruchkaPrice = ruchkaPiecePrice * ruchkaUnits; // Qop narxi
+        
+        // Jami dona soniga mos keladigan ruchka qop soni
+        const ruchkaQuantity = Math.ceil(totalPieces / ruchkaUnits);
+        
+        console.log('🧮 Ruchka hisoblash:', totalPieces, 'dona /', ruchkaUnits, 'dona/qop =', ruchkaQuantity, 'qop, narx:', ruchkaPrice);
+        
+        itemsToAdd.push({
+          productId: ruchkaProduct.id,
+          productName: ruchkaProduct.name,
+          quantity: ruchkaQuantity.toString(),
+          bagDisplayValue: ruchkaQuantity.toString(),
+          pricePerBag: ruchkaPrice,
+          pricePerPiece: ruchkaPiecePrice,
+          unitsPerBag: ruchkaUnits,
+          subtotal: ruchkaQuantity * ruchkaPrice,
+          warehouse: ruchkaProduct.warehouse || 'ruchka',
+          saleType: 'bag'
+        });
+      }
+
+      setForm(prev => ({ ...prev, items: [...prev.items, ...itemsToAdd] }));
+      console.log('✅ KOMPLEKT QOSHILDI (bag rejimi):', itemsToAdd.map(i => `${i.productName} (${i.quantity} qop)`).join(', '));
+    } else {
+      // Oddiy rejim - faqat bitta mahsulot qo'shish
+      const existingItemIndex = form.items.findIndex((item: any) => item.productId === newItem.productId);
+      
+      if (existingItemIndex >= 0) {
+        // Update existing item quantity
+        const existingItem = form.items[existingItemIndex];
+        const additionalQuantity = quantity;
+        const newQuantity = existingItem.quantity + additionalQuantity;
+        const pricePerBag = parseFloat(newItem.pricePerBag || '0') || existingItem.pricePerBag;
+        const isPieceSale = newItem.saleType === 'piece';
+        const unitsPerBag = parseFloat(newItem.unitsPerBag || '0') || product.unitsPerBag || 2000;
+        const pricePerPiece = pricePerBag / unitsPerBag;
+        const subtotal = isPieceSale ? newQuantity * pricePerPiece : newQuantity * pricePerBag;
+
+        updateItem(existingItemIndex, {
+          quantity: newQuantity.toString(),
+          bagDisplayValue: newQuantity.toString(),
+          pricePerBag,
+          pricePerPiece,
+          subtotal
+        });
+      } else {
+        // Add new item
+        const pricePerBag = parseFloat(newItem.pricePerBag || '0') || product.pricePerBag || 0;
+        const unitsPerBag = parseFloat(newItem.unitsPerBag || '0') || product.unitsPerBag || 2000;
+        const pricePerPiece = pricePerBag / unitsPerBag;
+        const isPieceSale = newItem.saleType === 'piece';
+        const subtotal = isPieceSale ? quantity * pricePerPiece : quantity * pricePerBag;
+
+        const newItemData = {
+          productId: newItem.productId,
+          productName: product.name,
+          quantity: newItem.quantity,
+          bagDisplayValue: newItem.quantity,
+          pricePerBag,
+          pricePerPiece,
+          unitsPerBag,
+          subtotal,
+          warehouse: product.warehouse || 'other',
+          saleType: newItem.saleType || 'bag'
+        };
+
+        setForm(prev => ({ ...prev, items: [...prev.items, newItemData] }));
+      }
     }
+
+    // Reset newItem state
+    setNewItem({
+      productId: '',
+      productName: '',
+      quantity: '',
+      pricePerBag: '',
+      priceDisplayValue: '',
+      unitsPerBag: '2000',
+      saleType: 'bag'
+    });
   };
 
+  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    console.log('🔍 SOTUV YARATISH BOSHLANDI');
-    console.log('📋 Form ma\'lumotlari:', {
-      customerId: form.customerId,
-      isKocha: form.isKocha,
-      itemsCount: form.items.length,
-      currency: form.currency,
-      manualCustomerName: form.manualCustomerName,
-      manualCustomerPhone: form.manualCustomerPhone
-    });
-    
-    // User ma'lumotlarini tekshirish
-    const authStorage = localStorage.getItem('auth-storage');
-    const userStr = localStorage.getItem('user');
-    console.log('🔐 Auth storage:', authStorage ? 'Mavjud' : 'Yo\'q');
-    console.log('👤 User localStorage:', userStr ? 'Mavjud' : 'Yo\'q');
-    
-    if (!authStorage) {
-      alert('❌ Siz tizimga kirmagansiz! Iltimos, qaytadan login qiling.');
-      navigate('/login');
-      return;
-    }
-    
-    let userId = null;
-    try {
-      const authData = JSON.parse(authStorage);
-      userId = authData?.state?.user?.id;
-      console.log('✅ User ID topildi:', userId);
-    } catch (e) {
-      console.error('❌ Auth storage parse xatosi:', e);
-      alert('❌ Autentifikatsiya xatosi! Iltimos, qaytadan login qiling.');
-      navigate('/login');
-      return;
-    }
-    
-    if (!userId) {
-      alert('❌ User ID topilmadi! Iltimos, qaytadan login qiling.');
-      navigate('/login');
-      return;
-    }
-    
-    console.log('📦 Mahsulotlar:', form.items.map((item, idx) => ({
-      index: idx,
-      productId: item.productId,
-      productName: item.productName,
-      quantity: item.quantity,
-      pricePerBag: item.pricePerBag,
-      pricePerPiece: item.pricePerPiece,
-      subtotal: item.subtotal,
-      saleType: item.saleType
-    })));
-    
-    const saleData = {
-      customerId: form.isKocha ? null : form.customerId,
-      items: form.items,
-      totalAmount: totalAmountInUSD,
-      currency: form.currency,
-      isKocha: form.isKocha,
-      manualCustomerName: form.isKocha ? form.manualCustomerName : null,
-      manualCustomerPhone: form.isKocha ? form.manualCustomerPhone : null
-    };
-    
-    console.log('✅ Validatsiya uchun ma\'lumotlar:', saleData);
-    
-    // Ko'chaga bo'lmasa, customerId majburiy
-    if (!form.isKocha && !form.customerId) {
-      console.error('❌ Mijoz tanlanmagan');
-      alert(latinToCyrillic('Iltimos, mijoz tanlang yoki "Ko\'chaga" tugmasini bosing!'));
-      return;
-    }
-    
-    const validation = validateSale(saleData);
-    
-    if (!validation.isValid) {
-      const errorMessages = Object.values(validation.errors).join('\n');
-      console.error('❌ Validatsiya xatosi:', validation.errors);
-      alert(latinToCyrillic(errorMessages));
-      return;
-    }
-    
-    console.log('✅ Validatsiya muvaffaqiyatli');
-    
-    try {
-      const totalPaid = calculatePaidInSelectedCurrency();
-      const debt = totalAmount - totalPaid;
-      
-      console.log('💰 To\'lov hisob-kitobi:', {
-        totalAmount,
-        totalAmountInUSD,
-        totalPaid,
-        debt,
-        currency: form.currency,
-        paidUZS: form.paidUZS,
-        paidUSD: form.paidUSD,
-        paidCLICK: form.paidCLICK
-      });
-      
-      const finalSaleData: any = {
-        customerId: form.isKocha ? null : form.customerId,
-        items: form.items.map((item: any) => {
-          const mappedItem = {
-            productId: item.productId,
-            quantity: parseFloat(item.quantity) || 0,
-            pricePerBag: parseFloat(item.pricePerBag) || 0,
-            pricePerPiece: parseFloat(item.pricePerPiece) || 0,
-            subtotal: parseFloat(item.subtotal) || 0,
-            saleType: item.saleType || 'bag'
-          };
-          console.log(`📦 Item ${item.productName}:`, mappedItem);
-          return mappedItem;
-        }),
-        totalAmount: totalAmountInUSD,
-        paidAmount: form.currency === 'USD' ? totalPaid : totalPaid,
-        paymentDetails: {
-          uzs: parseFloat(form.paidUZS) || 0,
-          usd: parseFloat(form.paidUSD) || 0,
-          click: parseFloat(form.paidCLICK) || 0
-        },
-        currency: form.currency,
-        paymentStatus: totalPaid >= totalAmount ? 'PAID' : totalPaid > 0 ? 'PARTIAL' : 'UNPAID',
-        isKocha: form.isKocha,
-        manualCustomerName: form.isKocha ? form.manualCustomerName : null,
-        manualCustomerPhone: form.isKocha ? form.manualCustomerPhone : null
-      };
-      
-      if (isEditMode && editSale?.id) {
-        finalSaleData.saleId = editSale.id;
-      }
-      
-      console.log('📤 Serverga yuborilayotgan ma\'lumotlar:', JSON.stringify(finalSaleData, null, 2));
-      
-      const response = isEditMode 
-        ? await api.put(`/sales/${editSale.id}`, finalSaleData)
-        : await api.post('/sales', finalSaleData);
-      
-      console.log('✅ Server javobi:', response.data);
-      
-      const createdSale = response.data;
-      
-      // Kassa yangilanganini tekshirish
-      const automationStatus = createdSale?.automationStatus;
-      console.log('📊 Avtomatlashtirish statusi:', automationStatus);
-      
-      if (automationStatus && !automationStatus.cashboxUpdated) {
-        console.warn('⚠️ KASSA YANGILANMADI! Sotuv yaratildi, lekin pul kassaga tushmadi.');
-        const shouldAddManually = confirm(latinToCyrillic('⚠️ DIQQAT: Sotuv saqlandi, lekin pul avtomatik ravishda kassaga tushmadi!\n\nKassaga qo\'lda qo\'shilsinmi?'));
-        if (shouldAddManually) {
-          await addToCashboxManually(createdSale);
-        }
-      }
-      
-      const userStr = localStorage.getItem('user');
-      const user = userStr ? JSON.parse(userStr) : { name: 'Kassir' };
-      
-      const saleWithCustomer = {
-        ...createdSale,
-        manualCustomerName: form.manualCustomerName,
-        manualCustomerPhone: form.manualCustomerPhone
-      };
-      
-      let updatedCustomer = null;
-      if (!form.isKocha && form.customerId) {
-        try {
-          const customerResponse = await api.get(`/customers/${form.customerId}`);
-          updatedCustomer = customerResponse.data;
-          console.log('✅ Mijoz ma\'lumotlari yangilandi:', updatedCustomer);
-        } catch (error) {
-          console.error('⚠️ Mijoz ma\'lumotlarini yangilashda xatolik:', error);
-          errorHandler.handleError(error, { action: 'updateCustomer', customerId: form.customerId });
-        }
-      }
-      
-      const customerForReceipt = form.isKocha ? {
-        name: form.manualCustomerName,
-        phone: form.manualCustomerPhone,
-        address: '',
-        debtUZS: 0,
-        debtUSD: 0
-      } : (updatedCustomer || selectedCustomer);
-      
-      console.log('🖨️ Chek chiqarish boshlandi...');
-      printReceipt(saleWithCustomer, customerForReceipt, user);
-      
-      console.log('✅ Sotuv muvaffaqiyatli yaratildi!');
-      navigate('/cashier/sales');
-    } catch (error: any) {
-      console.error('❌ SOTUV YARATISHDA XATOLIK:', error);
-      
-      // Server xatolik xabarini olish
-      const serverError = error.response?.data?.error || error.response?.data?.message || 'Noma\'lum xatolik';
-      const serverDetails = error.response?.data?.details || '';
-      const available = error.response?.data?.available;
-      const requested = error.response?.data?.requested;
-      const unit = error.response?.data?.unit;
-      
-      console.error('🔴 SERVER XABARI:', serverError);
-      console.error('🔴 BATAFSIL:', serverDetails);
-      
-      // Aniq xatolik xabarini tayyorlash
-      let userMessage = `❌ XATOLIK:\n\n${serverError}`;
-      
-      if (serverDetails) {
-        userMessage += `\n\n📋 Batafsil:\n${serverDetails}`;
-      }
-      
-      // Agar omborda mahsulot yetarli bo'lmasa
-      if (available !== undefined && requested !== undefined) {
-        userMessage += `\n\n📊 Omborda: ${available} ${unit || 'dona'}`;
-        userMessage += `\n📊 Kerak: ${requested} ${unit || 'dona'}`;
-        userMessage += `\n\n💡 YECHIM: Ombordagi mahsulot miqdorini tekshiring!`;
-      }
-      
-      // Agar mijoz yoki user topilmasa
-      if (serverError.includes('topilmadi') || serverError.includes('not found') || serverError.includes('aniqlanmadi')) {
-        userMessage += '\n\n💡 YECHIM:\n1. Logout qiling\n2. Qaytadan login qiling\n3. Mijozni to\'g\'ri tanlang';
-      }
-      
-      // Agar mijoz tanlanmagan bo'lsa
-      if (serverError.includes('tanlanmagan') || serverError.includes('Mijoz')) {
-        userMessage += '\n\n💡 YECHIM:\nMijoz tanlang yoki "Ko\'chaga" tugmasini bosing!';
-      }
-      
-      alert(userMessage);
-      
-      errorHandler.handleError(error, { 
-        action: isEditMode ? 'updateSale' : 'createSale',
-        isEditMode,
-        saleId: editSale?.id,
-        resource: 'cashier',
-        url: window.location.href
-      });
-    }
-  };
 
-  // Qo'lda kassaga pul qo'shish (avtomatik ishlamagan bo'lsa)
-  const addToCashboxManually = async (saleData: any) => {
     try {
-      const paymentDetails = saleData.paymentDetails || {};
-      const transactions = [];
-      
-      // UZS
-      if (paymentDetails.uzs > 0) {
-        transactions.push({
-          type: 'INCOME',
-          amount: paymentDetails.uzs,
-          currency: 'UZS',
-          paymentMethod: 'CASH',
-          description: `Sotuv #${saleData.id} - Qo'lda qo'shildi (UZS)`
+      // Validation
+      if (form.items.length === 0) {
+        console.error('Kamida bitta mahsulot qoshish kerak');
+        return;
+      }
+
+      if (!form.customerId && !form.manualCustomerName) {
+        console.error('Mijoz tanlash yoki yangi mijoz qoshish kerak');
+        return;
+      }
+
+      // Prepare sale data
+      const saleData = {
+        customerId: form.customerId || null,
+        customerName: form.customerName || form.manualCustomerName,
+        customerPhone: form.manualCustomerPhone,
+        items: form.items.map(item => ({
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          pricePerBag: item.pricePerBag,
+          pricePerPiece: item.pricePerPiece,
+          unitsPerBag: item.unitsPerBag,
+          subtotal: item.subtotal,
+          warehouse: item.warehouse,
+          saleType: item.saleType
+        })),
+        paymentDetails: {
+          uzs: parseFloat(form.paidUZS || '0'),
+          usd: parseFloat(form.paidUSD || '0'),
+          click: parseFloat(form.paidCLICK || '0')
+        },
+        paymentType: form.paymentType,
+        currency: form.currency,
+        isKocha: form.isKocha,
+        total: totalAmount,
+        paid: paidAmount,
+        debt: debtAmount,
+        exchangeRate: parseFloat(exchangeRate),
+        createdAt: new Date(),
+        status: debtAmount > 0 ? 'partial' : 'completed'
+      };
+
+      // Save sale
+      const response = await api.post('/sales', saleData);
+
+      // Update customer if manual
+      if (form.manualCustomerName && form.manualCustomerPhone) {
+        await api.post('/customers', {
+          name: form.manualCustomerName,
+          phone: form.manualCustomerPhone,
+          createdAt: new Date()
         });
       }
-      
-      // USD
-      if (paymentDetails.usd > 0) {
-        transactions.push({
-          type: 'INCOME',
-          amount: paymentDetails.usd,
-          currency: 'USD',
-          paymentMethod: 'CASH',
-          description: `Sotuv #${saleData.id} - Qo'lda qo'shildi (USD)`
-        });
-      }
-      
-      // CLICK
-      if (paymentDetails.click > 0) {
-        transactions.push({
-          type: 'INCOME',
-          amount: paymentDetails.click,
-          currency: 'UZS',
-          paymentMethod: 'CLICK',
-          description: `Sotuv #${saleData.id} - Qo'lda qo'shildi (CLICK)`
-        });
-      }
-      
-      for (const transaction of transactions) {
-        await api.post('/cashbox', transaction);
-      }
-      
-      alert(latinToCyrillic('✅ Kassaga pul muvaffaqiyatli qo\'shildi!'));
-      return true;
-    } catch (error: any) {
-      console.error('Kassaga qo\'lda qo\'shishda xatolik:', error);
-      alert(latinToCyrillic(`❌ Kassaga qo\'shishda xatolik: ${error.response?.data?.error || error.message}`));
-      return false;
+
+      console.log('Sale saved successfully:', response.data);
+      navigate('/sales');
+
+    } catch (error) {
+      errorHandler.handleError(error, { action: 'saveSale' });
     }
   };
 
@@ -821,29 +712,29 @@ export default function AddSale() {
     <div className="modern-bg page-container">
       <div className="content-wrapper">
         {/* Header */}
-        <div className="glass-card p-6 mb-8 fade-in">
+        <div className="glass-card p-4 mb-4 fade-in">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => navigate('/cashier/sales')}
-                className="btn-gradient-primary px-5 py-3 flex items-center gap-3"
+                className="btn-gradient-primary px-4 py-2 flex items-center gap-2 text-sm"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-4 h-4" />
                 {latinToCyrillic("Orqaga")}
               </button>
               
               <div>
-                <h1 className="text-3xl font-bold text-primary mb-1">
+                <h1 className="text-2xl font-bold text-primary mb-0.5">
                   {isEditMode ? latinToCyrillic("Sotuvni Tahrirlash") : latinToCyrillic("Yangi Sotuv")}
                 </h1>
-                <p className="text-secondary font-medium">
+                <p className="text-secondary text-sm font-medium">
                   {form.items.length} {latinToCyrillic("ta mahsulot tanlandi")}
                 </p>
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <div className="toggle-modern">
                 <button
                   type="button"
@@ -865,26 +756,40 @@ export default function AddSale() {
         </div>
         
         {/* Main Content */}
-        <div className="glass-card p-8 slide-up">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="glass-card p-5 slide-up">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 
                 {/* Mahsulotlar ustuni */}
-                <div className="space-y-6">
-                  <div className="glass-card p-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30">
-                        <Package className="w-6 h-6 text-white" />
+                <div className="space-y-3">
+                  <div className="glass-card p-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+                        <Package className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <h2 className="text-xl font-bold text-primary">{latinToCyrillic("Mahsulotlar")}</h2>
-                        <p className="text-secondary">{getFilteredProducts().length} {latinToCyrillic("mahsulot")}</p>
+                        <h2 className="text-lg font-bold text-primary">{latinToCyrillic("Mahsulotlar")}</h2>
+                        <p className="text-sm text-secondary">{getFilteredProducts().length} {latinToCyrillic("mahsulot")}</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="space-y-3">
+                  <div className="space-y-2">
+                    <div className="space-y-2">
+                      {/* Mahsulot qidiruv inputi */}
+                      <div className="relative">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                          <Package className="w-5 h-5" />
+                        </div>
+                        <input
+                          type="text"
+                          placeholder={latinToCyrillic("Mahsulot qidirish...")}
+                          value={productSearch}
+                          onChange={(e) => setProductSearch(e.target.value)}
+                          className="input-modern w-full pl-12"
+                        />
+                      </div>
+
                       <div className="flex items-center gap-3">
                         <div className="w-2 h-6 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full"></div>
                         <label className="text-sm font-bold text-gray-700">{latinToCyrillic("Kategoriya")}</label>
@@ -913,7 +818,7 @@ export default function AddSale() {
                         ))}
                       </div>
 
-                      <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                      <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
                         {getFilteredProducts().length === 0 ? (
                           <div className="p-12 text-center bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl border-2 border-dashed border-gray-300">
                             <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -923,124 +828,472 @@ export default function AddSale() {
                           </div>
                         ) : (
                           (() => {
-                            // Mahsulotlarni turlari bo'yicha alohida guruhlash
-                            const preformProducts = getFilteredProducts().filter((p: any) => 
-                              p.warehouse === 'preform' || 
-                              (p.name.toLowerCase().includes('g') && !p.name.toLowerCase().includes('krishka') && !p.name.toLowerCase().includes('ruchka'))
+                            // Avval barcha preformlarni aniqlash (warehouse yoki nom bo'yicha)
+                            const allPreforms = getFilteredProducts().filter((p: any) => {
+                              const name = p.name?.toLowerCase() || '';
+                              const warehouse = p.warehouse?.toLowerCase() || '';
+                              return warehouse === 'preform' || 
+                                     name.includes('preform') || 
+                                     name.includes('преформ') ||
+                                     /\d+\s*(gr|g|гр|г)/.test(name); // raqam + gr/g/гр/г
+                            });
+                            
+                            // Preformlarni gram bo'yicha alohida guruhlash
+                            const preform15 = allPreforms.filter((p: any) => {
+                              const name = p.name?.toLowerCase() || '';
+                              return name.includes('15') || name.includes('15gr') || name.includes('15g') || name.includes('15 g') || name.includes('15гр') || name.includes('15г');
+                            });
+                            const preform21 = allPreforms.filter((p: any) => {
+                              const name = p.name?.toLowerCase() || '';
+                              return name.includes('21') || name.includes('21gr') || name.includes('21g') || name.includes('21 g') || name.includes('21гр') || name.includes('21г');
+                            });
+                            const preform28 = allPreforms.filter((p: any) => {
+                              const name = p.name?.toLowerCase() || '';
+                              return name.includes('28') || name.includes('28gr') || name.includes('28g') || name.includes('28 g') || name.includes('28гр') || name.includes('28г');
+                            });
+                            const preform32 = allPreforms.filter((p: any) => {
+                              const name = p.name?.toLowerCase() || '';
+                              return name.includes('32') || name.includes('32gr') || name.includes('32g') || name.includes('32 g') || name.includes('32гр') || name.includes('32г');
+                            });
+                            const preform38 = allPreforms.filter((p: any) => {
+                              const name = p.name?.toLowerCase() || '';
+                              return name.includes('38') || name.includes('38gr') || name.includes('38g') || name.includes('38 g') || name.includes('38гр') || name.includes('38г');
+                            });
+                            const preform43 = allPreforms.filter((p: any) => {
+                              const name = p.name?.toLowerCase() || '';
+                              return name.includes('43') || name.includes('43gr') || name.includes('43g') || name.includes('43 g') || name.includes('43гр') || name.includes('43г');
+                            });
+                            const preform48 = allPreforms.filter((p: any) => {
+                              const name = p.name?.toLowerCase() || '';
+                              return name.includes('48') || name.includes('48gr') || name.includes('48g') || name.includes('48 g') || name.includes('48гр') || name.includes('48г');
+                            });
+                            
+                            // Boshqa preformlar (grami aniq bo'lmagan preformlar)
+                            const preformBoshqa = allPreforms.filter((p: any) => 
+                              !preform15.includes(p) && !preform21.includes(p) && !preform28.includes(p) &&
+                              !preform32.includes(p) && !preform38.includes(p) && !preform43.includes(p) && !preform48.includes(p)
                             );
-                            const krishkaProducts = getFilteredProducts().filter((p: any) => 
-                              p.warehouse === 'krishka' || p.name.toLowerCase().includes('krishka') || p.name.toLowerCase().includes('cap')
-                            );
-                            const ruchkaProducts = getFilteredProducts().filter((p: any) => 
-                              p.warehouse === 'ruchka' || p.name.toLowerCase().includes('ruchka') || p.name.toLowerCase().includes('handle')
-                            );
+                            
+                            const krishkaProducts = getFilteredProducts().filter((p: any) => {
+                              const name = p.name?.toLowerCase() || '';
+                              const warehouse = p.warehouse?.toLowerCase() || '';
+                              return warehouse === 'krishka' || 
+                                     name.includes('krishka') || 
+                                     name.includes('qopqoq') || 
+                                     name.includes('cap') ||
+                                     name.includes('kryshka') ||
+                                     name.includes('крышка');
+                            });
+                            const ruchkaProducts = getFilteredProducts().filter((p: any) => {
+                              const name = p.name?.toLowerCase() || '';
+                              const warehouse = p.warehouse?.toLowerCase() || '';
+                              return warehouse === 'ruchka' || 
+                                     name.includes('ruchka') || 
+                                     name.includes('uchka') || 
+                                     name.includes('handle') ||
+                                     name.includes('ручка');
+                            });
                             const otherProducts = getFilteredProducts().filter((p: any) => 
-                              !preformProducts.includes(p) && !krishkaProducts.includes(p) && !ruchkaProducts.includes(p)
+                              !allPreforms.includes(p) &&
+                              !krishkaProducts.includes(p) && 
+                              !ruchkaProducts.includes(p)
                             );
 
-                            const renderProductSection = (title: string, productList: any[], bgColor: string, iconColor: string) => {
+                            const renderProductSection = (groupId: string, title: string, productList: any[], bgColor: string, iconColor: string) => {
                               if (productList.length === 0) return null;
+                              const isExpanded = expandedGroups.includes(groupId);
+                              const totalStock = productList.reduce((sum, p) => sum + (p.currentStock || 0), 0);
                               return (
-                                <div key={title} className={`border-2 border-gray-200 rounded-2xl overflow-hidden ${bgColor}`}>
-                                  {/* Section header */}
-                                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200">
+                                <div key={groupId} className="bg-white rounded-2xl overflow-hidden shadow-xl shadow-gray-300/30 border border-gray-100">
+                                  {/* Section header - clickable */}
+                                  <div
+                                    onClick={() => {
+                                      setExpandedGroups(prev => 
+                                        prev.includes(groupId) 
+                                          ? prev.filter(g => g !== groupId)
+                                          : [...prev, groupId]
+                                      );
+                                    }}
+                                    className={`flex items-center justify-between p-3 cursor-pointer transition-all duration-300 ${isExpanded ? `${iconColor} text-white shadow-lg` : 'bg-gradient-to-r from-white to-gray-50 hover:from-blue-50 hover:to-blue-100 border-b border-gray-100'}`}
+                                  >
                                     <div className="flex items-center gap-3">
-                                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconColor} text-white shadow-md`}>
+                                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isExpanded ? 'bg-white/25 backdrop-blur-sm shadow-lg' : iconColor + ' shadow-lg'} text-white transition-all duration-300`}>
                                         <Package className="w-5 h-5" />
                                       </div>
                                       <div>
-                                        <h4 className="font-bold text-gray-900 text-lg">{title}</h4>
-                                        <p className="text-xs text-gray-600">
-                                          {productList.length} {latinToCyrillic("ta mahsulot")}
+                                        <h4 className={`font-bold text-base ${isExpanded ? 'text-white drop-shadow-sm' : 'text-gray-900'}`}>{title}</h4>
+                                        <p className={`text-xs ${isExpanded ? 'text-white/90' : 'text-gray-500'} font-medium`}>
+                                          {productList.length} {latinToCyrillic("ta")} • {totalStock} {latinToCyrillic("qop")}
                                         </p>
                                       </div>
+                                    </div>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${isExpanded ? 'bg-white/25 backdrop-blur-sm rotate-90 shadow-lg' : 'bg-gray-100 shadow-md group-hover:bg-blue-100'}`}>
+                                      <ChevronRight className={`w-4 h-4 ${isExpanded ? 'text-white' : 'text-gray-600'}`} />
                                     </div>
                                   </div>
 
                                   {/* Mahsulotlar ro'yxati */}
-                                  <div className="p-3 space-y-2 max-h-48 overflow-y-auto">
-                                    {productList.map((product: any) => (
+                                  <div className={`transition-all duration-500 overflow-hidden ${isExpanded ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                                    <div className="p-3 grid grid-cols-2 gap-3 bg-gradient-to-b from-gray-100/50 via-white to-white">
+                                    {productList.map((product: any, idx: number) => (
                                       <div
                                         key={product.id}
                                         onClick={() => {
-                                          const displayPrice = form.currency === 'UZS'
-                                            ? (parseFloat(product.pricePerBag) || 0) * 12500
-                                            : parseFloat(product.pricePerBag) || 0;
+                                          // Maxsus narxlar funksiyasi
+                                          const getDefaultPricePerPiece = (productName: string) => {
+                                            const name = productName?.toLowerCase() || '';
+                                            const gramMatch = name.match(/(\d+)\s*(gr|g|гр|г)/);
+                                            const gramSize = gramMatch ? parseInt(gramMatch[1]) : null;
+                                            
+                                            // 75gr: 4000 dona, $0.14325
+                                            if (gramSize === 75) {
+                                              return 0.14325;
+                                            }
+                                            // 80gr: 4000 dona, $0.152
+                                            if (gramSize === 80) {
+                                              return 0.152;
+                                            }
+                                            // 85gr: 4000 dona, $0.172
+                                            if (gramSize === 85) {
+                                              return 0.172;
+                                            }
+                                            // 86gr: 4000 dona, $0.1745
+                                            if (gramSize === 86) {
+                                              return 0.1745;
+                                            }
+                                            // 135gr: 2500 dona, $0.258
+                                            if (gramSize === 135) {
+                                              return 0.258;
+                                            }
+                                            // 48 krishka - $0.012
+                                            if (name.includes('48') && (name.includes('krishka') || name.includes('qopqoq') || name.includes('cap'))) {
+                                              return 0.012;
+                                            }
+                                            // 48 ruchka - $0.016
+                                            if (name.includes('48') && (name.includes('ruchka') || name.includes('handle'))) {
+                                              return 0.016;
+                                            }
+                                            return null;
+                                          };
+                                          
+                                          // Maxsus dona soni funksiyasi
+                                          const getDefaultUnitsPerBag = (productName: string) => {
+                                            const name = productName?.toLowerCase() || '';
+                                            const gramMatch = name.match(/(\d+)\s*(gr|g|гр|г)/);
+                                            const gramSize = gramMatch ? parseInt(gramMatch[1]) : null;
+                                            
+                                            // 75, 80, 85, 86gr - 4000 dona
+                                            if ([75, 80, 85, 86].includes(gramSize || 0)) {
+                                              return 4000;
+                                            }
+                                            // 135gr - 2500 dona
+                                            if (gramSize === 135) {
+                                              return 2500;
+                                            }
+                                            // Krishka - 2000 dona/qop
+                                            if (name.includes('krishka') || name.includes('qopqoq') || name.includes('cap')) {
+                                              return 2000;
+                                            }
+                                            // Ruchka - 1000 dona/qop
+                                            if (name.includes('ruchka') || name.includes('handle')) {
+                                              return 1000;
+                                            }
+                                            return null;
+                                          };
+                                          
+                                          // Narxni aniqlash - mijoz narxi > maxsus narx > ombor narx
+                                          let basePrice: number;
+                                          const customerPrice = selectedCustomer && customerPrices[product.id];
+                                          
+                                          if (customerPrice) {
+                                            // Mijozning maxsus narxi
+                                            basePrice = parseFloat(customerPrice) || 0;
+                                          } else if (selectedCustomer?.pricePerBag) {
+                                            // Mijozning umumiy narxi
+                                            basePrice = parseFloat(selectedCustomer.pricePerBag) || 0;
+                                          } else {
+                                            // Mahsulotning asosiy narxi
+                                            basePrice = parseFloat(product.pricePerBag) || 0;
+                                          }
+                                          
+                                          // Maxsus narxni tekshirish (komplekt uchun)
+                                          const defaultPiecePrice = getDefaultPricePerPiece(product.name);
+                                          const defaultUnits = getDefaultUnitsPerBag(product.name);
+                                          const unitsPerBag = defaultUnits || product.unitsPerBag || 2000;
+                                          
+                                          let displayPrice: number;
+                                          let piecePrice: number;
+                                          
+                                          if (defaultPiecePrice && !customerPrice && !selectedCustomer?.pricePerBag) {
+                                            // Faqat maxsus narx bo'lsa va mijoz narxi bo'lmasa
+                                            piecePrice = defaultPiecePrice;
+                                            displayPrice = piecePrice * unitsPerBag;
+                                          } else {
+                                            // Mijoz narxi yoki ombor narxi
+                                            piecePrice = basePrice / unitsPerBag;
+                                            displayPrice = basePrice;
+                                          }
+                                          
+                                          if (form.currency === 'UZS' && displayPrice > 0) {
+                                            displayPrice = displayPrice * 12500;
+                                          }
+                                          
+                                          const priceStr = displayPrice > 0 ? displayPrice.toString() : '';
+                                          
+                                          // Preform ekanligini tekshirish
+                                          const isPreform = product.warehouse === 'preform' || 
+                                                           product.name?.toLowerCase().includes('preform') ||
+                                                           /\d+\s*(gr|g|гр|г)/i.test(product.name || '');
+                                          
                                           setNewItem({
                                             productId: product.id,
                                             productName: product.name,
                                             quantity: '1',
-                                            pricePerBag: displayPrice.toString(),
-                                            saleType: 'bag'
+                                            pricePerBag: priceStr,
+                                            priceDisplayValue: priceStr,
+                                            unitsPerBag: unitsPerBag.toString(),
+                                            saleType: isPreform ? 'komplekt' : 'bag'
                                           });
                                         }}
-                                        className={`p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+                                        className={`group p-3 rounded-xl cursor-pointer transition-all duration-300 border-2 relative overflow-hidden ${
                                           newItem.productId === product.id
-                                            ? 'bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-500 shadow-md'
-                                            : 'bg-white border-2 border-gray-200 hover:border-blue-400 hover:shadow-sm'
+                                            ? 'bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 border-blue-400 shadow-xl shadow-blue-500/30 scale-[1.02]'
+                                            : 'bg-gradient-to-br from-white to-gray-50 border-gray-200 hover:border-blue-400 hover:shadow-xl hover:shadow-blue-500/10 hover:-translate-y-1'
                                         }`}
                                       >
-                                        <div className="flex justify-between items-start">
-                                          <span className="font-bold text-sm truncate">{product.name}</span>
+                                        {/* Quick Add Button Overlay */}
+                                        <div className="absolute top-1 right-1 z-10">
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              // Avtomatik tanlash va qo'shish
+                                              // Mijozning maxsus narxini tekshirish
+                                              let basePrice: number;
+                                              const customerPrice = selectedCustomer && customerPrices[product.id];
+                                              
+                                              if (customerPrice) {
+                                                // Mijozning maxsus narxi
+                                                basePrice = parseFloat(customerPrice) || 0;
+                                              } else if (selectedCustomer?.pricePerBag) {
+                                                // Mijozning umumiy narxi
+                                                basePrice = parseFloat(selectedCustomer.pricePerBag) || 0;
+                                              } else {
+                                                // Mahsulotning asosiy narxi
+                                                basePrice = parseFloat(product.pricePerBag) || 0;
+                                              }
+                                              
+                                              const unitsPerBag = product.unitsPerBag || 2000;
+                                              let displayPrice = basePrice;
+                                              if (form.currency === 'UZS' && displayPrice > 0) {
+                                                displayPrice = displayPrice * 12500;
+                                              }
+                                              
+                                              const isPreform = product.warehouse === 'preform' || 
+                                                               product.name?.toLowerCase().includes('preform') ||
+                                                               /\d+\s*(gr|g|гр|г)/i.test(product.name || '');
+                                              
+                                              // Auto add with quantity 1
+                                              setNewItem({
+                                                productId: product.id,
+                                                productName: product.name,
+                                                quantity: '1',
+                                                pricePerBag: displayPrice.toString(),
+                                                priceDisplayValue: displayPrice.toString(),
+                                                unitsPerBag: unitsPerBag.toString(),
+                                                saleType: isPreform ? 'komplekt' : 'bag'
+                                              });
+                                              
+                                              // Auto add to cart after small delay
+                                              setTimeout(() => {
+                                                addProduct();
+                                              }, 100);
+                                            }}
+                                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
+                                              newItem.productId === product.id 
+                                                ? 'bg-white/30 text-white hover:bg-white/50' 
+                                                : 'bg-blue-100 text-blue-600 hover:bg-blue-500 hover:text-white'
+                                            }`}
+                                          >
+                                            <Plus className="w-4 h-4" />
+                                          </button>
                                         </div>
 
-                                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200">
-                                          <span className="text-xs text-gray-500 font-medium">
-                                            {getCurrencySymbol()}{getDisplayAmount(parseFloat(product.pricePerBag) || 0)}
+                                        <div className="pr-10">
+                                          <span className={`font-bold text-sm line-clamp-2 leading-snug ${newItem.productId === product.id ? 'text-white drop-shadow-sm' : 'text-gray-800'}`}>
+                                            {product.name}
                                           </span>
-                                          <span className="text-xs text-gray-700">
+                                          <div className="flex items-center gap-2 mt-2">
+                                            {product.bagType && (
+                                              <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-bold rounded-md shadow-sm ${newItem.productId === product.id ? 'bg-white/25 text-white backdrop-blur-sm' : 'bg-blue-100 text-blue-700 border border-blue-200'}`}>
+                                                {product.bagType}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                        
+                                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200/40">
+                                          <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${
+                                            newItem.productId === product.id 
+                                              ? 'bg-white/20 text-white backdrop-blur-sm' 
+                                              : 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 border border-green-200'
+                                          }`}>
+                                            <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
                                             {product.currentStock || 0} {latinToCyrillic("qop")}
+                                          </div>
+                                          <span className={`text-sm font-bold ${newItem.productId === product.id ? 'text-white drop-shadow-sm' : 'text-blue-600'}`}>
+                                            {getCurrencySymbol()}{getDisplayAmount(parseFloat(product.pricePerBag) || 0)}
                                           </span>
                                         </div>
                                       </div>
                                     ))}
+                                    </div>
                                   </div>
                                 </div>
                               );
                             };
 
                             return (
-                              <>
-                                {renderProductSection(latinToCyrillic('Preformlar'), preformProducts, 'bg-blue-50/50', 'bg-blue-500')}
-                                {renderProductSection(latinToCyrillic('Qopqoqlar (Krishka)'), krishkaProducts, 'bg-green-50/50', 'bg-green-500')}
-                                {renderProductSection(latinToCyrillic('Ruchkalar'), ruchkaProducts, 'bg-purple-50/50', 'bg-purple-500')}
-                                {otherProducts.length > 0 && renderProductSection(latinToCyrillic('Boshqa mahsulotlar'), otherProducts, 'bg-gray-50/50', 'bg-gray-500')}
-                              </>
+                              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 pb-4 bg-gradient-to-b from-gray-50/30 to-transparent rounded-2xl">
+                                {/* Preformlar bo'limi sarlavhasi */}
+                                {preform15.length > 0 && (
+                                  <div className="flex items-center gap-1.5 mb-1.5">
+                                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">15 GRAM</span>
+                                    <div className="flex-1 h-px bg-gradient-to-r from-blue-200 to-transparent"></div>
+                                  </div>
+                                )}
+                                {renderProductSection('15gr', latinToCyrillic('15 gr Preformlar'), preform15, 'bg-blue-50/50', 'bg-gradient-to-br from-blue-500 to-blue-600')}
+                                
+                                {preform21.length > 0 && (
+                                  <div className="flex items-center gap-1.5 mb-1.5 mt-3">
+                                    <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full">21 GRAM</span>
+                                    <div className="flex-1 h-px bg-gradient-to-r from-indigo-200 to-transparent"></div>
+                                  </div>
+                                )}
+                                {renderProductSection('21gr', latinToCyrillic('21 gr Preformlar'), preform21, 'bg-indigo-50/50', 'bg-gradient-to-br from-indigo-500 to-indigo-600')}
+                                
+                                {preform28.length > 0 && (
+                                  <div className="flex items-center gap-1.5 mb-1.5 mt-3">
+                                    <span className="px-2 py-0.5 bg-sky-100 text-sky-700 text-xs font-bold rounded-full">28 GRAM</span>
+                                    <div className="flex-1 h-px bg-gradient-to-r from-sky-200 to-transparent"></div>
+                                  </div>
+                                )}
+                                {renderProductSection('28gr', latinToCyrillic('28 gr Preformlar'), preform28, 'bg-sky-50/50', 'bg-gradient-to-br from-sky-500 to-sky-600')}
+                                
+                                {preform32.length > 0 && (
+                                  <div className="flex items-center gap-1.5 mb-1.5 mt-3">
+                                    <span className="px-2 py-0.5 bg-cyan-100 text-cyan-700 text-xs font-bold rounded-full">32 GRAM</span>
+                                    <div className="flex-1 h-px bg-gradient-to-r from-cyan-200 to-transparent"></div>
+                                  </div>
+                                )}
+                                {renderProductSection('32gr', latinToCyrillic('32 gr Preformlar'), preform32, 'bg-cyan-50/50', 'bg-gradient-to-br from-cyan-500 to-cyan-600')}
+                                
+                                {preform38.length > 0 && (
+                                  <div className="flex items-center gap-1.5 mb-1.5 mt-3">
+                                    <span className="px-2 py-0.5 bg-teal-100 text-teal-700 text-xs font-bold rounded-full">38 GRAM</span>
+                                    <div className="flex-1 h-px bg-gradient-to-r from-teal-200 to-transparent"></div>
+                                  </div>
+                                )}
+                                {renderProductSection('38gr', latinToCyrillic('38 gr Preformlar'), preform38, 'bg-teal-50/50', 'bg-gradient-to-br from-teal-500 to-teal-600')}
+                                
+                                {preform43.length > 0 && (
+                                  <div className="flex items-center gap-1.5 mb-1.5 mt-3">
+                                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">43 GRAM</span>
+                                    <div className="flex-1 h-px bg-gradient-to-r from-emerald-200 to-transparent"></div>
+                                  </div>
+                                )}
+                                {renderProductSection('43gr', latinToCyrillic('43 gr Preformlar'), preform43, 'bg-emerald-50/50', 'bg-gradient-to-br from-emerald-500 to-emerald-600')}
+                                
+                                {preform48.length > 0 && (
+                                  <div className="flex items-center gap-1.5 mb-1.5 mt-3">
+                                    <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded-full">48 GRAM</span>
+                                    <div className="flex-1 h-px bg-gradient-to-r from-green-200 to-transparent"></div>
+                                  </div>
+                                )}
+                                {renderProductSection('48gr', latinToCyrillic('48 gr Preformlar'), preform48, 'bg-green-50/50', 'bg-gradient-to-br from-green-500 to-green-600')}
+                                
+                                {preformBoshqa.length > 0 && (
+                                  <div className="flex items-center gap-1.5 mb-1.5 mt-3">
+                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-xs font-bold rounded-full">BOSHQA</span>
+                                    <div className="flex-1 h-px bg-gradient-to-r from-slate-200 to-transparent"></div>
+                                  </div>
+                                )}
+                                {renderProductSection('boshqa-preform', latinToCyrillic('Boshqa Preformlar'), preformBoshqa, 'bg-slate-50/50', 'bg-gradient-to-br from-slate-500 to-slate-600')}
+                                
+                                {krishkaProducts.length > 0 && (
+                                  <div className="flex items-center gap-1.5 mb-1.5 mt-3">
+                                    <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-bold rounded-full">KRISHKA</span>
+                                    <div className="flex-1 h-px bg-gradient-to-r from-purple-200 to-transparent"></div>
+                                  </div>
+                                )}
+                                {renderProductSection('krishka', latinToCyrillic('Krishka'), krishkaProducts, 'bg-purple-50/50', 'bg-gradient-to-br from-purple-500 to-purple-600')}
+                                
+                                {ruchkaProducts.length > 0 && (
+                                  <div className="flex items-center gap-1.5 mb-1.5 mt-3">
+                                    <span className="px-2 py-0.5 bg-pink-100 text-pink-700 text-xs font-bold rounded-full">RUCHKA</span>
+                                    <div className="flex-1 h-px bg-gradient-to-r from-pink-200 to-transparent"></div>
+                                  </div>
+                                )}
+                                {renderProductSection('ruchka', latinToCyrillic('Ruchka'), ruchkaProducts, 'bg-pink-50/50', 'bg-gradient-to-br from-pink-500 to-pink-600')}
+                                
+                                {otherProducts.length > 0 && (
+                                  <div className="flex items-center gap-1.5 mb-1.5 mt-3">
+                                    <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs font-bold rounded-full">BOSHQA</span>
+                                    <div className="flex-1 h-px bg-gradient-to-r from-gray-200 to-transparent"></div>
+                                  </div>
+                                )}
+                                {otherProducts.length > 0 && renderProductSection('other', latinToCyrillic('Boshqa'), otherProducts, 'bg-gray-50/50', 'bg-gradient-to-br from-gray-500 to-gray-600')}
+                              </div>
                             );
                           })()
                         )}
                       </div>
                       
                       {newItem.productName && (
-                        <div className="p-4 bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-300 rounded-2xl shadow-md">
-                          <div className="text-sm font-bold text-blue-700 mb-2">{latinToCyrillic("Tanlangan mahsulot")}</div>
-                          <div className="font-bold text-gray-800 truncate text-lg">{newItem.productName}</div>
-                          <div className="text-sm font-bold text-blue-600 mt-1">
-                            {getCurrencySymbol()}{newItem.pricePerBag} / {latinToCyrillic("qop")}
+                        <div className="p-2.5 bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-300 rounded-xl shadow-md">
+                          <div className="text-xs font-bold text-blue-700 mb-1">{latinToCyrillic("Tanlangan")}</div>
+                          <div className="font-bold text-gray-800 truncate text-sm">{newItem.productName}</div>
+                          <div className="flex items-center gap-2 mt-1">
+                            {(() => {
+                              const selectedProduct = products.find((p: any) => p.id === newItem.productId);
+                              return selectedProduct?.bagType ? (
+                                <span className="px-1.5 py-0.5 bg-blue-200 text-blue-800 text-[10px] font-bold rounded">
+                                  {selectedProduct.bagType}
+                                </span>
+                              ) : null;
+                            })()}
+                            <span className="text-xs font-bold text-blue-600">
+                              {getCurrencySymbol()}{newItem.pricePerBag}
+                            </span>
                           </div>
                         </div>
                       )}
                     </div>
                     
-                    {/* Qop/Dona tugmalari */}
-                    <div className="flex gap-2 mb-4">
+                    {/* Qop/Dona tugmalari - narxni avtomatik hisoblaydi */}
+                    <div className="flex gap-2 mb-3">
                       <button
                         type="button"
                         onClick={() => {
-                          const selectedProduct = products.find((p: any) => p.id === newItem.productId);
-                          if (selectedProduct) {
-                            const currentPricePerBag = parseFloat(newItem.pricePerBag) || 0;
-                            
-                            setNewItem(prev => ({ 
-                              ...prev, 
-                              saleType: 'bag',
-                              pricePerBag: currentPricePerBag.toString()
-                            }));
+                          const currentPrice = parseFloat(newItem.pricePerBag || '0') || 0;
+                          const upb = parseFloat(newItem.unitsPerBag || '2000') || 2000;
+                          
+                          // Agar hozir dona bo'lsa, qopga o'tishda narxni ko'paytirish
+                          let newPrice = currentPrice;
+                          if (newItem.saleType === 'piece' && currentPrice > 0) {
+                            newPrice = currentPrice * upb;
                           }
+                          
+                          setNewItem(prev => ({ 
+                            ...prev, 
+                            saleType: 'bag',
+                            pricePerBag: newPrice > 0 ? newPrice.toString() : prev.pricePerBag,
+                            priceDisplayValue: newPrice > 0 ? newPrice.toString() : prev.priceDisplayValue
+                          }));
                         }}
-                        className={`flex-1 py-3 px-4 rounded-xl font-bold text-base transition-all ${
-                          newItem.saleType === 'bag' 
-                            ? 'bg-blue-500 text-white shadow-md' 
+                        className={`flex-1 py-2 px-3 rounded-lg font-bold text-sm transition-all ${
+                          newItem.saleType !== 'piece'
+                            ? 'bg-blue-500 text-white shadow-md'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         }`}
                       >
@@ -1049,22 +1302,25 @@ export default function AddSale() {
                       <button
                         type="button"
                         onClick={() => {
-                          const selectedProduct = products.find((p: any) => p.id === newItem.productId);
-                          if (selectedProduct) {
-                            const unitsPerBag = selectedProduct.unitsPerBag || 2000;
-                            const currentPricePerBag = parseFloat(newItem.pricePerBag) || 0;
-                            const pricePerPiece = currentPricePerBag / unitsPerBag;
-                            
-                            setNewItem(prev => ({ 
-                              ...prev, 
-                              saleType: 'piece',
-                              pricePerBag: pricePerPiece.toString()
-                            }));
+                          const currentPrice = parseFloat(newItem.pricePerBag || '0') || 0;
+                          const upb = parseFloat(newItem.unitsPerBag || '2000') || 2000;
+                          
+                          // Agar hozir qop bo'lsa, donaga o'tishda narxni bo'lish
+                          let newPrice = currentPrice;
+                          if (newItem.saleType !== 'piece' && currentPrice > 0) {
+                            newPrice = currentPrice / upb;
                           }
+                          
+                          setNewItem(prev => ({ 
+                            ...prev, 
+                            saleType: 'piece',
+                            pricePerBag: newPrice > 0 ? newPrice.toString() : prev.pricePerBag,
+                            priceDisplayValue: newPrice > 0 ? newPrice.toString() : prev.priceDisplayValue
+                          }));
                         }}
-                        className={`flex-1 py-3 px-4 rounded-xl font-bold text-base transition-all ${
-                          newItem.saleType === 'piece' 
-                            ? 'bg-green-500 text-white shadow-md' 
+                        className={`flex-1 py-2 px-3 rounded-lg font-bold text-sm transition-all ${
+                          newItem.saleType === 'piece'
+                            ? 'bg-green-500 text-white shadow-md'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         }`}
                       >
@@ -1072,111 +1328,112 @@ export default function AddSale() {
                       </button>
                     </div>
                     
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-4 gap-3">
                       <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">
+                        <label className="block text-xs font-bold text-gray-700 mb-1">
                           {latinToCyrillic("Qop")}
                         </label>
                         <input
                           type="text"
                           placeholder="0"
-                          value={(() => {
-                            const selectedProduct = products.find((p: any) => p.id === newItem.productId);
-                            const unitsPerBag = selectedProduct?.unitsPerBag || 2000;
-                            return newItem.saleType === 'piece' ? (parseFloat(newItem.quantity || '0') / unitsPerBag).toFixed(3) : newItem.quantity;
-                          })()}
+                          value={newItem.quantity || ''}
                           onChange={(e) => {
                             const val = e.target.value.replace(/[^0-9.]/g, '');
-                            const bagQuantity = parseFloat(val) || 0;
-                            const selectedProduct = products.find((p: any) => p.id === newItem.productId);
-                            const unitsPerBag = selectedProduct?.unitsPerBag || 2000;
-                            
-                            if (newItem.saleType === 'piece') {
-                              const pieceQuantity = bagQuantity * unitsPerBag;
-                              setNewItem(prev => ({ ...prev, quantity: pieceQuantity.toString() }));
-                            } else {
-                              // Qop holatida faqat qop sonini o'zgartirish
-                              setNewItem(prev => ({ ...prev, quantity: val }));
-                            }
+                            setNewItem(prev => ({ ...prev, quantity: val }));
                           }}
-                          className="w-full h-12 px-4 text-base font-bold rounded-2xl border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white shadow-sm"
+                          className="w-full h-10 px-3 text-sm font-bold rounded-xl border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white shadow-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">
-                          {latinToCyrillic("Dona")}
+                        <label className="block text-xs font-bold text-gray-700 mb-1">
+                          {latinToCyrillic("1 qopda")}
                         </label>
                         <input
                           type="text"
-                          value={(() => {
-                            const selectedProduct = products.find((p: any) => p.id === newItem.productId);
-                            const unitsPerBag = selectedProduct?.unitsPerBag || 2000;
-                            return newItem.saleType === 'piece' ? (newItem.quantity || '0').toString() : (parseFloat(newItem.quantity || '0') * unitsPerBag).toString();
-                          })()}
+                          value={(newItem.unitsPerBag || '2000').toString()}
                           onChange={(e) => {
                             const val = e.target.value.replace(/[^0-9.]/g, '');
-                            const pieceQuantity = parseFloat(val) || 0;
-                            const selectedProduct = products.find((p: any) => p.id === newItem.productId);
-                            const unitsPerBag = selectedProduct?.unitsPerBag || 2000;
-                            
-                            if (newItem.saleType === 'piece') {
-                              // Dona holatida faqat dona sonini o'zgartirish
-                              setNewItem(prev => ({ ...prev, quantity: val }));
-                            } else {
-                              // Qop holatida donani qopga aylantirish
-                              const bagQuantity = pieceQuantity / unitsPerBag;
-                              setNewItem(prev => ({ ...prev, quantity: bagQuantity.toString() }));
-                            }
+                            setNewItem(prev => ({ ...prev, unitsPerBag: val || '2000' }));
                           }}
-                          className="w-full h-12 px-4 text-base font-bold rounded-2xl border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white shadow-sm"
+                          className="w-full h-10 px-3 text-sm font-bold rounded-xl border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white shadow-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">
+                        <label className="block text-xs font-bold text-gray-700 mb-1">
                           {latinToCyrillic("Jami (dona)")}
                         </label>
-                        <input
-                          type="text"
-                          placeholder="0"
-                          value={(() => {
+                        <div className="w-full h-10 px-3 flex items-center bg-gray-50 rounded-xl border-2 border-gray-300 text-sm font-bold text-gray-700">
+                          {(() => {
                             if (!newItem.productId) return '0';
                             const selectedProduct = products.find((p: any) => p.id === newItem.productId);
-                            const unitsPerBag = selectedProduct?.unitsPerBag || 2000;
-                            const quantity = parseFloat(newItem.quantity || '0');
-                            return newItem.saleType === 'piece' ? quantity.toString() : (quantity * unitsPerBag).toString();
+                            const unitsPerBag = parseFloat(newItem.unitsPerBag || '0') || selectedProduct?.unitsPerBag || 2000;
+                            const bagQuantity = parseFloat(newItem.quantity || '0') || 0;
+                            return (bagQuantity * unitsPerBag).toLocaleString();
                           })()}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/[^0-9.]/g, '');
-                            const totalPieces = parseFloat(val) || 0;
-                            const selectedProduct = products.find((p: any) => p.id === newItem.productId);
-                            const unitsPerBag = selectedProduct?.unitsPerBag || 2000;
-                            
-                            if (newItem.saleType === 'piece') {
-                              // Dona holatida to'g'ridan-to'g'ri dona sonini o'zgartirish
-                              setNewItem(prev => ({ ...prev, quantity: val }));
-                            } else {
-                              // Qop holatida jami donani qopga aylantirish
-                              const bagQuantity = totalPieces / unitsPerBag;
-                              setNewItem(prev => ({ ...prev, quantity: bagQuantity.toString() }));
-                            }
-                          }}
-                          className="w-full h-12 px-4 text-base font-bold rounded-2xl border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white shadow-sm"
-                        />
+                        </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">
-                          {latinToCyrillic("Narx")} ({getCurrencySymbol()}/{newItem.saleType === 'piece' ? latinToCyrillic("dona") : latinToCyrillic("qop")})
+                        <label className="block text-xs font-bold text-gray-700 mb-1">
+                          {newItem.saleType === 'piece'
+                            ? `${latinToCyrillic("Narx")} (${getCurrencySymbol()}/${latinToCyrillic("dona")})`
+                            : `${latinToCyrillic("Narx")} (${getCurrencySymbol()}/${latinToCyrillic("qop")})`}
                         </label>
                         <input
                           type="text"
                           placeholder={form.currency === 'UZS' ? "1000" : "0.10"}
-                          value={newItem.pricePerBag}
+                          value={newItem.priceDisplayValue || newItem.pricePerBag || ''}
                           onChange={(e) => {
                             const val = e.target.value.replace(/[^0-9.]/g, '');
-                            setNewItem(prev => ({ ...prev, pricePerBag: val }));
+                            const selectedProduct = products.find((p: any) => p.id === newItem.productId);
+                            const unitsPerBag = parseFloat(newItem.unitsPerBag || '0') || selectedProduct?.unitsPerBag || 2000;
+                            
+                            if (newItem.saleType === 'piece') {
+                              // Dona narxi kiritildi - qop narxini hisoblash
+                              const pricePerPiece = parseFloat(val) || 0;
+                              const pricePerBag = pricePerPiece * unitsPerBag;
+                              setNewItem(prev => ({
+                                ...prev,
+                                pricePerBag: pricePerBag.toString(),
+                                priceDisplayValue: val
+                              }));
+                            } else {
+                              // Qop narxi kiritildi
+                              setNewItem(prev => ({
+                                ...prev,
+                                pricePerBag: val,
+                                priceDisplayValue: val
+                              }));
+                            }
                           }}
-                          className="w-full h-12 px-4 text-base font-bold rounded-2xl border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white shadow-sm"
+                          className="w-full h-10 px-3 text-sm font-bold rounded-xl border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white shadow-sm"
                         />
+                      </div>
+                    </div>
+
+                    {/* Real vaqt jami narx */}
+                    <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-2.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-blue-700">{latinToCyrillic("Jami")}:</span>
+                        <span className="text-lg font-bold text-blue-800">
+                          {(() => {
+                            const bagQuantity = parseFloat(newItem.quantity || '0') || 0;
+                            const selectedProduct = products.find((p: any) => p.id === newItem.productId);
+                            const unitsPerBag = parseFloat(newItem.unitsPerBag || '0') || selectedProduct?.unitsPerBag || 2000;
+                            const pricePerBag = parseFloat(newItem.pricePerBag || '0') || 0;
+                            
+                            if (newItem.saleType === 'piece') {
+                              // Dona rejimi: dona narxi * umumiy donalar
+                              const totalPieces = bagQuantity * unitsPerBag;
+                              const pricePerPiece = pricePerBag / unitsPerBag;
+                              const subtotal = totalPieces * pricePerPiece;
+                              return getCurrencySymbol() + subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            } else {
+                              // Qop rejimi: qop narxi * qop soni
+                              const subtotal = bagQuantity * pricePerBag;
+                              return getCurrencySymbol() + subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            }
+                          })()}
+                        </span>
                       </div>
                     </div>
 
@@ -1184,21 +1441,21 @@ export default function AddSale() {
                       type="button"
                       onClick={addProduct}
                       disabled={!newItem.productId || !newItem.quantity}
-                      className={`w-full h-14 rounded-2xl font-bold text-lg transition-all duration-200 transform hover:scale-105 flex items-center justify-center gap-3 ${
+                      className={`w-full h-11 rounded-xl font-bold text-base transition-all duration-200 transform hover:scale-105 flex items-center justify-center gap-2 ${
                         !newItem.productId || !newItem.quantity
                           ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                           : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl'
                       }`}
                     >
-                      <Plus className="w-6 h-6" />
+                      <Plus className="w-5 h-5" />
                       {latinToCyrillic("Qo'shish")}
                     </button>
                   </div>
                 </div>
 
                 {/* Savat ustuni */}
-                <div className="space-y-6">
-                  <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-2xl p-6 shadow-lg">
+                <div className="space-y-3">
+                  <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-2xl p-4 shadow-lg">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center">
                         <ShoppingCart className="w-6 h-6 text-white" />
@@ -1229,8 +1486,68 @@ export default function AddSale() {
                             <div key={index} className={`bg-gray-50 p-3 rounded-lg border ${editingItemIndex === index ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
                               <div className="flex justify-between items-start mb-2">
                                 <div className="flex-1">
-                                  <h4 className="font-medium text-gray-900 text-sm">{item.productName}</h4>
-                                  <p className="text-xs text-gray-500">{item.unitsPerBag || 2000} dona/qop</p>
+                                  {/* Mahsulotni o'zgartirish uchun select */}
+                                  <select
+                                    value={item.productId}
+                                    onChange={(e) => {
+                                      const newProductId = e.target.value;
+                                      const newProduct = products.find((p: any) => p.id === newProductId);
+                                      if (newProduct) {
+                                        const unitsPerBag = newProduct.unitsPerBag || 2000;
+                                        const quantity = parseFloat(item.quantity) || 0;
+                                        
+                                        // Maxsus narxlar funksiyasi
+                                        const getPiecePrice = (productName: string) => {
+                                          const name = productName?.toLowerCase() || '';
+                                          if (name.includes('48') && (name.includes('krishka') || name.includes('qopqoq'))) return 0.012;
+                                          if (name.includes('48') && name.includes('ruchka')) return 0.016;
+                                          if (name.includes('28') && name.includes('ruchka')) return 0.007;
+                                          if (name.includes('28') && name.includes('krishka')) {
+                                            if (name.includes('dkm')) return 0.0012;
+                                            return 0.007;
+                                          }
+                                          if (name.includes('38') && name.includes('krishka')) return 0.012;
+                                          return null;
+                                        };
+                                        
+                                        const piecePrice = getPiecePrice(newProduct.name);
+                                        const pricePerBag = piecePrice ? piecePrice * unitsPerBag : (parseFloat(newProduct.pricePerBag) || 0);
+                                        const pricePerPiece = piecePrice || (pricePerBag / unitsPerBag);
+                                        
+                                        const subtotal = item.saleType === 'piece' 
+                                          ? quantity * unitsPerBag * pricePerPiece 
+                                          : quantity * pricePerBag;
+                                        
+                                        updateItem(index, {
+                                          productId: newProductId,
+                                          productName: newProduct.name,
+                                          unitsPerBag: unitsPerBag,
+                                          pricePerBag: pricePerBag,
+                                          pricePerPiece: pricePerPiece,
+                                          priceDisplayValue: pricePerBag.toString(),
+                                          bagDisplayValue: item.bagDisplayValue || item.quantity,
+                                          subtotal: subtotal,
+                                          warehouse: newProduct.warehouse || 'other'
+                                        });
+                                      }
+                                    }}
+                                    className="w-full text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded px-2 py-1 focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
+                                  >
+                                    {products.map((p: any) => (
+                                      <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                  </select>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    {(() => {
+                                      const cartProduct = products.find((p: any) => p.id === item.productId);
+                                      return cartProduct?.bagType ? (
+                                        <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded">
+                                          {cartProduct.bagType}
+                                        </span>
+                                      ) : null;
+                                    })()}
+                                    <span className="text-xs text-gray-500">{item.unitsPerBag || 2000} dona/qop</span>
+                                  </div>
                                 </div>
                                 <div className="flex gap-1">
                                   <button
@@ -1245,40 +1562,29 @@ export default function AddSale() {
                               </div>
                               
                               <div className="space-y-2">
-                                  {/* Qop/Dona tugmalari */}
-                                  <div className="flex gap-2 mb-3">
+                                  {/* Qop/Dona tugmalari - narxni avtomatik hisoblaydi */}
+                                  <div className="flex gap-2 mb-2">
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        const unitsPerBag = parseFloat(item.unitsPerBag) || 2000;
-                                        const currentPricePerBag = parseFloat(item.pricePerBag) || 0;
-                                        const quantity = parseFloat(item.quantity) || 0;
+                                        const currentPrice = parseFloat(item.pricePerBag || '0') || 0;
+                                        const upb = parseFloat(item.unitsPerBag || '2000') || 2000;
                                         
-                                        // If switching from piece to bag, convert price back to bag price
-                                        const bagPrice = item.saleType === 'piece' ? currentPricePerBag * unitsPerBag : currentPricePerBag;
-                                        const subtotal = quantity * bagPrice;
-                                        const pricePerPiece = bagPrice / unitsPerBag;
-                                        
-                                        // Convert quantities to bag format
-                                        const pieceQuantity = parseFloat(item.quantity || '0');
-                                        const bagQuantity = pieceQuantity / unitsPerBag;
+                                        // Agar hozir dona bo'lsa, qopga o'tishda narxni ko'paytirish
+                                        let newPrice = currentPrice;
+                                        if (item.saleType === 'piece' && currentPrice > 0) {
+                                          newPrice = currentPrice * upb;
+                                        }
                                         
                                         updateItem(index, { 
-                                          saleType: 'bag', 
-                                          pricePerBag: bagPrice,
-                                          pricePerPiece: pricePerPiece,
-                                          subtotal: subtotal,
-                                          quantity: bagQuantity.toString(), // Qop formatiga o'tkazish
-                                          bagDisplayValue: bagQuantity.toString(), // Qop qiymatini saqlash
-                                          pieceDisplayValue: pieceQuantity.toString(), // Dona qiymatini saqlash
-                                          totalDisplayValue: pieceQuantity.toString(), // Jami donani saqlash
-                                          priceDisplayValue: bagPrice.toFixed(2) // Narxni saqlash
+                                          saleType: 'bag',
+                                          pricePerBag: newPrice > 0 ? newPrice.toString() : item.pricePerBag,
+                                          priceDisplayValue: newPrice > 0 ? newPrice.toString() : item.priceDisplayValue
                                         });
-                                        console.log('Switched to bag:', { bagPrice, pricePerPiece, subtotal });
                                       }}
-                                      className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                                        item.saleType === 'bag' 
-                                          ? 'bg-blue-500 text-white shadow-md' 
+                                      className={`flex-1 py-1 px-2 rounded text-sm font-medium transition-all ${
+                                        item.saleType !== 'piece'
+                                          ? 'bg-blue-500 text-white' 
                                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                       }`}
                                     >
@@ -1287,35 +1593,24 @@ export default function AddSale() {
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        const unitsPerBag = parseFloat(item.unitsPerBag) || 2000;
-                                        const currentPricePerBag = parseFloat(item.pricePerBag) || 0;
-                                        const quantity = parseFloat(item.quantity) || 0;
+                                        const currentPrice = parseFloat(item.pricePerBag || '0') || 0;
+                                        const upb = parseFloat(item.unitsPerBag || '2000') || 2000;
                                         
-                                        // If switching from bag to piece, convert price to piece price
-                                        const bagPrice = item.saleType === 'piece' ? currentPricePerBag * unitsPerBag : currentPricePerBag;
-                                        const pricePerPiece = bagPrice / unitsPerBag;
-                                        const subtotal = quantity * pricePerPiece;
-                                        
-                                        // Convert quantities to piece format
-                                        const bagQuantity = parseFloat(item.quantity || '0');
-                                        const pieceQuantity = bagQuantity * unitsPerBag;
+                                        // Agar hozir qop bo'lsa, donaga o'tishda narxni bo'lish
+                                        let newPrice = currentPrice;
+                                        if (item.saleType !== 'piece' && currentPrice > 0) {
+                                          newPrice = currentPrice / upb;
+                                        }
                                         
                                         updateItem(index, { 
-                                          saleType: 'piece', 
-                                          pricePerBag: pricePerPiece,
-                                          pricePerPiece: pricePerPiece,
-                                          subtotal: subtotal,
-                                          quantity: pieceQuantity.toString(), // Dona formatiga o'tkazish
-                                          bagDisplayValue: bagQuantity.toString(), // Qop qiymatini saqlash
-                                          pieceDisplayValue: pieceQuantity.toString(), // Dona qiymatini saqlash
-                                          totalDisplayValue: pieceQuantity.toString(), // Jami donani saqlash
-                                          priceDisplayValue: pricePerPiece.toFixed(4) // Narxni saqlash
+                                          saleType: 'piece',
+                                          pricePerBag: newPrice > 0 ? newPrice.toString() : item.pricePerBag,
+                                          priceDisplayValue: newPrice > 0 ? newPrice.toString() : item.priceDisplayValue
                                         });
-                                        console.log('Switched to piece:', { bagPrice, pricePerPiece, subtotal });
                                       }}
-                                      className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                                      className={`flex-1 py-1 px-2 rounded text-sm font-medium transition-all ${
                                         item.saleType === 'piece' 
-                                          ? 'bg-green-500 text-white shadow-md' 
+                                          ? 'bg-green-500 text-white' 
                                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                       }`}
                                     >
@@ -1328,166 +1623,129 @@ export default function AddSale() {
                                       <label className="text-xs text-gray-500 block mb-1">{latinToCyrillic("Qop")}</label>
                                       <input
                                         type="text"
-                                        value={item.quantity || ''}
+                                        value={item.bagDisplayValue || item.quantity || ''}
                                         onChange={(e) => {
                                           const val = e.target.value.replace(/[^0-9.]/g, '');
+                                          if (val === '') {
+                                            updateItem(index, {
+                                              quantity: '',
+                                              bagDisplayValue: '',
+                                              subtotal: 0
+                                            });
+                                            return;
+                                          }
                                           const bagQuantity = parseFloat(val) || 0;
-                                          let pricePerBag = parseFloat(item.pricePerBag) || 0;
-                                          let subtotal = 0;
-                                          let updateData: any = {};
+                                          const unitsPerBag = parseFloat(item.unitsPerBag) || 2000;
+                                          const pricePerBag = parseFloat(item.pricePerBag) || 0;
+                                          const pricePerPiece = parseFloat(item.pricePerPiece) || (pricePerBag / unitsPerBag);
+                                          const totalPieces = bagQuantity * unitsPerBag;
                                           
+                                          // Dona rejimida narxni qayta hisoblash
+                                          let subtotal;
                                           if (item.saleType === 'piece') {
-                                            const unitsPerBag = parseFloat(item.unitsPerBag) || 2000;
-                                            const pieceQuantity = bagQuantity * unitsPerBag;
-                                            const pricePerPiece = parseFloat(item.pricePerPiece) || (pricePerBag / unitsPerBag);
-                                            subtotal = pieceQuantity * pricePerPiece;
-                                            updateData = {
-                                              quantity: val,
-                                              subtotal: subtotal,
-                                              bagDisplayValue: val, // Qop input qiymatini saqlash
-                                              totalDisplayValue: (bagQuantity * unitsPerBag).toString() // 'Jami (dona)' ni avtomatik hisoblash
-                                            };
-                                            console.log('Bag quantity change (piece mode):', { bagQuantity, pieceQuantity, pricePerPiece, subtotal });
+                                            // Dona narxi * umumiy donalar
+                                            subtotal = totalPieces * pricePerPiece;
                                           } else {
-                                            const unitsPerBag = parseFloat(item.unitsPerBag) || 2000;
-                                            const pieceQuantity = bagQuantity * unitsPerBag;
-                                            const pricePerPiece = pricePerBag / unitsPerBag;
+                                            // Qop narxi * qop soni
                                             subtotal = bagQuantity * pricePerBag;
-                                            updateData = {
-                                              quantity: val,
-                                              subtotal: subtotal,
-                                              bagDisplayValue: val, // Qop input qiymatini saqlash
-                                              totalDisplayValue: (bagQuantity * unitsPerBag).toString() // 'Jami (dona)' ni avtomatik hisoblash
-                                            };
-                                            console.log('Bag quantity change (bag mode):', { bagQuantity, pieceQuantity, pricePerBag, pricePerPiece, subtotal });
                                           }
                                           
-                                          updateItem(index, updateData);
+                                          updateItem(index, {
+                                            quantity: val,
+                                            bagDisplayValue: val,
+                                            totalDisplayValue: totalPieces.toString(),
+                                            subtotal: subtotal
+                                          });
                                         }}
                                         className="w-full h-8 px-2 text-sm font-medium border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
                                       />
                                     </div>
                                     <div>
-                                      <label className="text-xs text-gray-500 block mb-1">{latinToCyrillic("Bir qopdagi dona")}</label>
+                                      <label className="text-xs text-gray-500 block mb-1">{latinToCyrillic("1 qopda")}</label>
                                       <input
                                         type="text"
-                                        value={item.unitsPerBag?.toString() || '2000'}
+                                        value={item.unitsPerBag ?? '2000'}
                                         onChange={(e) => {
                                           const val = e.target.value.replace(/[^0-9.]/g, '');
-                                          const newPiecesPerBag = parseFloat(val) || 2000;
-                                          let updateData: any = {};
+                                          if (val === '') {
+                                            updateItem(index, { unitsPerBag: '' });
+                                            return;
+                                          }
+                                          const newUnitsPerBag = parseFloat(val) || 0;
+                                          const bagQuantity = parseFloat(item.bagDisplayValue || item.quantity || '0') || 0;
+                                          const pricePerBag = parseFloat(item.pricePerBag) || 0;
+                                          const pricePerPiece = parseFloat(item.pricePerPiece) || (pricePerBag / newUnitsPerBag);
+                                          const totalPieces = bagQuantity * newUnitsPerBag;
                                           
+                                          // Dona rejimida narxni qayta hisoblash
+                                          let subtotal;
                                           if (item.saleType === 'piece') {
-                                            // Piece mode: Update pieces per bag and recalculate
-                                            const currentTotalPieces = parseFloat(item.totalDisplayValue || '0') || 0;
-                                            const newBagQuantity = currentTotalPieces / newPiecesPerBag;
-                                            const pricePerPiece = parseFloat(item.pricePerPiece) || 0;
-                                            const subtotal = currentTotalPieces * pricePerPiece;
-                                            
-                                            updateData = {
-                                              unitsPerBag: newPiecesPerBag,
-                                              quantity: newBagQuantity.toString(),
-                                              subtotal: subtotal,
-                                              pieceDisplayValue: newPiecesPerBag.toString(), // Bir qopdagi dona qiymatini saqlash
-                                              bagDisplayValue: newBagQuantity.toString(), // Qop sonini yangilash
-                                              totalDisplayValue: currentTotalPieces.toString() // Jami donani o'zgartirmaslik
-                                            };
-                                            console.log('Piece mode - pieces per bag change:', { newPiecesPerBag, currentTotalPieces, newBagQuantity, subtotal });
+                                            // Dona narxi * umumiy donalar
+                                            subtotal = totalPieces * pricePerPiece;
                                           } else {
-                                            // Bag mode: Update pieces per bag and recalculate total pieces
-                                            const currentBags = parseFloat(item.quantity || '0') || 0;
-                                            const newTotalPieces = currentBags * newPiecesPerBag;
-                                            const pricePerBag = parseFloat(item.pricePerBag) || 0;
-                                            const subtotal = currentBags * pricePerBag;
-                                            const pricePerPiece = pricePerBag / newPiecesPerBag;
-                                            
-                                            updateData = {
-                                              unitsPerBag: newPiecesPerBag,
-                                              pricePerPiece: pricePerPiece,
-                                              subtotal: subtotal,
-                                              pieceDisplayValue: newPiecesPerBag.toString(), // Bir qopdagi dona qiymatini saqlash
-                                              bagDisplayValue: currentBags.toString(), // Qop sonini o'zgartirmaslik
-                                              totalDisplayValue: newTotalPieces.toString() // Jami donani yangilash
-                                            };
-                                            console.log('Bag mode - pieces per bag change:', { newPiecesPerBag, currentBags, newTotalPieces, pricePerBag, pricePerPiece, subtotal });
+                                            // Qop narxi * qop soni
+                                            subtotal = bagQuantity * pricePerBag;
                                           }
                                           
-                                          updateItem(index, updateData);
+                                          updateItem(index, {
+                                            unitsPerBag: newUnitsPerBag,
+                                            totalDisplayValue: totalPieces.toString(),
+                                            subtotal: subtotal
+                                          });
                                         }}
                                         className="w-full h-8 px-2 text-sm font-medium border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
                                       />
                                     </div>
                                     <div>
-                                      <label className="text-xs text-gray-500 block mb-1">{latinToCyrillic("Jami (dona)")}</label>
-                                      <input
-                                        type="text"
-                                        value={item.totalDisplayValue || ''}
-                                        onChange={(e) => {
-                                          const val = e.target.value.replace(/[^0-9.]/g, '');
-                                          const totalPieces = parseFloat(val) || 0;
-                                          let updateData: any = {};
-                                          
-                                          if (item.saleType === 'piece') {
-                                            const pricePerPiece = parseFloat(item.pricePerPiece) || 0;
-                                            const subtotal = totalPieces * pricePerPiece;
-                                            const unitsPerBag = parseFloat(item.unitsPerBag) || 2000;
-                                            const bagQuantity = totalPieces / unitsPerBag;
-                                            updateData = {
-                                              quantity: val,
-                                              subtotal: subtotal,
-                                              totalDisplayValue: val, // 'Jami (dona)' input qiymatini saqlash
-                                              bagDisplayValue: bagQuantity.toString() // Qop sonini yangilash
-                                            };
-                                            console.log('Total pieces change (piece mode):', { totalPieces, pricePerPiece, subtotal, bagQuantity });
-                                          } else {
-                                            const unitsPerBag = parseFloat(item.unitsPerBag) || 2000;
-                                            const bagQuantity = totalPieces / unitsPerBag;
-                                            const pricePerBag = parseFloat(item.pricePerBag) || 0;
-                                            const subtotal = bagQuantity * pricePerBag;
-                                            const pricePerPiece = pricePerBag / unitsPerBag;
-                                            updateData = {
-                                              quantity: bagQuantity.toString(),
-                                              subtotal: subtotal,
-                                              totalDisplayValue: val, // 'Jami (dona)' input qiymatini saqlash
-                                              bagDisplayValue: bagQuantity.toString() // Qop sonini yangilash
-                                            };
-                                            console.log('Total pieces change (bag mode):', { totalPieces, bagQuantity, pricePerBag, pricePerPiece, subtotal });
-                                          }
-                                          
-                                          updateItem(index, updateData);
-                                        }}
-                                        className="w-full h-8 px-2 text-sm font-medium border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-                                      />
+                                      <label className="text-xs text-gray-500 block mb-1">{latinToCyrillic("Jami dona")}</label>
+                                      <div className="w-full h-8 px-2 flex items-center bg-gray-50 border border-gray-300 rounded text-sm">
+                                        {(() => {
+                                          const bags = parseFloat(item.bagDisplayValue || item.quantity || '0') || 0;
+                                          const unitsPerBag = parseFloat(item.unitsPerBag || '2000') || 2000;
+                                          return (bags * unitsPerBag).toLocaleString();
+                                        })()}
+                                      </div>
                                     </div>
                                     <div>
-                                      <label className="text-xs text-gray-500 block mb-1">{latinToCyrillic("Narx")}</label>
+                                      <label className="text-xs text-gray-500 block mb-1">
+                                        {item.saleType === 'piece' ? latinToCyrillic("Narx ($/dona)") : latinToCyrillic("Narx ($/qop)")}
+                                      </label>
                                       <input
                                         type="text"
-                                        value={item.pricePerBag?.toString() || ''}
+                                        value={item.saleType === 'piece' 
+                                          ? (item.priceDisplayValue || item.pricePerPiece || '') 
+                                          : (item.priceDisplayValue || item.pricePerBag || '')}
                                         onChange={(e) => {
                                           const val = e.target.value.replace(/[^0-9.]/g, '');
+                                          if (val === '') {
+                                            updateItem(index, {
+                                              pricePerBag: '',
+                                              pricePerPiece: '',
+                                              priceDisplayValue: '',
+                                              subtotal: 0
+                                            });
+                                            return;
+                                          }
                                           const newPrice = parseFloat(val) || 0;
-                                          const quantity = parseFloat(item.quantity) || 0;
-                                          let subtotal = 0;
-                                          let updateData: any = {};
+                                          const bagQuantity = parseFloat(item.bagDisplayValue || item.quantity || '0') || 0;
+                                          const unitsPerBag = parseFloat(item.unitsPerBag || '2000') || 2000;
+                                          
+                                          let updateData: any = { priceDisplayValue: val };
                                           
                                           if (item.saleType === 'piece') {
-                                            const unitsPerBag = parseFloat(item.unitsPerBag) || 2000;
+                                            // Dona narxi o'zgardi
                                             updateData.pricePerPiece = newPrice;
                                             updateData.pricePerBag = newPrice * unitsPerBag;
-                                            updateData.priceDisplayValue = val; // Narx input qiymatini saqlash
-                                            subtotal = quantity * newPrice;
-                                            console.log('Piece price update:', { newPrice, unitsPerBag, pricePerBag: newPrice * unitsPerBag, subtotal });
+                                            // Jami narx = dona narx * umumiy donalar
+                                            const totalPieces = bagQuantity * unitsPerBag;
+                                            updateData.subtotal = totalPieces * newPrice;
                                           } else {
+                                            // Qop narxi o'zgardi
                                             updateData.pricePerBag = newPrice;
-                                            const unitsPerBag = parseFloat(item.unitsPerBag) || 2000;
                                             updateData.pricePerPiece = newPrice / unitsPerBag;
-                                            updateData.priceDisplayValue = val; // Narx input qiymatini saqlash
-                                            subtotal = quantity * newPrice;
-                                            console.log('Bag price update:', { newPrice, unitsPerBag, pricePerPiece: newPrice / unitsPerBag, subtotal });
+                                            updateData.subtotal = bagQuantity * newPrice;
                                           }
                                           
-                                          updateData.subtotal = subtotal;
                                           updateItem(index, updateData);
                                         }}
                                         className="w-full h-8 px-2 text-sm font-medium border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
@@ -1580,51 +1838,91 @@ export default function AddSale() {
                       </label>
                     </div>
                     
+                    {/* Mijoz qidiruv inputi */}
                     <div className="relative">
                       <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                         <User className="w-5 h-5" />
                       </div>
-                      <select 
-                        value={form.isKocha ? 'kocha' : form.customerId}
-                        onChange={(e) => {
-                          const selectedValue = e.target.value;
-                          
-                          if (selectedValue === 'kocha') {
-                            // Ko'chaga tanlandi
-                            console.log('✅ Ko\'chaga tanlandi');
+                      <input
+                        type="text"
+                        placeholder={latinToCyrillic("Mijoz qidirish...")}
+                        value={customerSearch}
+                        onChange={(e) => setCustomerSearch(e.target.value)}
+                        className="input-modern w-full pl-12"
+                      />
+                    </div>
+                    
+                    {/* Filterlangan mijozlar ro'yxati */}
+                    <div className="mt-3 max-h-[200px] overflow-y-auto space-y-2">
+                      {customers
+                        .filter(c => {
+                          if (!customerSearch) return true;
+                          const search = customerSearch.toLowerCase();
+                          return (c.name?.toLowerCase().includes(search) || 
+                                  c.phone?.includes(search));
+                        })
+                        .map((customer: any) => (
+                        <button
+                          key={customer.id}
+                          type="button"
+                          onClick={() => {
                             setForm(prev => ({ 
                               ...prev, 
-                              customerId: '',
-                              customerName: '',
-                              isKocha: true,
-                              manualCustomerName: '',
-                              manualCustomerPhone: ''
-                            }));
-                          } else {
-                            // Oddiy mijoz tanlandi
-                            const customer = customers.find(c => c.id === selectedValue);
-                            console.log('✅ Mijoz tanlandi:', customer?.name, 'ID:', selectedValue);
-                            setForm(prev => ({ 
-                              ...prev, 
-                              customerId: selectedValue, 
-                              customerName: customer?.name || '',
+                              customerId: customer.id, 
+                              customerName: customer.name,
                               isKocha: false,
                               manualCustomerName: '',
                               manualCustomerPhone: ''
                             }));
-                          }
-                        }}
-                        className="input-modern w-full pl-12"
-                      >
-                        <option value="">{latinToCyrillic("Mijozni tanlang")}</option>
-                        {customers.map((customer: any) => (
-                          <option key={customer.id} value={customer.id}>
-                            {customer.name} - {customer.phone || 'Noma\'lum'}
-                          </option>
-                        ))}
-                        <option value="kocha">{latinToCyrillic("Ko'chaga (qo'l mijoz)")}</option>
-                      </select>
+                            setCustomerSearch('');
+                          }}
+                          className={`w-full p-3 rounded-xl border-2 text-left transition-all ${
+                            form.customerId === customer.id
+                              ? 'border-blue-500 bg-blue-50 shadow-md'
+                              : 'border-gray-200 hover:border-blue-300 bg-white'
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="font-bold text-gray-900 text-sm">{customer.name}</p>
+                              <p className="text-xs text-gray-500">{customer.phone || '—'}</p>
+                            </div>
+                            {customer.debtUSD > 0 && (
+                              <span className="px-2 py-1 bg-red-100 text-red-600 rounded-lg text-xs font-bold">
+                                ${customer.debtUSD.toFixed(0)}
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      ))}
                     </div>
+                    
+                    {/* Ko'chaga tanlash tugmasi */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForm(prev => ({ 
+                          ...prev, 
+                          customerId: '',
+                          customerName: '',
+                          isKocha: true,
+                          manualCustomerName: '',
+                          manualCustomerPhone: ''
+                        }));
+                      }}
+                      className={`w-full mt-3 p-3 rounded-xl border-2 text-left transition-all ${
+                        form.isKocha
+                          ? 'border-orange-500 bg-orange-50 shadow-md'
+                          : 'border-gray-200 hover:border-orange-300 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${form.isKocha ? 'bg-orange-500' : 'bg-gray-400'} text-white`}>
+                          <User className="w-4 h-4" />
+                        </div>
+                        <span className="font-bold text-gray-900">{latinToCyrillic("Ko'chaga (qo'l mijoz)")}</span>
+                      </div>
+                    </button>
                     
                     {form.isKocha && (
                       <div className="space-y-3 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
@@ -1725,7 +2023,7 @@ export default function AddSale() {
                         <div className="bg-blue-600 text-white p-4 rounded-xl">
                           <div className="flex justify-between items-center">
                             <span className="font-medium">{latinToCyrillic("JAMI")}:</span>
-                            <span className="text-2xl font-bold">{getCurrencySymbol()}{getDisplayAmount(totalAmount)}</span>
+                            <span className="text-2xl font-bold">{getCurrencySymbol()}{getDisplayAmount(form.items.reduce((sum, item) => sum + (item.subtotal || 0), 0))}</span>
                           </div>
                         </div>
                       </div>
@@ -1776,7 +2074,7 @@ export default function AddSale() {
                                 manualCustomerName: '', 
                                 manualCustomerPhone: '' 
                               }); 
-                              setNewItem({ productId: '', productName: '', quantity: '', pricePerBag: '', saleType: 'bag' }); 
+                              setNewItem({ productId: '', productName: '', quantity: '', pricePerBag: '', priceDisplayValue: '', unitsPerBag: '2000', saleType: 'bag' }); 
                             }} 
                             className="btn-gradient-secondary h-14 text-base flex items-center justify-center gap-2"
                           >

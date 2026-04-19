@@ -248,7 +248,7 @@ router.post('/', authorize('ADMIN', 'WAREHOUSE_MANAGER'), async (req: AuthReques
   }
 });
 
-router.put('/:id', authorize('ADMIN', 'WAREHOUSE_MANAGER'), async (req: AuthRequest, res) => {
+router.put('/:id', authorize('ADMIN', 'WAREHOUSE_MANAGER', 'MANAGER'), async (req: AuthRequest, res) => {
   try {
     const oldProduct = await prisma.product.findUnique({
       where: { id: req.params.id },

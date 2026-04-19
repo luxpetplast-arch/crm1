@@ -11,9 +11,12 @@ import {
   ArrowLeft,
   BarChart3,
   TrendingUp,
-  DollarSign
+  DollarSign,
+  X,
+  Save,
+  Loader2
 } from 'lucide-react';
-import api from '../lib/professionalApi';
+import api from '../lib/api';
 import { latinToCyrillic } from '../lib/transliterator';
 import ModernLayout from '../components/ModernLayout';
 
@@ -35,60 +38,36 @@ export default function ProductsModern() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [categories, setCategories] = useState<string[]>([]);
+  
+  // Narx belgilash modal state
+  const [showPriceModal, setShowPriceModal] = useState(false);
+  const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
+  const [savingPrices, setSavingPrices] = useState(false);
+  const [exchangeRate, setExchangeRate] = useState(12500);
 
   useEffect(() => {
     const loadProducts = async () => {
       try {
         setLoading(true);
         
-        // Mock data for now
-        const mockProducts: Product[] = [
-          {
-            id: '1',
-            name: '15gr Preform 1.5kg',
-            category: 'Preformalar',
-            price: 12500,
-            stock: 500,
-            unit: 'dona'
-          },
-          {
-            id: '2',
-            name: 'Qop 5kg',
-            category: 'Qoplamlar',
-            price: 8500,
-            stock: 1200,
-            unit: 'dona'
-          },
-          {
-            id: '3',
-            name: 'Etiketka A4',
-            category: 'Etiketkalar',
-            price: 250,
-            stock: 5000,
-            unit: 'dona'
-          },
-          {
-            id: '4',
-            name: '18gr Preform 2kg',
-            category: 'Preformalar',
-            price: 15500,
-            stock: 300,
-            unit: 'dona'
-          },
-          {
-            id: '5',
-            name: 'Qop 10kg',
-            category: 'Qoplamlar',
-            price: 15000,
-            stock: 800,
-            unit: 'dona'
-          }
-        ];
+        // API dan haqiqiy mahsulotlarni yuklash
+        const response = await api.get('/products');
         
-        setProducts(mockProducts);
+        // API javobini Product interfeysiga moslashtirish
+        const apiProducts: Product[] = response.data.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          category: p.bagType || p.category || 'Umumiy',
+          price: p.pricePerBag || p.price || 0,
+          stock: p.currentStock || p.stock || 0,
+          unit: 'dona',
+          description: p.warehouse || ''
+        }));
+        
+        setProducts(apiProducts);
         
         // Extract unique categories
-        const uniqueCategories = Array.from(new Set(mockProducts.map(p => p.category)));
+        const uniqueCategories = Array.from(new Set(apiProducts.map(p => p.category)));
         setCategories(['all', ...uniqueCategories]);
         
       } catch (error) {
@@ -162,14 +141,33 @@ export default function ProductsModern() {
             </div>
           </div>
           
-          {/* Add Product Button */}
-          <button
-            onClick={() => navigate('/add-product')}
-            className="btn-gradient-primary px-6 py-3 flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            {latinToCyrillic("Янги Маҳсулот")}
-          </button>
+          <div className="flex gap-2">
+            {/* Narx belgilash tugmasi */}
+            <button
+              onClick={() => {
+                // Barcha mahsulotlar narxini inputlarga yuklash
+                const initialPrices: Record<string, string> = {};
+                products.forEach(p => {
+                  initialPrices[p.id] = p.price > 0 ? p.price.toString() : '';
+                });
+                setPriceInputs(initialPrices);
+                setShowPriceModal(true);
+              }}
+              className="btn-gradient-secondary px-6 py-3 flex items-center gap-2"
+            >
+              <DollarSign className="w-5 h-5" />
+              {latinToCyrillic("Нарх белгилаш")}
+            </button>
+            
+            {/* Add Product Button */}
+            <button
+              onClick={() => navigate('/add-product')}
+              className="btn-gradient-primary px-6 py-3 flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              {latinToCyrillic("Янги Маҳсулот")}
+            </button>
+          </div>
         </div>
 
         {/* Loading State */}
@@ -219,7 +217,7 @@ export default function ProductsModern() {
                     className="btn-gradient-secondary flex-1 p-2 flex items-center justify-center gap-1"
                   >
                     <Eye className="w-4 h-4" />
-                    <span className="text-sm">{latinToCyrillic("Кўриш")}</span>
+                    <span className="text-sm">{latinToCyrillic("Батафсил")}</span>
                   </button>
                   <button
                     onClick={() => navigate(`/products/${product.id}/edit`)}
@@ -252,6 +250,186 @@ export default function ProductsModern() {
               <p className="text-secondary">
                 {latinToCyrillic("Қидириш шартларини ўзгартириб қайта уриниб кўринг")}
               </p>
+            </div>
+          </div>
+        )}
+
+        {/* Narx belgilash Modal */}
+        {showPriceModal && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {latinToCyrillic("Барча маҳсулотлар нархини белгилаш")}
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {latinToCyrillic("Excel жадвали каби нархларни киритинг")} • 1 USD = {exchangeRate.toLocaleString()} UZS
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowPriceModal(false)}
+                  className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                </button>
+              </div>
+              
+              {/* Modal Body - Excel jadvali */}
+              <div className="flex-1 overflow-auto p-6">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-b-2 border-gray-200">
+                          №
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-b-2 border-gray-200">
+                          {latinToCyrillic("Маҳсулот номи")}
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-b-2 border-gray-200">
+                          {latinToCyrillic("Тури")}
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider border-b-2 border-gray-200">
+                          {latinToCyrillic("Омбор")}
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider border-b-2 border-gray-200 w-48">
+                          {latinToCyrillic("Нарх (UZS)")}
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider border-b-2 border-gray-200 w-40">
+                          {latinToCyrillic("Нарх (USD)")}
+                      </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {products.map((product, index) => (
+                        <tr key={product.id} className="hover:bg-blue-50/50 transition-colors">
+                          <td className="px-4 py-3 text-sm text-gray-600 font-medium">
+                            {index + 1}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-gray-900 dark:text-white">
+                              {product.name}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700">
+                              {product.category}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {product.stock} {product.unit}
+                          </td>
+                          {/* UZS Input */}
+                          <td className="px-4 py-3 bg-emerald-50/50">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={priceInputs[product.id] || ''}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/[^0-9.]/g, '').replace(/\.(?=.*\.)/g, '');
+                                setPriceInputs(prev => ({ ...prev, [product.id]: val }));
+                              }}
+                              placeholder="0"
+                              className="w-full px-3 py-2.5 text-right font-bold text-emerald-700 bg-white border-2 border-emerald-400 rounded-lg focus:border-emerald-600 focus:ring-2 focus:ring-emerald-300 outline-none transition-all shadow-sm"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={priceInputs[product.id] 
+                                ? (parseFloat(priceInputs[product.id]) / exchangeRate).toFixed(2).replace(/\.00$/, '')
+                                : ''}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/[^0-9.]/g, '').replace(/\.(?=.*\.)/g, '');
+                                if (val === '' || val === '.') {
+                                  setPriceInputs(prev => ({ ...prev, [product.id]: '' }));
+                                } else {
+                                  const usdVal = parseFloat(val);
+                                  const uzsVal = usdVal * exchangeRate;
+                                  setPriceInputs(prev => ({ ...prev, [product.id]: uzsVal.toString() }));
+                                }
+                              }}
+                              placeholder="0.00"
+                              className="w-full px-3 py-2 text-right font-bold text-blue-600 bg-white dark:bg-gray-800 border-2 border-blue-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              
+              {/* Modal Footer */}
+              <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                <div className="text-sm text-gray-500">
+                  {products.length} {latinToCyrillic("та маҳсулот")}
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowPriceModal(false)}
+                    className="px-6 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-semibold hover:bg-gray-100 transition-colors"
+                  >
+                    {latinToCyrillic("Бекор қилиш")}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setSavingPrices(true);
+                      try {
+                        // Har bir mahsulot uchun alohida saqlash
+                        const updates = Object.entries(priceInputs).filter(([id, price]) => price !== '');
+                        
+                        for (const [productId, priceStr] of updates) {
+                          const price = parseFloat(priceStr);
+                          if (!isNaN(price) && price >= 0) {
+                            await api.put(`/products/${productId}`, {
+                              pricePerBag: price
+                            });
+                          }
+                        }
+                        
+                        // Mahsulotlarni qayta yuklash
+                        const response = await api.get('/products');
+                        const apiProducts: Product[] = response.data.map((p: any) => ({
+                          id: p.id,
+                          name: p.name,
+                          category: p.bagType || p.category || 'Umumiy',
+                          price: p.pricePerBag || p.price || 0,
+                          stock: p.currentStock || p.stock || 0,
+                          unit: 'dona',
+                          description: p.warehouse || ''
+                        }));
+                        setProducts(apiProducts);
+                        
+                        alert(`✅ ${updates.length} ${latinToCyrillic("та маҳсулот нархи сақланди!")}`);
+                        setShowPriceModal(false);
+                      } catch (error) {
+                        console.error('Narx saqlashda xatolik:', error);
+                        alert('❌ ' + latinToCyrillic("Нарxlarni сақлашда хатолик юз берди!"));
+                      } finally {
+                        setSavingPrices(false);
+                      }
+                    }}
+                    disabled={savingPrices}
+                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {savingPrices ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        {latinToCyrillic("Сақланмоқда...")}
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-5 h-5" />
+                        {latinToCyrillic("Сақлаш")}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

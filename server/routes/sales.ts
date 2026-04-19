@@ -388,40 +388,60 @@ router.post('/', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthReques
         const { product, item } = validation;
         const quantity = parseFloat(item.quantity);
         
-      // Dona savdo uchun ombor kamaytirish
-      const isPieceSale = item.saleType === 'piece';
-      let bagsToDeduct = quantity;
-      let unitsToDeduct = quantity * product.unitsPerBag;
-      
-      if (isPieceSale) {
-        // Dona savdo: quantity allaqachon dona, qopga aylantirish
-        bagsToDeduct = quantity / product.unitsPerBag;
-        unitsToDeduct = quantity;
-      }
-      
-      const newStock = product.currentStock - bagsToDeduct;
-      const newUnits = product.currentUnits - unitsToDeduct;
-      
-      await prisma.product.update({
-        where: { id: product.id },
-        data: {
-          currentStock: newStock,
-          currentUnits: newUnits
-        }
-      });
-
-      console.log(`✅ ${product.name} stock yangilandi: ${product.currentStock} → ${newStock}`);
-
-      // 5. STOCK MOVEMENT ЯРАТИШ
-      try {
+        // Frontenddan kelgan unitsPerBag ishlatish (to'g'ri qiymat uchun)
+        const unitsPerBag = parseFloat(item.unitsPerBag) || product.unitsPerBag || 2000;
+        
+        console.log(`🔧 OMBOR KAMAYTIRISH:`, {
+          product: product.name,
+          quantity,
+          unitsPerBag,
+          saleType: item.saleType,
+          productUnitsPerBag: product.unitsPerBag,
+          itemUnitsPerBag: item.unitsPerBag
+        });
+        
+        // Dona savdo uchun ombor kamaytirish
         const isPieceSale = item.saleType === 'piece';
-        let bagsChange = -quantity;
-        let unitsChange = -quantity * product.unitsPerBag;
+        let bagsToDeduct = quantity;
+        let unitsToDeduct = quantity * unitsPerBag;
         
         if (isPieceSale) {
-          bagsChange = -(quantity / product.unitsPerBag);
-          unitsChange = -quantity;
+          // Dona savdo: quantity allaqachon dona, qopga aylantirish
+          bagsToDeduct = quantity / unitsPerBag;
+          unitsToDeduct = quantity;
         }
+        
+        const newStock = product.currentStock - bagsToDeduct;
+        const newUnits = product.currentUnits - unitsToDeduct;
+        
+        console.log(`📊 ${product.name} hisoblash:`, {
+          currentStock: product.currentStock,
+          bagsToDeduct,
+          newStock,
+          currentUnits: product.currentUnits,
+          unitsToDeduct,
+          newUnits
+        });
+        
+        await prisma.product.update({
+          where: { id: product.id },
+          data: {
+            currentStock: newStock,
+            currentUnits: newUnits
+          }
+        });
+
+        console.log(`✅ ${product.name} stock yangilandi: ${product.currentStock} → ${newStock}`);
+
+        // 5. STOCK MOVEMENT ЯРАТИШ
+        try {
+          let bagsChange = -quantity;
+          let unitsChange = -quantity * unitsPerBag;
+          
+          if (isPieceSale) {
+            bagsChange = -(quantity / unitsPerBag);
+            unitsChange = -quantity;
+          }
         
         await prisma.stockMovement.create({
           data: {

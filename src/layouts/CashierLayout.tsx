@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Package, ShoppingCart, Calculator, LogOut, User, Users, ClipboardList, Plus } from 'lucide-react';
+import { Package, ShoppingCart, Calculator, LogOut, User, Users, ClipboardList, Plus, Layers } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { cn } from '../lib/utils';
@@ -26,6 +26,7 @@ const CashierLayout = ({ children }: { children: React.ReactNode }) => {
   const navItems = [
     { path: '/cashier/sales', icon: ShoppingCart, label: 'Sotuv', color: 'bg-emerald-500' },
     { path: '/cashier/inventory', icon: Package, label: 'Ombor', color: 'bg-blue-500' },
+    { path: '/cashier/komplekt', icon: Layers, label: 'Komplekt', color: 'bg-teal-500' },
     { path: '/cashier/customers', icon: Users, label: 'Mijozlar', color: 'bg-purple-500' },
     { path: '/cashier/cashbox', icon: Calculator, label: 'Kassa', color: 'bg-orange-500' },
     { path: '/cashier/orders', icon: ClipboardList, label: 'Buyurtma', color: 'bg-indigo-500' },
@@ -39,6 +40,7 @@ const CashierLayout = ({ children }: { children: React.ReactNode }) => {
         isScrolled ? "bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl shadow-xl border-b border-slate-200 dark:border-slate-800" : "bg-gradient-to-b from-white to-white/80 dark:from-gray-900 dark:to-gray-900/80"
       )}>
         <div className="max-w-7xl mx-auto flex justify-between items-center h-16 px-4">
+          {/* Chap tomon - Logo va kompaniya nomi */}
           <div className="flex items-center gap-3">
             <div 
               className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/30 border-2 border-white/60 overflow-hidden bg-white"
@@ -50,9 +52,21 @@ const CashierLayout = ({ children }: { children: React.ReactNode }) => {
               }}
               title="LUX PET PLAST"
             ></div>
-            <div className="hidden sm:flex flex-col items-end mr-3">
+            <div className="flex flex-col">
+              <h1 className="text-lg sm:text-xl font-black tracking-tighter leading-tight">
+                <span className="text-emerald-600">LUX PET PLAST</span>
+              </h1>
+              <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 font-medium leading-tight">
+                BUXORO VILOYATI VOBKENT TUMANI
+              </p>
+            </div>
+          </div>
+          
+          {/* O'ng tomon - Kassir ma'lumotlari */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="hidden sm:flex flex-col items-end">
               <span className="text-sm font-bold">{user?.name}</span>
-              <span className="text-xs text-emerald-600">Kassir</span>
+              <span className="text-xs text-emerald-600 font-medium">Kassir</span>
             </div>
             <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center border-2 border-white dark:border-slate-700 shadow-md">
               <User className="w-5 h-5 text-slate-600 dark:text-slate-400" />
@@ -63,11 +77,6 @@ const CashierLayout = ({ children }: { children: React.ReactNode }) => {
             >
               <LogOut className="w-5 h-5" />
             </button>
-          </div>
-          
-          <div className="flex flex-col items-end">
-            <h1 className="text-xl font-black tracking-tighter leading-tight">LUX <span className="text-emerald-600">PET PLAST</span></h1>
-            <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">Buxoro, Vobkent</p>
           </div>
         </div>
       </header>

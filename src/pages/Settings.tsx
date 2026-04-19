@@ -156,8 +156,10 @@ export default function Settings() {
     try {
       await api.put('/settings', settings);
       alert(latinToCyrillic('Sozlamalar muvaffaqiyatli saqlandi!'));
-    } catch (error) {
-      alert(latinToCyrillic('Sozlamalarni saqlashda xatolik yuz berdi'));
+    } catch (error: any) {
+      console.error('Save settings error:', error);
+      const errorMessage = error.response?.data?.details || error.response?.data?.error || error.message;
+      alert(latinToCyrillic(`Sozlamalarni saqlashda xatolik: ${errorMessage}`));
     } finally {
       setLoading(false);
     }

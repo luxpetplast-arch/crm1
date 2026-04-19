@@ -200,16 +200,16 @@ async function addCapsAndHandlesComplete() {
       { name: 'Qopqoq 48 Bekajon (Brend)', type: capsType.id, category: standardCategory.id, stock: 2000, price: 1500 },
       { name: 'Qopqoq 48 Sayhun (Brend)', type: capsType.id, category: standardCategory.id, stock: 2000, price: 1500 },
       
-      // Handles (1500 dona)
-      { name: 'Ruchka 48 Ko\'k', type: handlesType.id, category: standardCategory.id, stock: 1500, price: 500 },
-      { name: 'Ruchka 48 Sariq', type: handlesType.id, category: standardCategory.id, stock: 1500, price: 500 },
-      { name: 'Ruchka 48 Yashil', type: handlesType.id, category: standardCategory.id, stock: 1500, price: 500 },
-      { name: 'Ruchka 48 Apelsin (to\'q sariq)', type: handlesType.id, category: standardCategory.id, stock: 1500, price: 500 },
-      { name: 'Ruchka 48 Qizil', type: handlesType.id, category: standardCategory.id, stock: 1500, price: 500 },
-      { name: 'Ruchka 48 Oq', type: handlesType.id, category: standardCategory.id, stock: 1500, price: 500 },
-      { name: 'Ruchka 48 Qora', type: handlesType.id, category: standardCategory.id, stock: 1500, price: 500 },
-      { name: 'Ruchka 48 Donya (Brend)', type: handlesType.id, category: standardCategory.id, stock: 1500, price: 600 },
-      { name: 'Ruchka 48 Bekajon (Brend)', type: handlesType.id, category: standardCategory.id, stock: 1500, price: 600 }
+      // Handles (1500 dona) - pricePerPiece = 0.017
+      { name: 'Ruchka 48 Ko\'k', type: handlesType.id, category: standardCategory.id, stock: 1500, price: 25.5 },
+      { name: 'Ruchka 48 Sariq', type: handlesType.id, category: standardCategory.id, stock: 1500, price: 25.5 },
+      { name: 'Ruchka 48 Yashil', type: handlesType.id, category: standardCategory.id, stock: 1500, price: 25.5 },
+      { name: 'Ruchka 48 Apelsin (to\'q sariq)', type: handlesType.id, category: standardCategory.id, stock: 1500, price: 25.5 },
+      { name: 'Ruchka 48 Qizil', type: handlesType.id, category: standardCategory.id, stock: 1500, price: 25.5 },
+      { name: 'Ruchka 48 Oq', type: handlesType.id, category: standardCategory.id, stock: 1500, price: 25.5 },
+      { name: 'Ruchka 48 Qora', type: handlesType.id, category: standardCategory.id, stock: 1500, price: 25.5 },
+      { name: 'Ruchka 48 Donya (Brend)', type: handlesType.id, category: standardCategory.id, stock: 1500, price: 25.5 },
+      { name: 'Ruchka 48 Bekajon (Brend)', type: handlesType.id, category: standardCategory.id, stock: 1500, price: 25.5 }
     ];
     
     for (const product of products48mm) {

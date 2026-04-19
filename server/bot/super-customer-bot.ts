@@ -970,6 +970,20 @@ async function handleCallbackQuery(chatId: number, customerId: string, data: str
     return;
   }
   
+  // Savatdagi mahsulot batafsil
+  if (data.startsWith('cart_detail_')) {
+    const productId = data.replace('cart_detail_', '');
+    await handleCartProductDetail(chatId, customerId, productId);
+    return;
+  }
+  
+  // Savatdan mahsulot olib tashlash
+  if (data.startsWith('cart_remove_')) {
+    const productId = data.replace('cart_remove_', '');
+    await handleRemoveFromCart(chatId, customerId, productId);
+    return;
+  }
+  
   // Buyurtmani tasdiqlash
   if (data === 'order_confirm') {
     await handleConfirmOrder(chatId, customerId, queryId);
@@ -1834,6 +1848,9 @@ async function handleViewCart(chatId: number, customerId: string) {
   let message = '🛒 **SAVATINGIZ:**\n\n';
   let total = 0;
 
+  // Mahsulot tugmalari uchun array
+  const productButtons: any[] = [];
+
   cart.forEach((item, index) => {
     message += `${index + 1}. **${item.productName}**\n`;
     
@@ -1848,12 +1865,18 @@ async function handleViewCart(chatId: number, customerId: string) {
     
     message += `   💰 ${item.subtotal.toLocaleString()} so'm\n\n`;
     total += item.subtotal;
+
+    // Har mahsulot uchun "Batafsil" tugmasi
+    productButtons.push([
+      { text: `📋 ${index + 1}. ${item.productName} - Batafsil`, callback_data: `cart_detail_${item.productId}` }
+    ]);
   });
 
   message += `\n💵 **JAMI:** ${total.toLocaleString()} so'm`;
   message += `\n📦 **Mahsulotlar:** ${cart.length} xil`;
 
   const keyboard = [
+    ...productButtons,
     [
       { text: '✅ Buyurtma berish', callback_data: 'order_confirm' },
       { text: '➕ Yana qo\'shish', callback_data: 'order_add_more' }
@@ -1870,6 +1893,111 @@ async function handleViewCart(chatId: number, customerId: string) {
       inline_keyboard: keyboard
     }
   });
+}
+
+// Savatdagi mahsulot batafsil ko'rish
+async function handleCartProductDetail(chatId: number, customerId: string, productId: string) {
+  const cart = userCarts.get(chatId);
+  
+  if (!cart) {
+    await superCustomerBot?.sendMessage(chatId, '🛒 Savat topilmadi!');
+    return;
+  }
+
+  const cartItem = cart.find(item => item.productId === productId);
+  
+  if (!cartItem) {
+    await superCustomerBot?.sendMessage(chatId, '❌ Mahsulot savatda topilmadi!');
+    return;
+  }
+
+  // Mahsulot ma'lumotlarini olish
+  const product = await prisma.product.findUnique({
+    where: { id: productId }
+  });
+
+  if (!product) {
+    await superCustomerBot?.sendMessage(chatId, '❌ Mahsulot ma\'lumotlari topilmadi!');
+    return;
+  }
+
+  // Miqdor matnini yaratish
+  let quantityText = '';
+  if (cartItem.quantityBags > 0 && cartItem.quantityUnits > 0) {
+    quantityText = `${cartItem.quantityBags} qop + ${cartItem.quantityUnits} dona`;
+  } else if (cartItem.quantityBags > 0) {
+    quantityText = `${cartItem.quantityBags} qop`;
+  } else {
+    quantityText = `${cartItem.quantityUnits} dona`;
+  }
+
+  const message = `
+📋 **MAHSULOT BATAFSIL**
+
+📦 **${product.name}**
+
+📊 **Savatdagi miqdor:**
+${quantityText}
+
+💰 **Narhlar:**
+• 1 qop narxi: ${product.pricePerBag.toLocaleString()} so'm
+• Jami: ${cartItem.subtotal.toLocaleString()} so'm
+
+📋 **Mahsulot ma'lumotlari:**
+• 1 qopda: ${product.unitsPerBag} dona
+• Omborda: ${product.currentStock} qop
+• Qop turi: ${product.bagType || 'Aniqlanmagan'}
+
+📝 **Tavsif:**
+${(product as any).description || 'Tavsif mavjud emas'}
+  `;
+
+  await superCustomerBot?.sendMessage(chatId, message, {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: '✏️ Miqdorni o\'zgartirish', callback_data: `order_product_${productId}` },
+          { text: '🗑️ Olib tashlash', callback_data: `cart_remove_${productId}` }
+        ],
+        [
+          { text: '🛒 Savatga qaytish', callback_data: 'order_view_cart' },
+          { text: '🔙 Asosiy menyu', callback_data: 'back_main' }
+        ]
+      ]
+    }
+  });
+}
+
+// Savatdan mahsulot olib tashlash
+async function handleRemoveFromCart(chatId: number, customerId: string, productId: string) {
+  const cart = userCarts.get(chatId);
+  
+  if (!cart) {
+    await superCustomerBot?.sendMessage(chatId, '🛒 Savat topilmadi!');
+    return;
+  }
+
+  const itemIndex = cart.findIndex(item => item.productId === productId);
+  
+  if (itemIndex === -1) {
+    await superCustomerBot?.sendMessage(chatId, '❌ Mahsulot savatda topilmadi!');
+    return;
+  }
+
+  const removedItem = cart[itemIndex];
+  cart.splice(itemIndex, 1);
+  
+  // Agar savat bo'sh qolsa, to'liq o'chirish
+  if (cart.length === 0) {
+    userCarts.delete(chatId);
+  } else {
+    userCarts.set(chatId, cart);
+  }
+
+  await superCustomerBot?.sendMessage(chatId, `✅ **${removedItem.productName}** savatdan olib tashlandi!`);
+  
+  // Savatni qayta ko'rsatish
+  await handleViewCart(chatId, customerId);
 }
 
 // Buyurtmani tasdiqlash va yaratish

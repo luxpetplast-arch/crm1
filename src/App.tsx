@@ -21,6 +21,7 @@ import SimplifiedInventory from './pages/SimplifiedInventory';
 import CustomerProfile from './pages/CustomerProfile';
 import Orders from './pages/Orders';
 import Cashbox from './pages/Cashbox';
+import KomplektYigish from './pages/KomplektYigish';
 const AddSale = lazy(() => import('./pages/AddSale'));
 const CashierManagement = lazy(() => import('./pages/CashierManagement'));
 
@@ -117,6 +118,7 @@ function App() {
                 <Route path="/cashier/products" element={<Products />} />
                 <Route path="/cashier/products/:id" element={<ProductDetail />} />
                 <Route path="/cashier/inventory" element={<SimplifiedInventory />} />
+                <Route path="/cashier/komplekt" element={<KomplektYigish />} />
                 <Route path="/cashier/orders" element={<Orders />} />
                 <Route path="/cashier/customers" element={<Customers />} />
                 <Route path="/cashier/customers/:id" element={<CustomerProfile />} />

@@ -82,11 +82,11 @@ export function generateSimpleReceiptHTML(data: SimpleReceiptData): string {
     
     return `
       <tr>
-        <td style="text-align: left; padding: 2px; font-size: 9px; border: 1px solid #000000;">${item.name}</td>
-        <td style="text-align: center; padding: 2px; font-size: 9px; border: 1px solid #000000;">${bags}</td>
-        <td style="text-align: center; padding: 2px; font-size: 9px; border: 1px solid #000000;">${item.piecesPerBag || 2000}</td>
-        <td style="text-align: right; padding: 2px; font-size: 9px; border: 1px solid #000000;">${pricePerUnit.toLocaleString()} ${currencySymbol}</td>
-        <td style="text-align: right; padding: 2px; font-size: 9px; border: 1px solid #000000;"><strong>${item.subtotal.toLocaleString()}</strong> ${currencySymbol}</td>
+        <td style="text-align: left; padding: 6px 4px; font-size: 11px; border: 1px solid #000000; font-weight: 500;">${item.name}</td>
+        <td style="text-align: center; padding: 6px 4px; font-size: 11px; border: 1px solid #000000; font-weight: bold;">${bags}</td>
+        <td style="text-align: center; padding: 6px 4px; font-size: 10px; border: 1px solid #000000; color: #555;">${item.piecesPerBag || 2000}</td>
+        <td style="text-align: right; padding: 6px 4px; font-size: 11px; border: 1px solid #000000;">${pricePerUnit.toLocaleString()} ${currencySymbol}</td>
+        <td style="text-align: right; padding: 6px 4px; font-size: 11px; border: 1px solid #000000; font-weight: bold; background: #f0f0f0;">${item.subtotal.toLocaleString()} ${currencySymbol}</td>
       </tr>
     `;
   }).join('');
@@ -116,118 +116,183 @@ export function generateSimpleReceiptHTML(data: SimpleReceiptData): string {
     <style>
         @media print {
             @page { size: 80mm auto; margin: 0; }
-            body { margin: 0; width: 80mm; font-size: 10px; }
+            body { margin: 0; width: 80mm; font-size: 12px; }
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: 'Courier New', 'Consolas', monospace;
-            font-size: 10px;
-            line-height: 1.3;
+            font-size: 12px;
+            line-height: 1.4;
             width: 80mm;
             margin: 0 auto;
-            padding: 6px;
+            padding: 8px;
             background: #ffffff;
             color: #000000;
         }
         .header {
             text-align: center;
-            margin-bottom: 8px;
-            padding-bottom: 6px;
-            border-bottom: 1px dashed #000000;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #000000;
+        }
+        .header-top {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .logo-container img {
+            width: 65px;
+            height: 65px;
+            object-fit: contain;
+            border-radius: 8px;
+            border: 2px solid #333;
+            background: #fff;
+            padding: 2px;
+        }
+        .company-info {
+            text-align: left;
         }
         .company-name {
-            font-size: 14px;
+            font-size: 20px;
             font-weight: bold;
-            margin-bottom: 2px;
+            margin-bottom: 3px;
             text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #000;
         }
         .receipt-title {
-            font-size: 11px;
+            font-size: 16px;
             font-weight: bold;
+            margin-top: 8px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            background: #000;
+            color: #fff;
+            padding: 4px 15px;
+            display: inline-block;
         }
         .receipt-number {
-            font-size: 10px;
+            font-size: 13px;
+            margin-top: 6px;
+            font-weight: bold;
         }
         .customer-info {
-            margin-bottom: 8px;
-            padding-bottom: 6px;
-            border-bottom: 1px dashed #000000;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: #f8f8f8;
+            border: 1px solid #000;
+            border-radius: 4px;
         }
         .info-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 1px;
-            font-size: 9px;
+            margin-bottom: 3px;
+            font-size: 11px;
+        }
+        .info-row span:first-child {
+            font-weight: bold;
+            color: #333;
         }
         .section-title {
             font-weight: bold;
-            margin: 6px 0 3px 0;
-            font-size: 10px;
+            margin: 8px 0 6px 0;
+            font-size: 13px;
             text-transform: uppercase;
             text-align: center;
+            background: #000;
+            color: #fff;
+            padding: 5px 0;
+            letter-spacing: 1px;
         }
         .products-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 9px;
-            margin-bottom: 6px;
-            border: 1px solid #000000;
+            font-size: 10px;
+            margin-bottom: 8px;
+            border: 2px solid #000000;
         }
         .products-table th {
             text-align: center;
-            padding: 3px 2px;
+            padding: 6px 3px;
             font-weight: bold;
             border: 1px solid #000000;
-            background: #f0f0f0;
-            font-size: 9px;
+            background: #000;
+            color: #fff;
+            font-size: 10px;
+            text-transform: uppercase;
         }
         .products-table td {
-            padding: 3px 2px;
+            padding: 5px 3px;
             vertical-align: top;
             border: 1px solid #000000;
+            font-size: 10px;
+        }
+        .products-table tbody tr:nth-child(even) {
+            background: #f5f5f5;
+        }
+        .products-table tbody tr:hover {
+            background: #e8e8e8;
         }
         .summary-section {
-            margin: 6px 0;
-            padding-top: 4px;
-            border-top: 1px dashed #000000;
+            margin: 8px 0;
+            padding: 8px;
+            background: #f0f0f0;
+            border: 2px solid #000;
+            border-radius: 4px;
         }
         .payment-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 1px;
-            font-size: 9px;
+            margin-bottom: 4px;
+            font-size: 11px;
+            padding: 2px 0;
         }
         .total-row {
             display: flex;
             justify-content: space-between;
             font-weight: bold;
-            font-size: 11px;
-            border-top: 1px solid #000000;
-            border-bottom: 1px solid #000000;
-            padding: 3px 0;
-            margin: 4px 0;
+            font-size: 16px;
+            background: #000;
+            color: #fff;
+            padding: 8px 6px;
+            margin: 8px -8px;
         }
         .debt-row {
             display: flex;
             justify-content: space-between;
             font-weight: bold;
-            font-size: 9px;
+            font-size: 11px;
+            color: #dc2626;
+            padding: 3px 0;
         }
         .footer {
             text-align: center;
-            margin-top: 8px;
-            padding-top: 6px;
-            border-top: 1px dashed #000000;
-            font-size: 8px;
+            margin-top: 12px;
+            padding: 10px 8px;
+            border-top: 2px solid #000000;
+            background: #f8f8f8;
         }
         .footer-text {
             font-weight: bold;
-            margin-bottom: 1px;
-            font-size: 9px;
+            margin-bottom: 4px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         .footer-contact {
-            font-size: 7px;
-            margin-bottom: 1px;
+            font-size: 10px;
+            margin-bottom: 3px;
+            color: #333;
+        }
+        .thank-you {
+            font-size: 11px;
+            font-weight: bold;
+            color: #000;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed #999;
         }
     </style>
 </head>
@@ -235,15 +300,19 @@ export function generateSimpleReceiptHTML(data: SimpleReceiptData): string {
     <div style="width: 100%;">
         <!-- Header with Logo -->
         <div class="header">
-            <div style="text-align: left; margin-bottom: 4px;">
-                <img src="/exsel/5242567361200591582 (3).jpg" alt="Logo" style="width: 50px; height: 50px; object-fit: contain; border-radius: 4px;" />
-            </div>
-            <div class="company-name">LUX PET PLAST</div>
-            <div style="font-size: 8px; text-align: center; margin-bottom: 2px; color: #333;">
-                Buxoro viloyati, Vobkent tumani
-            </div>
-            <div style="font-size: 8px; text-align: center; margin-bottom: 4px; color: #333;">
-                +998 91 414 44 58 | +998 91 920 07 00
+            <div class="header-top">
+                <div class="logo-container">
+                    <img src="/exsel/5242567361200591582 (3).jpg" alt="Logo" />
+                </div>
+                <div class="company-info">
+                    <div class="company-name">LUX PET PLAST</div>
+                    <div style="font-size: 10px; color: #333; margin-bottom: 2px;">
+                        Buxoro viloyati, Vobkent tumani
+                    </div>
+                    <div style="font-size: 10px; color: #333;">
+                        +998 91 414 44 58 | +998 91 920 07 00
+                    </div>
+                </div>
             </div>
             <div class="receipt-title">SOTUV CHEKI</div>
             <div class="receipt-number">#${data.receiptNumber}</div>
@@ -333,7 +402,11 @@ export function generateSimpleReceiptHTML(data: SimpleReceiptData): string {
 
         <!-- Footer -->
         <div class="footer">
-            <div style="font-size: 7px; color: #666;">${new Date().toLocaleString('uz-UZ')}</div>
+            <div class="footer-text">LUX PET PLAST</div>
+            <div class="footer-contact">Buxoro viloyati, Vobkent tumani</div>
+            <div class="footer-contact">Tel: +998 91 414 44 58 | +998 91 920 07 00</div>
+            <div class="thank-you">Xaridingiz uchun rahmat!</div>
+            <div style="font-size: 8px; color: #666; margin-top: 6px;">${new Date().toLocaleString('uz-UZ')}</div>
         </div>
     </div>
 

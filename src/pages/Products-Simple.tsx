@@ -314,8 +314,7 @@ export default function Products() {
                     
                     <Input 
                       label="Qop Narxi (UZS) *" 
-                      type="number" 
-                      step="0.01"
+                      decimal
                       placeholder="Masalan: 50000"
                       value={form.pricePerBag} 
                       onChange={(e) => setForm({ ...form, pricePerBag: e.target.value })} 
@@ -357,8 +356,7 @@ export default function Products() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input 
                       label="Ishlab Chiqarish Xarajati" 
-                      type="number" 
-                      step="0.01"
+                      decimal
                       placeholder="0"
                       value={form.productionCost} 
                       onChange={(e) => setForm({ ...form, productionCost: e.target.value })} 
@@ -366,7 +364,7 @@ export default function Products() {
                     
                     <Input 
                       label="Minimal Zaxira (qop)" 
-                      type="number"
+                      numeric
                       placeholder="10"
                       value={form.minStockLimit} 
                       onChange={(e) => setForm({ ...form, minStockLimit: e.target.value })} 
@@ -374,7 +372,7 @@ export default function Products() {
                     
                     <Input 
                       label="Optimal Zaxira (qop)" 
-                      type="number"
+                      numeric
                       placeholder="50"
                       value={form.optimalStock} 
                       onChange={(e) => setForm({ ...form, optimalStock: e.target.value })} 
@@ -382,7 +380,7 @@ export default function Products() {
                     
                     <Input 
                       label="Maksimal Sig'im (qop)" 
-                      type="number"
+                      numeric
                       placeholder="200"
                       value={form.maxCapacity} 
                       onChange={(e) => setForm({ ...form, maxCapacity: e.target.value })} 

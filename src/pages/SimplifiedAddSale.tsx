@@ -8,12 +8,14 @@ import {
   User,
   DollarSign,
   CheckCircle2,
-  X
+  X,
+  Search
 } from 'lucide-react';
 import CustomerSelector from '../components/CustomerSelector';
 import SimplifiedProductSelector from '../components/SimplifiedProductSelector';
 import api from '../lib/professionalApi';
 import { latinToCyrillic } from '../lib/transliterator';
+import Input from '../components/Input';
 import { generateSimpleReceiptHTML } from '../lib/simpleReceiptPrinter';
 import { formatDateTime } from '../lib/dateUtils';
 import { useNavigate } from 'react-router-dom';
@@ -50,6 +52,7 @@ export default function SimplifiedAddSale() {
   const [isKocha, setIsKocha] = useState(false);
   const [manualCustomerName, setManualCustomerName] = useState('');
   const [manualCustomerPhone, setManualCustomerPhone] = useState('');
+  const [customerSearch, setCustomerSearch] = useState('');
   
   // To'lov ma'lumotlari
   const [paidUZS, setPaidUZS] = useState('');
@@ -369,13 +372,86 @@ export default function SimplifiedAddSale() {
                       />
                     </div>
                   ) : (
-                    <CustomerSelector
-                      customers={customers}
-                      selectedCustomer={selectedCustomer}
-                      onSelectCustomer={setSelectedCustomer}
-                    />
+                    <div className="space-y-4">
+                      {/* Mijoz qidiruv inputi */}
+                      <div className="relative">
+                        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder={latinToCyrillic("Mijoz qidirish...")}
+                          value={customerSearch}
+                          onChange={(e) => setCustomerSearch(e.target.value)}
+                          className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-sm font-bold"
+                        />
+                      </div>
+                      
+                      {/* Filterlangan mijozlar ro'yxati */}
+                      <div className="max-h-[250px] overflow-y-auto space-y-2">
+                        {customers
+                          .filter(c => {
+                            if (!customerSearch) return true;
+                            const search = customerSearch.toLowerCase();
+                            return (c.name?.toLowerCase().includes(search) || 
+                                    c.phone?.includes(search));
+                          })
+                          .map((customer) => (
+                          <button
+                            key={customer.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedCustomer(customer);
+                              setCustomerSearch('');
+                            }}
+                            className={`w-full p-3 rounded-xl border-2 text-left transition-all ${
+                              selectedCustomer?.id === customer.id
+                                ? 'border-blue-500 bg-blue-50 shadow-md'
+                                : 'border-gray-200 hover:border-blue-300 bg-white'
+                            }`}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="font-bold text-gray-900 text-sm">{customer.name}</p>
+                                <p className="text-xs text-gray-500">{customer.phone || '—'}</p>
+                              </div>
+                              {customer.debtUSD > 0 && (
+                                <span className="px-2 py-1 bg-red-100 text-red-600 rounded-lg text-xs font-bold">
+                                  ${customer.debtUSD.toFixed(0)}
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
+                
+                {/* Tanlangan mijozni ko'rsatish */}
+                {selectedCustomer && !isKocha && (
+                  <div className="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-2xl shadow-md">
+                    <div className="text-sm font-bold text-green-700 mb-2">{latinToCyrillic("Tanlangan mijoz")}</div>
+                    <div className="font-bold text-gray-800 truncate text-lg">{selectedCustomer.name}</div>
+                    <div className="text-sm text-gray-600 mt-1">{selectedCustomer.phone || '—'}</div>
+                    {selectedCustomer.debtUSD > 0 && (
+                      <div className="mt-2 pt-2 border-t border-green-200">
+                        <span className="text-sm font-bold text-red-600">
+                          {latinToCyrillic("Qarz")}: ${selectedCustomer.debtUSD.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Ko'cha mijoz ko'rinishi */}
+                {isKocha && manualCustomerName && (
+                  <div className="mt-6 p-4 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-300 rounded-2xl shadow-md">
+                    <div className="text-sm font-bold text-orange-700 mb-2">{latinToCyrillic("Ko'cha mijoz")}</div>
+                    <div className="font-bold text-gray-800 truncate text-lg">{manualCustomerName}</div>
+                    {manualCustomerPhone && (
+                      <div className="text-sm text-gray-600 mt-1">{manualCustomerPhone}</div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Savat */}
@@ -414,11 +490,12 @@ export default function SimplifiedAddSale() {
                             <h4 className="font-black text-gray-900 text-base mb-2">{item.product.name}</h4>
                             <div className="flex items-center gap-2">
                               <input
-                                type="number"
-                                min="1"
-                                value={item.quantity}
+                                type="text"
+                                inputMode="numeric"
+                                value={item.quantity || ''}
                                 onChange={(e) => {
-                                  const newQuantity = parseInt(e.target.value) || 1;
+                                  const val = e.target.value.replace(/\D/g, '');
+                                  const newQuantity = val === '' ? 0 : parseInt(val, 10);
                                   updateCartItem(index, item.product, newQuantity, item.pricePerBag, item.priceUnit);
                                 }}
                                 className="w-16 px-2 py-1 border-2 border-gray-300 rounded-lg text-center font-bold text-sm focus:border-blue-500 focus:outline-none"
@@ -426,7 +503,26 @@ export default function SimplifiedAddSale() {
                               <select
                                 value={item.priceUnit}
                                 onChange={(e) => {
-                                  updateCartItem(index, item.product, item.quantity, item.pricePerBag, e.target.value as 'dona' | 'qop');
+                                  const newUnit = e.target.value as 'dona' | 'qop';
+                                  const oldUnit = item.priceUnit;
+                                  const upb = item.product.unitsPerBag || 2000;
+                                  
+                                  // Narxni raqamga aylantirish
+                                  const currentPrice = parseFloat(item.pricePerBag as any) || 0;
+                                  
+                                  // Narxni yangi birlikka moslash
+                                  let newPrice = currentPrice;
+                                  if (oldUnit === 'qop' && newUnit === 'dona') {
+                                    // Qopdan donaga: narxni dona soniga bo'lish
+                                    newPrice = currentPrice / upb;
+                                  } else if (oldUnit === 'dona' && newUnit === 'qop') {
+                                    // Donadan qopga: narxni dona soniga ko'paytirish
+                                    newPrice = currentPrice * upb;
+                                  }
+                                  
+                                  console.log('🔄 Birlik o\'zgardi:', { oldUnit, newUnit, currentPrice, newPrice, upb });
+                                  
+                                  updateCartItem(index, item.product, item.quantity, newPrice, newUnit);
                                 }}
                                 className="px-2 py-1 border-2 border-gray-300 rounded-lg font-bold text-sm focus:border-blue-500 focus:outline-none"
                               >
@@ -435,12 +531,12 @@ export default function SimplifiedAddSale() {
                               </select>
                               <span className="text-sm text-gray-600 font-medium">×</span>
                               <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={item.pricePerBag}
+                                type="text"
+                                inputMode="decimal"
+                                value={item.pricePerBag || ''}
                                 onChange={(e) => {
-                                  const newPrice = parseFloat(e.target.value) || 0;
+                                  const val = e.target.value.replace(/[^0-9.]/g, '').replace(/\.(?=.*\.)/g, '');
+                                  const newPrice = val === '' ? 0 : parseFloat(val);
                                   updateCartItem(index, item.product, item.quantity, newPrice, item.priceUnit);
                                 }}
                                 className="w-20 px-2 py-1 border-2 border-gray-300 rounded-lg text-center font-bold text-sm focus:border-blue-500 focus:outline-none"
@@ -485,40 +581,31 @@ export default function SimplifiedAddSale() {
 
                   <div className="space-y-5">
                     <div>
-                      <label className="block text-sm font-black text-gray-700 mb-3 uppercase tracking-wider">
-                        {latinToCyrillic("Naqd (UZS)")}
-                      </label>
-                      <input
-                        type="number"
+                      <Input
+                        label={latinToCyrillic("Naqd (UZS)")}
+                        decimal
                         value={paidUZS}
                         onChange={(e) => setPaidUZS(e.target.value)}
-                        className="professional-input px-5 py-4 text-lg font-bold"
                         placeholder="0"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-black text-gray-700 mb-3 uppercase tracking-wider">
-                        {latinToCyrillic("Naqd ($)")}
-                      </label>
-                      <input
-                        type="number"
+                      <Input
+                        label={latinToCyrillic("Naqd ($)")}
+                        decimal
                         value={paidUSD}
                         onChange={(e) => setPaidUSD(e.target.value)}
-                        className="professional-input px-5 py-4 text-lg font-bold"
                         placeholder="0"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-black text-gray-700 mb-3 uppercase tracking-wider">
-                        {latinToCyrillic("CLICK")}
-                      </label>
-                      <input
-                        type="number"
+                      <Input
+                        label={latinToCyrillic("CLICK")}
+                        decimal
                         value={paidCLICK}
                         onChange={(e) => setPaidCLICK(e.target.value)}
-                        className="professional-input px-5 py-4 text-lg font-bold"
                         placeholder="0"
                       />
                     </div>

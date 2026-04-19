@@ -4,9 +4,33 @@ import { cn } from '../lib/utils';
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   icon?: ReactNode;
+  numeric?: boolean;
+  decimal?: boolean;
 }
 
-export function Input({ label, icon, className, ...props }: InputProps) {
+export function Input({ label, icon, className, numeric, decimal, type, onChange, value, ...props }: InputProps) {
+  // numeric yoki decimal bo'lsa, text type bilan ishlaydi
+  const inputType = (numeric || decimal) ? 'text' : type;
+  const inputMode = (numeric || decimal) ? 'decimal' : undefined;
+  
+  // 0 ni bo'sh ko'rsatish (faqat integer numeric uchun)
+  const displayValue = numeric && !decimal && value === "0" ? "" : value;
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (onChange) {
+      if (numeric && !decimal) {
+        // Faqat butun raqamlarni qoldirish
+        const newValue = e.target.value.replace(/\D/g, '');
+        e.target.value = newValue;
+      } else if (decimal) {
+        // O'nli kasrlarni qo'llab-quvvatlash (faqat raqam va nuqta)
+        const newValue = e.target.value.replace(/[^0-9.]/g, '').replace(/\.(?=.*\.)/g, '');
+        e.target.value = newValue;
+      }
+    }
+    onChange?.(e);
+  };
+
   return (
     <div className="space-y-3">
       {label && <label className="text-xs font-bold text-neutral-500 uppercase tracking-widest ml-1 block">{label}</label>}
@@ -17,6 +41,11 @@ export function Input({ label, icon, className, ...props }: InputProps) {
           </div>
         )}
         <input
+          type={inputType}
+          inputMode={inputMode}
+          value={displayValue}
+          onChange={handleChange}
+          placeholder={(numeric || decimal) ? "0" : props.placeholder}
           className={cn(
             'ultra-input',
             icon ? 'pl-14 pr-5' : 'px-5',

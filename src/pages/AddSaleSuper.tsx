@@ -109,8 +109,8 @@ export default function AddSaleSuper() {
           quantity: item.quantity || 0,
           pricePerBag: item.pricePerBag || item.pricePerUnit || 0,
           pricePerBagDisplay: (item.pricePerBag || item.pricePerUnit || 0).toString(),
-          pricePerPiece: (item.pricePerBag || item.pricePerUnit || 0) / (item.product?.unitsPerBag || item.unitsPerBag || 2000),
-          unitsPerBag: item.product?.unitsPerBag || item.unitsPerBag || 2000,
+          pricePerPiece: (item.pricePerBag || item.pricePerUnit || 0) / (item.product?.unitsPerBag || item.unitsPerBag || 1000),
+          unitsPerBag: item.product?.unitsPerBag || item.unitsPerBag || 1000,
           subtotal: item.subtotal || 0,
           warehouse: item.product?.warehouse || 'other',
           saleType: item.saleType || 'bag',
@@ -147,6 +147,8 @@ export default function AddSaleSuper() {
     productName: '',
     quantity: '',
     pricePerBag: '',
+    saleType: 'bag' as 'bag' | 'piece',
+    priceMode: 'bag' as 'bag' | 'piece',
   });
 
   const [showPriceModal, setShowPriceModal] = useState(false);
@@ -247,14 +249,211 @@ export default function AddSaleSuper() {
   // Quick add functions
   const quickAddProduct = (productId: string) => {
     const product = products.find(p => p.id === productId);
-    if (product) {
-      const existingItem = form.items.find(item => item.productId === productId);
-      if (existingItem) {
-        updateItemQuantity(existingItem.originalIndex.toString(), existingItem.quantity + 1);
-      } else {
-        addItem();
+    if (!product) return;
+
+    // Mahsulot turini aniqlash
+    const isPreform = product.name.toLowerCase().includes('preform') || 
+                      product.name.toLowerCase().includes('pref') ||
+                      product.warehouse === 'preform';
+    
+    const isKrishka = product.warehouse === 'caps' || 
+                      product.name.toLowerCase().includes('qopqoq') ||
+                      product.name.toLowerCase().includes('krishka');
+    
+    const isRuchka = product.warehouse === 'handles' || 
+                     product.name.toLowerCase().includes('ruchka');
+
+    // Add main product
+    const existingItem = form.items.find(item => item.productId === productId);
+    let currentItems = [...form.items];
+    
+    if (existingItem) {
+      updateItemQuantity(existingItem.originalIndex.toString(), existingItem.quantity + 1);
+      return;
+    } else {
+      // Add the product directly
+      const pricePerBag = parseFloat(product.pricePerBag) || 0;
+      const unitsPerBag = product.unitsPerBag || 1000;
+      const pricePerPiece = pricePerBag / unitsPerBag;
+      const newItemData = {
+        productId: product.id,
+        productName: product.name,
+        quantity: 1,
+        pricePerBag,
+        pricePerBagDisplay: pricePerBag.toString(),
+        pricePerPiece,
+        unitsPerBag,
+        subtotal: pricePerBag,
+        warehouse: product.warehouse || 'other',
+        saleType: 'bag' as 'bag' | 'piece',
+        priceMode: 'bag' as 'bag' | 'piece',
+        originalIndex: form.items.length
+      };
+      currentItems.push(newItemData);
+      setForm(prev => ({ ...prev, items: currentItems }));
+    }
+
+    // O'lchamni aniqlash
+    let productSize = '';
+    const nameMatch = product.name.match(/(\d+)/);
+    
+    if (isPreform) {
+      const weight = nameMatch ? parseInt(nameMatch[1]) : 0;
+      if ([15, 21, 26, 30].includes(weight)) productSize = '28';
+      else if ([52, 70].includes(weight)) productSize = '38';
+      else if ([75, 80, 85, 86, 135].includes(weight)) productSize = '48';
+    } else if (isKrishka || isRuchka) {
+      productSize = nameMatch ? nameMatch[1] : '';
+    }
+
+    // Avtomatik qo'shimchalar
+    if (productSize) {
+      // 1. Preform uchun krishka + ruchka
+      if (isPreform) {
+        const weight = parseInt(nameMatch?.[1] || '0');
+        
+        // Krishka qo'shish
+        const matchingKrishka = products.find(p => {
+          const pIsKrishka = p.warehouse === 'caps' || 
+                             p.name.toLowerCase().includes('qopqoq') ||
+                             p.name.toLowerCase().includes('krishka');
+          const pNumber = p.name.match(/(\d+)/);
+          return pIsKrishka && pNumber && pNumber[1] === productSize && 
+                 !currentItems.find((i: any) => i.productId === p.id);
+        });
+        
+        if (matchingKrishka) {
+          const krishkaPricePerBag = parseFloat(matchingKrishka.pricePerBag) || 0;
+          const krishkaUnitsPerBag = matchingKrishka.unitsPerBag || 1000;
+          const krishkaPricePerPiece = krishkaPricePerBag / krishkaUnitsPerBag;
+          
+          const krishkaItem = {
+            productId: matchingKrishka.id,
+            productName: matchingKrishka.name,
+            quantity: 1,
+            pricePerBag: krishkaPricePerBag,
+            pricePerBagDisplay: krishkaPricePerBag.toString(),
+            pricePerPiece: krishkaPricePerPiece,
+            unitsPerBag: krishkaUnitsPerBag,
+            subtotal: krishkaPricePerBag,
+            warehouse: matchingKrishka.warehouse || 'caps',
+            saleType: 'bag' as 'bag' | 'piece',
+            priceMode: 'bag' as 'bag' | 'piece',
+            originalIndex: currentItems.length,
+            isAutoAdded: true
+          };
+          currentItems.push(krishkaItem);
+          console.log('🔗 Avtomatik krishka qo\'shildi:', krishkaItem);
+        }
+        
+        // Ruchka qo'shish (faqat katta o'lchamlar uchun)
+        if (![15, 21, 26, 30].includes(weight)) {
+          const matchingRuchka = products.find(p => {
+            const pIsRuchka = p.warehouse === 'handles' || p.name.toLowerCase().includes('ruchka');
+            const pNumber = p.name.match(/(\d+)/);
+            return pIsRuchka && pNumber && pNumber[1] === productSize &&
+                   !currentItems.find((i: any) => i.productId === p.id);
+          });
+          
+          if (matchingRuchka) {
+            const ruchkaPricePerBag = parseFloat(matchingRuchka.pricePerBag) || 0;
+            const ruchkaUnitsPerBag = matchingRuchka.unitsPerBag || 1000;
+            const ruchkaPricePerPiece = ruchkaPricePerBag / ruchkaUnitsPerBag;
+            
+            const ruchkaItem = {
+              productId: matchingRuchka.id,
+              productName: matchingRuchka.name,
+              quantity: 1,
+              pricePerBag: ruchkaPricePerBag,
+              pricePerBagDisplay: ruchkaPricePerBag.toString(),
+              pricePerPiece: ruchkaPricePerPiece,
+              unitsPerBag: ruchkaUnitsPerBag,
+              subtotal: ruchkaPricePerBag,
+              warehouse: matchingRuchka.warehouse || 'handles',
+              saleType: 'bag' as 'bag' | 'piece',
+              priceMode: 'bag' as 'bag' | 'piece',
+              originalIndex: currentItems.length,
+              isAutoAdded: true
+            };
+            currentItems.push(ruchkaItem);
+            console.log('🔗 Avtomatik ruchka qo\'shildi:', ruchkaItem);
+          }
+        }
+      }
+      
+      // 2. Krishka uchun ruchka
+      else if (isKrishka) {
+        const matchingRuchka = products.find(p => {
+          const pIsRuchka = p.warehouse === 'handles' || p.name.toLowerCase().includes('ruchka');
+          const pNumber = p.name.match(/(\d+)/);
+          return pIsRuchka && pNumber && pNumber[1] === productSize &&
+                 !currentItems.find((i: any) => i.productId === p.id);
+        });
+        
+        if (matchingRuchka) {
+          const ruchkaPricePerBag = parseFloat(matchingRuchka.pricePerBag) || 0;
+          const ruchkaUnitsPerBag = matchingRuchka.unitsPerBag || 1000;
+          const ruchkaPricePerPiece = ruchkaPricePerBag / ruchkaUnitsPerBag;
+          
+          const ruchkaItem = {
+            productId: matchingRuchka.id,
+            productName: matchingRuchka.name,
+            quantity: 1,
+            pricePerBag: ruchkaPricePerBag,
+            pricePerBagDisplay: ruchkaPricePerBag.toString(),
+            pricePerPiece: ruchkaPricePerPiece,
+            unitsPerBag: ruchkaUnitsPerBag,
+            subtotal: ruchkaPricePerBag,
+            warehouse: matchingRuchka.warehouse || 'handles',
+            saleType: 'bag' as 'bag' | 'piece',
+            priceMode: 'bag' as 'bag' | 'piece',
+            originalIndex: currentItems.length,
+            isAutoAdded: true
+          };
+          currentItems.push(ruchkaItem);
+          console.log('🔗 Avtomatik ruchka qo\'shildi (krishka tanlangan):', ruchkaItem);
+        }
+      }
+      
+      // 3. Ruchka uchun krishka
+      else if (isRuchka) {
+        const matchingKrishka = products.find(p => {
+          const pIsKrishka = p.warehouse === 'caps' || 
+                             p.name.toLowerCase().includes('qopqoq') ||
+                             p.name.toLowerCase().includes('krishka');
+          const pNumber = p.name.match(/(\d+)/);
+          return pIsKrishka && pNumber && pNumber[1] === productSize &&
+                 !currentItems.find((i: any) => i.productId === p.id);
+        });
+        
+        if (matchingKrishka) {
+          const krishkaPricePerBag = parseFloat(matchingKrishka.pricePerBag) || 0;
+          const krishkaUnitsPerBag = matchingKrishka.unitsPerBag || 1000;
+          const krishkaPricePerPiece = krishkaPricePerBag / krishkaUnitsPerBag;
+          
+          const krishkaItem = {
+            productId: matchingKrishka.id,
+            productName: matchingKrishka.name,
+            quantity: 1,
+            pricePerBag: krishkaPricePerBag,
+            pricePerBagDisplay: krishkaPricePerBag.toString(),
+            pricePerPiece: krishkaPricePerPiece,
+            unitsPerBag: krishkaUnitsPerBag,
+            subtotal: krishkaPricePerBag,
+            warehouse: matchingKrishka.warehouse || 'caps',
+            saleType: 'bag' as 'bag' | 'piece',
+            priceMode: 'bag' as 'bag' | 'piece',
+            originalIndex: currentItems.length,
+            isAutoAdded: true
+          };
+          currentItems.push(krishkaItem);
+          console.log('🔗 Avtomatik krishka qo\'shildi (ruchka tanlangan):', krishkaItem);
+        }
       }
     }
+    
+    // Barcha items ni birgalikda yangilash
+    setForm(prev => ({ ...prev, items: currentItems }));
   };
 
   const quickAddCustomer = (customerId: string) => {
@@ -332,10 +531,10 @@ export default function AddSaleSuper() {
             productName: newProduct.name,
             pricePerBag: parseFloat(newProduct.pricePerBag),
             pricePerBagDisplay: newProduct.pricePerBag,
-            pricePerPiece: parseFloat(newProduct.pricePerBag) / (newProduct.unitsPerBag || 2000),
-            unitsPerBag: newProduct.unitsPerBag || 2000,
+            pricePerPiece: parseFloat(newProduct.pricePerBag) / (newProduct.unitsPerBag || 1000),
+            unitsPerBag: newProduct.unitsPerBag || 1000,
             warehouse: newProduct.warehouse || 'other',
-            subtotal: i.quantity * parseFloat(newProduct.pricePerBag)
+            subtotal: i.quantity * (i.saleType === 'piece' || i.priceMode === 'piece' ? i.pricePerPiece : parseFloat(newProduct.pricePerBag))
           };
         }
         return i;
@@ -360,27 +559,29 @@ export default function AddSaleSuper() {
     } else {
       const quantity = parseInt(newItem.quantity);
       const pricePerBag = parseFloat(newItem.pricePerBag);
-      const subtotal = quantity * pricePerBag;
+      const pricePerPiece = pricePerBag / (product.unitsPerBag || 1000);
+      const isPieceSale = newItem.saleType === 'piece' || newItem.priceMode === 'piece';
+      const subtotal = quantity * (isPieceSale ? pricePerPiece : pricePerBag);
 
       const newItemData = {
         productId: newItem.productId,
-        productName: newItem.productName || product.name,
+        productName: product.name,
         quantity,
         pricePerBag,
         pricePerBagDisplay: newItem.pricePerBag,
-        pricePerPiece: pricePerBag / (product.unitsPerBag || 2000),
-        unitsPerBag: product.unitsPerBag || 2000,
+        pricePerPiece: pricePerBag / (product.unitsPerBag || 1000),
+        unitsPerBag: product.unitsPerBag || 1000,
         subtotal,
         warehouse: product.warehouse || 'other',
-        saleType: 'bag',
-        priceMode: 'bag',
+        saleType: newItem.saleType || 'bag',
+        priceMode: newItem.priceMode || 'bag',
         originalIndex: form.items.length
       };
 
       setForm(prev => ({ ...prev, items: [...prev.items, newItemData] }));
     }
 
-    setNewItem({ productId: '', productName: '', quantity: '', pricePerBag: '' });
+    setNewItem({ productId: '', productName: '', quantity: '', pricePerBag: '', saleType: 'bag', priceMode: 'bag' });
   };
 
   const removeItem = (index: string) => {
@@ -397,7 +598,8 @@ export default function AddSaleSuper() {
       ...prev,
       items: prev.items.map(item => {
         if (item.originalIndex === parseInt(index)) {
-          const newSubtotal = quantity * item.pricePerBag;
+          const isPieceSale = item.saleType === 'piece' || item.priceMode === 'piece';
+          const newSubtotal = quantity * (isPieceSale ? item.pricePerPiece : item.pricePerBag);
           return { ...item, quantity, subtotal: newSubtotal };
         }
         return item;
@@ -410,7 +612,8 @@ export default function AddSaleSuper() {
       ...prev,
       items: prev.items.map(item => {
         if (item.originalIndex === parseInt(index)) {
-          const newSubtotal = item.quantity * price;
+          const isPieceSale = item.saleType === 'piece' || item.priceMode === 'piece';
+          const newSubtotal = item.quantity * (isPieceSale ? price / item.unitsPerBag : price);
           return { 
             ...item, 
             pricePerBag: price, 
@@ -477,7 +680,7 @@ export default function AddSaleSuper() {
       // Validation
       const validation = validateSale(form);
       if (!validation.isValid) {
-        validation.errors.forEach(error => {
+        Object.values(validation.errors).forEach(error => {
           console.error(error);
         });
         setIsProcessing(false);
@@ -524,12 +727,26 @@ export default function AddSaleSuper() {
       // Create accounting entry
       if (response.data) {
         await createJournalEntry({
-          type: AccountingEntryType.SALE,
-          amount: totals.subtotal,
+          date: new Date(),
+          reference: response.data.id,
           description: `Sale to ${form.customerName || form.manualCustomerName}`,
-          referenceId: response.data.id,
-          currency: form.currency,
-          date: new Date()
+          entries: [
+            {
+              id: '',
+              accountId: '4010',
+              entryId: '',
+              type: AccountingEntryType.INCOME,
+              amount: totals.subtotal,
+              currency: form.currency as Currency,
+              description: 'Sales Revenue',
+              date: new Date(),
+              balance: 0,
+              reconciled: false
+            }
+          ],
+          status: 'posted',
+          createdBy: 'system',
+          metadata: { saleId: response.data.id }
         });
       }
 
@@ -668,7 +885,7 @@ export default function AddSaleSuper() {
                     <div className="flex items-center gap-1 mt-1">
                       <Star className="w-3 h-3 text-yellow-500" />
                       <span className="text-xs text-gray-500">
-                        {formatCurrency(customer.totalPurchases)}
+                        {formatCurrency(customer.totalPurchases, Currency.UZS)}
                       </span>
                     </div>
                   )}
@@ -685,13 +902,13 @@ export default function AddSaleSuper() {
           <ProfessionalInput
             label="Ism"
             value={form.manualCustomerName}
-            onChange={(value) => setForm(prev => ({ ...prev, manualCustomerName: value }))}
+            onChange={(e) => setForm(prev => ({ ...prev, manualCustomerName: e.target.value }))}
             placeholder="Mijoz ismi"
           />
           <ProfessionalInput
             label="Telefon"
             value={form.manualCustomerPhone}
-            onChange={(value) => setForm(prev => ({ ...prev, manualCustomerPhone: value }))}
+            onChange={(e) => setForm(prev => ({ ...prev, manualCustomerPhone: e.target.value }))}
             placeholder="+998 XX XXX XX XX"
           />
         </div>
@@ -784,7 +1001,7 @@ export default function AddSaleSuper() {
 
       {/* Product Groups */}
       <div className="space-y-4">
-        {Object.entries(groupedProducts).map(([category, categoryProducts]) => (
+        {(Object.entries(groupedProducts) as [string, any[]][]).map(([category, categoryProducts]) => (
           <div key={category} className="border border-gray-200 rounded-lg">
             <button
               onClick={() => toggleProductGroup(category)}
@@ -819,7 +1036,7 @@ export default function AddSaleSuper() {
                         <p className="font-medium text-gray-900">{product.name}</p>
                         <p className="text-sm text-gray-500">{product.code}</p>
                         <p className="text-sm font-medium text-blue-600">
-                          {formatCurrency(parseFloat(product.pricePerBag))}
+                          {formatCurrency(parseFloat(product.pricePerBag), Currency.UZS)}
                         </p>
                       </div>
                       <Plus className="w-5 h-5 text-blue-600" />
@@ -844,7 +1061,7 @@ export default function AddSaleSuper() {
                   <div>
                     <p className="font-medium text-gray-900">{item.productName}</p>
                     <p className="text-sm text-gray-500">
-                      {item.quantity} × {formatCurrency(item.pricePerBag)} = {formatCurrency(item.subtotal)}
+                      {item.quantity} {item.saleType === 'piece' || item.priceMode === 'piece' ? 'dona' : 'qop'} × {formatCurrency(item.saleType === 'piece' || item.priceMode === 'piece' ? item.pricePerPiece : item.pricePerBag, Currency.UZS)} = {formatCurrency(item.subtotal, Currency.UZS)}
                     </p>
                   </div>
                 </div>
@@ -903,16 +1120,16 @@ export default function AddSaleSuper() {
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">Jami summa:</span>
-            <span className="font-medium text-blue-600">{formatCurrency(totals.subtotal)}</span>
+            <span className="font-medium text-blue-600">{formatCurrency(totals.subtotal, Currency.UZS)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">To'langan:</span>
-            <span className="font-medium text-green-600">{formatCurrency(totals.totalPaid)}</span>
+            <span className="font-medium text-green-600">{formatCurrency(totals.totalPaid, Currency.UZS)}</span>
           </div>
           <div className="flex justify-between border-t pt-2">
             <span className="text-gray-900 font-medium">Qarz:</span>
             <span className={`font-bold ${totals.debt > 0 ? 'text-red-600' : 'text-green-600'}`}>
-              {formatCurrency(totals.debt)}
+              {formatCurrency(totals.debt, Currency.UZS)}
             </span>
           </div>
         </div>
@@ -925,9 +1142,13 @@ export default function AddSaleSuper() {
           <div className="flex items-center gap-2">
             <Banknote className="w-5 h-5 text-green-600" />
             <input
-              type="number"
-              value={form.paidUZS}
-              onChange={(e) => setForm(prev => ({ ...prev, paidUZS: e.target.value }))}
+              type="text"
+              inputMode="decimal"
+              value={form.paidUZS || ''}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9.]/g, '').replace(/\.(?=.*\.)/g, '');
+                setForm(prev => ({ ...prev, paidUZS: val }));
+              }}
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="0"
             />
@@ -959,9 +1180,13 @@ export default function AddSaleSuper() {
           <div className="flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-blue-600" />
             <input
-              type="number"
-              value={form.paidUSD}
-              onChange={(e) => setForm(prev => ({ ...prev, paidUSD: e.target.value }))}
+              type="text"
+              inputMode="decimal"
+              value={form.paidUSD || ''}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9.]/g, '').replace(/\.(?=.*\.)/g, '');
+                setForm(prev => ({ ...prev, paidUSD: val }));
+              }}
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="0"
             />
@@ -993,9 +1218,13 @@ export default function AddSaleSuper() {
           <div className="flex items-center gap-2">
             <Smartphone className="w-5 h-5 text-purple-600" />
             <input
-              type="number"
-              value={form.paidCLICK}
-              onChange={(e) => setForm(prev => ({ ...prev, paidCLICK: e.target.value }))}
+              type="text"
+              inputMode="decimal"
+              value={form.paidCLICK || ''}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9.]/g, '').replace(/\.(?=.*\.)/g, '');
+                setForm(prev => ({ ...prev, paidCLICK: val }));
+              }}
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="0"
             />
@@ -1030,9 +1259,13 @@ export default function AddSaleSuper() {
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600">1 USD =</span>
             <input
-              type="number"
-              value={exchangeRate}
-              onChange={(e) => setExchangeRate(e.target.value)}
+              type="text"
+              inputMode="decimal"
+              value={exchangeRate || ''}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9.]/g, '').replace(/\.(?=.*\.)/g, '');
+                setExchangeRate(val);
+              }}
               className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <span className="text-sm text-gray-600">UZS</span>
@@ -1072,10 +1305,10 @@ export default function AddSaleSuper() {
               <div>
                 <p className="font-medium text-gray-900">{item.productName}</p>
                 <p className="text-sm text-gray-500">
-                  {item.quantity} dona × {formatCurrency(item.pricePerBag)}
+                  {item.quantity} {item.saleType === 'piece' || item.priceMode === 'piece' ? 'dona' : 'qop'} × {formatCurrency(item.saleType === 'piece' || item.priceMode === 'piece' ? item.pricePerPiece : item.pricePerBag, Currency.UZS)}
                 </p>
               </div>
-              <p className="font-medium text-gray-900">{formatCurrency(item.subtotal)}</p>
+              <p className="font-medium text-gray-900">{formatCurrency(item.subtotal, Currency.UZS)}</p>
             </div>
           ))}
         </div>
@@ -1087,24 +1320,24 @@ export default function AddSaleSuper() {
         <div className="space-y-2">
           <div className="flex justify-between">
             <span className="text-gray-600">Jami summa:</span>
-            <span className="font-medium">{formatCurrency(totals.subtotal)}</span>
+            <span className="font-medium">{formatCurrency(totals.subtotal, Currency.UZS)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">To'langan (UZS):</span>
-            <span className="font-medium">{formatCurrency(parseFloat(form.paidUZS || '0'))}</span>
+            <span className="font-medium">{formatCurrency(parseFloat(form.paidUZS || '0'), Currency.UZS)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">To'langan (USD):</span>
-            <span className="font-medium">{formatCurrency(parseFloat(form.paidUSD || '0') * parseFloat(exchangeRate))}</span>
+            <span className="font-medium">{formatCurrency(parseFloat(form.paidUSD || '0') * parseFloat(exchangeRate), Currency.UZS)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">To'langan (Click):</span>
-            <span className="font-medium">{formatCurrency(parseFloat(form.paidCLICK || '0'))}</span>
+            <span className="font-medium">{formatCurrency(parseFloat(form.paidCLICK || '0'), Currency.UZS)}</span>
           </div>
           <div className="flex justify-between border-t pt-2">
             <span className="text-gray-900 font-medium">Qarz:</span>
             <span className={`font-bold text-lg ${totals.debt > 0 ? 'text-red-600' : 'text-green-600'}`}>
-              {formatCurrency(totals.debt)}
+              {formatCurrency(totals.debt, Currency.UZS)}
             </span>
           </div>
         </div>
@@ -1146,7 +1379,7 @@ export default function AddSaleSuper() {
             <div className="flex items-center gap-3">
               <div className="text-right">
                 <p className="text-sm text-gray-500">Jami summa</p>
-                <p className="text-lg font-bold text-blue-600">{formatCurrency(totals.subtotal)}</p>
+                <p className="text-lg font-bold text-blue-600">{formatCurrency(totals.subtotal, Currency.UZS)}</p>
               </div>
               <button
                 onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}

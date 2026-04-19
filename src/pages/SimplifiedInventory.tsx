@@ -12,11 +12,14 @@ import {
   X,
   AlertTriangle,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Eye
 } from 'lucide-react';
 import api from '../lib/professionalApi';
 import { latinToCyrillic } from '../lib/transliterator';
+import { useNavigate } from 'react-router-dom';
 import { errorHandler } from '../lib/professionalErrorHandler';
+import Input from '../components/Input';
 
 interface Product {
   id: string;
@@ -32,6 +35,7 @@ interface Product {
 }
 
 export default function SimplifiedInventory() {
+  const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
@@ -556,14 +560,23 @@ export default function SimplifiedInventory() {
                                     ) : (
                                       <>
                                         <button
+                                          onClick={() => navigate(`/cashier/products/${product.id}`)}
+                                          className="h-8 px-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg flex items-center gap-1.5 transition-all hover-scale shadow-md shadow-emerald-500/20"
+                                        >
+                                          <Eye className="w-4 h-4" />
+                                          <span className="text-xs font-semibold">{latinToCyrillic("Батафсил")}</span>
+                                        </button>
+                                        <button
                                           onClick={() => startEditing(product)}
                                           className="w-8 h-8 bg-blue-100 hover:bg-blue-500 text-blue-500 hover:text-white rounded-lg flex items-center justify-center transition-all hover-scale"
+                                          title={latinToCyrillic("Таҳрир")}
                                         >
                                           <Pencil className="w-4 h-4" />
                                         </button>
                                         <button
                                           onClick={() => deleteProduct(product.id)}
                                           className="w-8 h-8 bg-red-100 hover:bg-red-500 text-red-500 hover:text-white rounded-lg flex items-center justify-center transition-all hover-scale"
+                                          title={latinToCyrillic("Ўчириш")}
                                         >
                                           <Trash2 className="w-4 h-4" />
                                         </button>
@@ -636,62 +649,40 @@ export default function SimplifiedInventory() {
 
                 {/* Narx va Zaxira */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">
-                      {latinToCyrillic("Narx (qop)")} *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={newProduct.pricePerBag}
-                      onChange={(e) => setNewProduct({...newProduct, pricePerBag: e.target.value})}
-                      placeholder="0.00"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl font-bold text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">
-                      {latinToCyrillic("Zaxira (qop)")} *
-                    </label>
-                    <input
-                      type="number"
-                      value={newProduct.currentStock}
-                      onChange={(e) => setNewProduct({...newProduct, currentStock: e.target.value})}
-                      placeholder="0"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl font-bold text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-                      required
-                    />
-                  </div>
+                  <Input
+                    label={latinToCyrillic("Narx (qop)") + " *"}
+                    decimal
+                    value={newProduct.pricePerBag}
+                    onChange={(e) => setNewProduct({...newProduct, pricePerBag: e.target.value})}
+                    placeholder="0.00"
+                    required
+                  />
+                  <Input
+                    label={latinToCyrillic("Zaxira (qop)") + " *"}
+                    numeric
+                    value={newProduct.currentStock}
+                    onChange={(e) => setNewProduct({...newProduct, currentStock: e.target.value})}
+                    placeholder="0"
+                    required
+                  />
                 </div>
 
                 {/* Qo'shimcha sozlamalar */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">
-                      {latinToCyrillic("Narx (dona)")}
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={newProduct.pricePerPiece}
-                      onChange={(e) => setNewProduct({...newProduct, pricePerPiece: e.target.value})}
-                      placeholder="Avtomatik"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl font-bold text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">
-                      {latinToCyrillic("1 qopda (dona)")}
-                    </label>
-                    <input
-                      type="number"
-                      value={newProduct.unitsPerBag}
-                      onChange={(e) => setNewProduct({...newProduct, unitsPerBag: e.target.value})}
-                      placeholder="2000"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl font-bold text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-                    />
-                  </div>
+                  <Input
+                    label={latinToCyrillic("Narx (dona)")}
+                    decimal
+                    value={newProduct.pricePerPiece}
+                    onChange={(e) => setNewProduct({...newProduct, pricePerPiece: e.target.value})}
+                    placeholder="Avtomatik"
+                  />
+                  <Input
+                    label={latinToCyrillic("1 qopda (dona)")}
+                    numeric
+                    value={newProduct.unitsPerBag}
+                    onChange={(e) => setNewProduct({...newProduct, unitsPerBag: e.target.value})}
+                    placeholder="2000"
+                  />
                 </div>
 
                 {/* Ombor kategoriyasi */}

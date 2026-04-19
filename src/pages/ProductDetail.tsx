@@ -8,7 +8,7 @@ import api from '../lib/api';
 import { formatDateTime, formatSmartDate, formatRelativeTime } from '../lib/dateUtils';
 import { 
   Package, 
-  Plus, 
+  Plus,
   Minus, 
   ArrowLeft, 
   History,
@@ -77,7 +77,7 @@ export default function ProductDetail() {
       const { data } = await api.get(`/products/${id}`);
       setProduct(data);
       setSettingsForm({
-        unitsPerBag: (data.unitsPerBag || 2000).toString(),
+        unitsPerBag: (data.unitsPerBag || '').toString(),
         minStockLimit: (data.minStockLimit || 0).toString(),
         optimalStock: (data.optimalStock || 0).toString(),
         pricePerBag: (data.pricePerBag || 0).toString(),
@@ -149,34 +149,57 @@ export default function ProductDetail() {
       setShowSettingsModal(false);
       loadProduct();
       alert('✅ Sozlamalar yangilandi!');
-    } catch (error) {
-      alert('Sozlamalarni yangilashda xatolik');
+    } catch (error: any) {
+      if (error.response?.status === 403) {
+        const requiredRoles = error.response?.data?.requiredRoles?.join(', ') || 'ADMIN, WAREHOUSE_MANAGER, MANAGER';
+        const yourRole = error.response?.data?.yourRole || 'unknown';
+        alert(`❌ Ruxsat yo'q! Sizning rolingiz: ${yourRole}\nKerakli rollar: ${requiredRoles}`);
+      } else {
+        alert('❌ Sozlamalarni yangilashda xatolik');
+      }
     }
   };
 
   const updatePriceLogic = (type: 'bag' | 'piece', currency: 'USD' | 'UZS', value: string) => {
-    const rawVal = value.replace(',', '.');
-    if (rawVal !== '' && isNaN(Number(rawVal)) && rawVal !== '.') return;
+    const rawVal = value.replace(/[^0-9.]/g, '');
     
-    const numVal = rawVal === '' || rawVal === '.' ? 0 : parseFloat(rawVal);
-    const upb = parseInt(settingsForm.unitsPerBag) || 2000;
+    // Agar bo'sh bo'lsa, shunchaki bo'sh qoldirish
+    if (rawVal === '' || rawVal === '.') {
+      if (type === 'bag') {
+        setSettingsForm(prev => ({ ...prev, pricePerBag: '' }));
+      } else {
+        setSettingsForm(prev => ({ ...prev, pricePerPiece: '' }));
+      }
+      return;
+    }
+    
+    const numVal = parseFloat(rawVal);
+    const upb = parseInt(settingsForm.unitsPerBag) || 1000;
     const rate = exchangeRates.USD_TO_UZS;
 
     let newPricePerBag = parseFloat(settingsForm.pricePerBag) || 0;
     let newPricePerPiece = parseFloat(settingsForm.pricePerPiece) || 0;
 
     if (type === 'bag') {
-      newPricePerBag = currency === 'USD' ? numVal : numVal / rate;
+      if (currency === 'USD') {
+        newPricePerBag = numVal * rate; // USD -> UZS
+      } else {
+        newPricePerBag = numVal; // UZS -> UZS
+      }
       newPricePerPiece = newPricePerBag / upb;
     } else {
-      newPricePerPiece = currency === 'USD' ? numVal : numVal / rate;
+      if (currency === 'USD') {
+        newPricePerPiece = numVal * rate; // USD -> UZS
+      } else {
+        newPricePerPiece = numVal; // UZS -> UZS
+      }
       newPricePerBag = newPricePerPiece * upb;
     }
 
     setSettingsForm(prev => ({
       ...prev,
-      pricePerBag: newPricePerBag.toString(),
-      pricePerPiece: newPricePerPiece.toString()
+      pricePerBag: newPricePerBag > 0 ? newPricePerBag.toString() : '',
+      pricePerPiece: newPricePerPiece > 0 ? newPricePerPiece.toString() : ''
     }));
   };
 
@@ -585,7 +608,7 @@ export default function ProductDetail() {
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="Qopdagi Dona Soni"
-              type="number"
+              numeric
               value={settingsForm.unitsPerBag}
               onChange={(e) => setSettingsForm({ ...settingsForm, unitsPerBag: e.target.value })}
               required
@@ -593,42 +616,27 @@ export default function ProductDetail() {
             
             <Input
               label="Minimal Zaxira (qop)"
-              type="number"
+              numeric
               value={settingsForm.minStockLimit}
               onChange={(e) => setSettingsForm({ ...settingsForm, minStockLimit: e.target.value })}
               required
             />
             
             <div className="col-span-2 grid grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
-              <div className="col-span-2 text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Asosiy Narxlar</div>
+              <div className="col-span-2 text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Asosiy Narxlar (USD)</div>
               
-              <div className="space-y-1">
-                <label className="text-[10px] font-semibold text-gray-400 uppercase">Qop Narxi (UZS)</label>
-                <input
-                  type="text"
-                  value={parseFloat(settingsForm.pricePerBag).toLocaleString()}
-                  onChange={(e) => updatePriceLogic('bag', 'UZS', e.target.value.replace(/\s/g, ''))}
-                  className="w-full bg-white dark:bg-gray-900 border-2 border-emerald-500 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none"
-                />
-              </div>
-
               <div className="space-y-1">
                 <label className="text-[10px] font-semibold text-gray-400 uppercase">Qop Narxi ($)</label>
                 <input
                   type="text"
-                  value={(parseFloat(settingsForm.pricePerBag) / exchangeRates.USD_TO_UZS).toFixed(2)}
-                  onChange={(e) => updatePriceLogic('bag', 'USD', e.target.value)}
+                  inputMode="decimal"
+                  value={settingsForm.pricePerBag}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9.]/g, '').replace(/\.(?=.*\.)/g, '');
+                    setSettingsForm(prev => ({ ...prev, pricePerBag: val }));
+                  }}
+                  placeholder="0.00"
                   className="w-full bg-white dark:bg-gray-900 border-2 border-blue-500 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-semibold text-gray-400 uppercase">Dona Narxi (UZS)</label>
-                <input
-                  type="text"
-                  value={parseFloat(settingsForm.pricePerPiece).toLocaleString()}
-                  onChange={(e) => updatePriceLogic('piece', 'UZS', e.target.value.replace(/\s/g, ''))}
-                  className="w-full bg-white dark:bg-gray-900 border-2 border-emerald-500 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none"
                 />
               </div>
 
@@ -636,16 +644,25 @@ export default function ProductDetail() {
                 <label className="text-[10px] font-semibold text-gray-400 uppercase">Dona Narxi ($)</label>
                 <input
                   type="text"
-                  value={(parseFloat(settingsForm.pricePerPiece) / exchangeRates.USD_TO_UZS).toFixed(4)}
-                  onChange={(e) => updatePriceLogic('piece', 'USD', e.target.value)}
-                  className="w-full bg-white dark:bg-gray-900 border-2 border-blue-500 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none"
+                  inputMode="decimal"
+                  value={settingsForm.pricePerPiece}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9.]/g, '').replace(/\.(?=.*\.)/g, '');
+                    setSettingsForm(prev => ({ ...prev, pricePerPiece: val }));
+                  }}
+                  placeholder="0.0000"
+                  className="w-full bg-white dark:bg-gray-900 border-2 border-emerald-500 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none"
                 />
+              </div>
+              
+              <div className="col-span-2 text-[10px] text-gray-500 mt-2">
+                * Narxlar USD da saqlanadi. Joriy kurs: 1 USD = {exchangeRates.USD_TO_UZS.toLocaleString()} UZS
               </div>
             </div>
             
             <Input
               label="Optimal Zaxira (qop)"
-              type="number"
+              numeric
               value={settingsForm.optimalStock}
               onChange={(e) => setSettingsForm({ ...settingsForm, optimalStock: e.target.value })}
               required

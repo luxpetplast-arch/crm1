@@ -43,7 +43,11 @@ export const authenticateToken = authenticate;
 export const authorize = (...roles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user || !roles.some(role => role.toUpperCase() === req.user?.role?.toUpperCase())) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
+      return res.status(403).json({ 
+        error: 'Insufficient permissions',
+        requiredRoles: roles,
+        yourRole: req.user?.role || 'unknown'
+      });
     }
     next();
   };

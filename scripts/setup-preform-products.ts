@@ -86,35 +86,35 @@ async function setupPreformProducts() {
     
     // 4. Create Products with variants
     const products = [
-      // 15 gr products (20,000 dona = 20 qop)
-      { size: '15gr', variant: 'prozrach', quantity: 20000, bags: 20, unitsPerBag: 1000 },
-      { size: '15gr', variant: 'gidro', quantity: 20000, bags: 20, unitsPerBag: 1000 },
-      { size: '15gr', variant: 'siniy', quantity: 20000, bags: 20, unitsPerBag: 1000 },
-      { size: '15gr', variant: 'sprite', quantity: 20000, bags: 20, unitsPerBag: 1000 },
-      { size: '15gr', variant: 'kizil', quantity: 20000, bags: 20, unitsPerBag: 1000 },
-      { size: '15gr', variant: 'kora', quantity: 20000, bags: 20, unitsPerBag: 1000 },
+      // 15 gr products (20,000 dona = 1 qop, $0.0285/dona, $570/qop)
+      { size: '15gr', variant: 'prozrach', quantity: 20000, bags: 1, unitsPerBag: 20000, pricePerBag: 570.00, pricePerPiece: 0.0285 },
+      { size: '15gr', variant: 'gidro', quantity: 20000, bags: 1, unitsPerBag: 20000, pricePerBag: 570.00, pricePerPiece: 0.0285 },
+      { size: '15gr', variant: 'siniy', quantity: 20000, bags: 1, unitsPerBag: 20000, pricePerBag: 570.00, pricePerPiece: 0.0285 },
+      { size: '15gr', variant: 'sprite', quantity: 20000, bags: 1, unitsPerBag: 20000, pricePerBag: 570.00, pricePerPiece: 0.0285 },
+      { size: '15gr', variant: 'kizil', quantity: 20000, bags: 1, unitsPerBag: 20000, pricePerBag: 570.00, pricePerPiece: 0.0285 },
+      { size: '15gr', variant: 'kora', quantity: 20000, bags: 1, unitsPerBag: 20000, pricePerBag: 570.00, pricePerPiece: 0.0285 },
       
-      // 21 gr products (15,000 dona = 15 qop)
-      { size: '21gr', variant: 'prozrach', quantity: 15000, bags: 15, unitsPerBag: 1000 },
-      { size: '21gr', variant: 'gidro', quantity: 15000, bags: 15, unitsPerBag: 1000 },
-      { size: '21gr', variant: 'gd Oqtosh', quantity: 15000, bags: 15, unitsPerBag: 1000 },
-      { size: '21gr', variant: 'siniy', quantity: 15000, bags: 15, unitsPerBag: 1000 },
-      { size: '21gr', variant: 'sprite', quantity: 15000, bags: 15, unitsPerBag: 1000 },
-      { size: '21gr', variant: 'yod', quantity: 15000, bags: 15, unitsPerBag: 1000 },
-      { size: '21gr', variant: 'ok', quantity: 15000, bags: 15, unitsPerBag: 1000 },
+      // 21 gr products (15,000 dona = 1 qop, $0.04/dona, $600/qop)
+      { size: '21gr', variant: 'prozrach', quantity: 15000, bags: 1, unitsPerBag: 15000, pricePerBag: 600.00, pricePerPiece: 0.04 },
+      { size: '21gr', variant: 'gidro', quantity: 15000, bags: 1, unitsPerBag: 15000, pricePerBag: 600.00, pricePerPiece: 0.04 },
+      { size: '21gr', variant: 'gd Oqtosh', quantity: 15000, bags: 1, unitsPerBag: 15000, pricePerBag: 600.00, pricePerPiece: 0.04 },
+      { size: '21gr', variant: 'siniy', quantity: 15000, bags: 1, unitsPerBag: 15000, pricePerBag: 600.00, pricePerPiece: 0.04 },
+      { size: '21gr', variant: 'sprite', quantity: 15000, bags: 1, unitsPerBag: 15000, pricePerBag: 600.00, pricePerPiece: 0.04 },
+      { size: '21gr', variant: 'yod', quantity: 15000, bags: 1, unitsPerBag: 15000, pricePerBag: 600.00, pricePerPiece: 0.04 },
+      { size: '21gr', variant: 'ok', quantity: 15000, bags: 1, unitsPerBag: 15000, pricePerBag: 600.00, pricePerPiece: 0.04 },
       
       // 26 gr products (12,000 dona = 12 qop)
       { size: '26gr', variant: 'yog', quantity: 12000, bags: 12, unitsPerBag: 1000 },
       
-      // 30 gr products (10,000 dona = 10 qop)
-      { size: '30gr', variant: 'prozrach', quantity: 10000, bags: 10, unitsPerBag: 1000 },
-      { size: '30gr', variant: 'gidro', quantity: 10000, bags: 10, unitsPerBag: 1000 },
-      { size: '30gr', variant: 'gd Oqtosh', quantity: 10000, bags: 10, unitsPerBag: 1000 },
-      { size: '30gr', variant: 'sprite', quantity: 10000, bags: 10, unitsPerBag: 1000 },
-      { size: '30gr', variant: 'siniy', quantity: 10000, bags: 10, unitsPerBag: 1000 },
+      // 30 gr products (10,000 dona = 1 qop, $0.057/dona, $570/qop)
+      { size: '30gr', variant: 'prozrach', quantity: 10000, bags: 1, unitsPerBag: 10000, pricePerBag: 570.00, pricePerPiece: 0.057 },
+      { size: '30gr', variant: 'gidro', quantity: 10000, bags: 1, unitsPerBag: 10000, pricePerBag: 570.00, pricePerPiece: 0.057 },
+      { size: '30gr', variant: 'gd Oqtosh', quantity: 10000, bags: 1, unitsPerBag: 10000, pricePerBag: 570.00, pricePerPiece: 0.057 },
+      { size: '30gr', variant: 'sprite', quantity: 10000, bags: 1, unitsPerBag: 10000, pricePerBag: 570.00, pricePerPiece: 0.057 },
+      { size: '30gr', variant: 'siniy', quantity: 10000, bags: 1, unitsPerBag: 10000, pricePerBag: 570.00, pricePerPiece: 0.057 },
       
-      // 36 gr products (10,000 dona = 10 qop)
-      { size: '36gr', variant: 'yog', quantity: 10000, bags: 10, unitsPerBag: 1000 },
+      // 36 gr products (10,000 dona = 1 qop, $0.0685/dona, $685/qop)
+      { size: '36gr', variant: 'yog', quantity: 10000, bags:1, unitsPerBag: 10000, pricePerBag: 685.00, pricePerPiece: 0.0685 },
       
       // 52 gr products (6,000 dona = 6 qop)
       { size: '52gr', variant: 'prozrach', quantity: 6000, bags: 6, unitsPerBag: 1000 },
@@ -185,7 +185,9 @@ async function setupPreformProducts() {
           data: {
             currentStock: product.bags,
             currentUnits: product.quantity,
-            unitsPerBag: product.unitsPerBag
+            unitsPerBag: product.unitsPerBag,
+            pricePerBag: (product as any).pricePerBag || existingProduct.pricePerBag,
+            pricePerPiece: (product as any).pricePerPiece || existingProduct.pricePerPiece
           }
         });
         
@@ -221,8 +223,8 @@ async function setupPreformProducts() {
           maxCapacity: Math.floor(product.bags * 1.5), // 150% of current stock
           currentStock: product.bags,
           currentUnits: product.quantity,
-          pricePerBag: 0, // Will be set later
-          pricePerPiece: 0, // Will be set later
+          pricePerBag: (product as any).pricePerBag || 0,
+          pricePerPiece: (product as any).pricePerPiece || 0,
           productionCost: 0,
           warehouse: 'preform',
           categoryId: category.id,
