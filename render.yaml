@@ -32,10 +32,10 @@ services:
         value: 5000
       - key: USD_TO_UZS_RATE
         value: 12500
-      - key: TELEGRAM_BOT_TOKEN
-        sync: false
-      - key: TELEGRAM_ADMIN_CHAT_ID
-        sync: false
+      # - key: TELEGRAM_BOT_TOKEN
+      #   sync: false
+      # - key: TELEGRAM_ADMIN_CHAT_ID
+      #   sync: false
       - key: FRONTEND_URL
         value: https://luxpetplast.onrender.com
       - key: CORS_ORIGIN
