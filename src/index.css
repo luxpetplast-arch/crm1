@@ -162,9 +162,13 @@
 @layer components {
   /* Enhanced Button Styles */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-95;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-300 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 active:scale-95;
     position: relative;
     overflow: hidden;
+  }
+
+  .btn:focus-visible {
+    box-shadow: 0 0 0 2px white, 0 0 0 4px #3b82f6, 0 0 0 6px rgba(59, 130, 246, 0.2);
   }
 
   .btn::before {
