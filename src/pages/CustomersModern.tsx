@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  User, 
-  Trash2, 
+import {
+  Plus,
+  Search,
+  Filter,
+  User,
+  Trash2,
   Eye,
   Phone,
   Mail,
@@ -15,7 +15,6 @@ import {
   Users
 } from 'lucide-react';
 import { latinToCyrillic } from '../lib/transliterator';
-import ModernLayout from '../components/ModernLayout';
 import api from '../lib/api';
 
 interface Customer {
@@ -147,10 +146,21 @@ export default function CustomersModern() {
   };
 
   return (
-    <ModernLayout 
-      title={latinToCyrillic("Mijozlar")}
-      subtitle={`${filteredCustomers.length} ${latinToCyrillic("ta mijoz")}`}
-    >
+    <div className="min-h-screen p-6 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 bg-dots-pattern">
+      {/* Header */}
+      <div className="mb-8 animate-fade-in">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-gradient mb-2">
+              {latinToCyrillic("Mijozlar")}
+            </h1>
+            <p className="text-gray-600">
+              {filteredCustomers.length} {latinToCyrillic("ta mijoz")}
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="space-y-6">
         {/* Actions Bar */}
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -203,12 +213,12 @@ export default function CustomersModern() {
 
         {/* Loading State */}
         {loading && (
-          <div className="glass-card-light p-12">
+          <div className="glass-card p-12 rounded-2xl">
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16">
                 <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
               </div>
-              <p className="text-lg font-semibold text-primary mb-4">{latinToCyrillic("Хатолик Юз Берди")}</p>
+              <p className="text-lg font-semibold text-blue-600 mt-4">{latinToCyrillic("Yuklanmoqda...")}</p>
             </div>
           </div>
         )}
@@ -217,7 +227,7 @@ export default function CustomersModern() {
         {!loading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredCustomers.map((customer) => (
-              <div key={customer.id} className="glass-card-light p-6 hover:scale-105 transition-transform duration-200">
+              <div key={customer.id} className="glass-card hover-lift p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center">
                     <User className="w-6 h-6 text-white" />
@@ -254,14 +264,14 @@ export default function CustomersModern() {
                 
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
-                    <p className="text-xs text-secondary">{latinToCyrillic("Balans")}</p>
-                    <p className="text-lg font-bold text-primary">
+                    <p className="text-xs text-gray-500">{latinToCyrillic("Balans")}</p>
+                    <p className="text-lg font-bold text-gray-900">
                       {customer.balance.toLocaleString()} UZS
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-secondary">{latinToCyrillic("Qarz")}</p>
-                    <p className={`text-lg font-bold ${customer.debt > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                    <p className="text-xs text-gray-500">{latinToCyrillic("Qarz")}</p>
+                    <p className={`text-lg font-bold ${customer.debt > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                       {customer.debt.toLocaleString()} UZS
                     </p>
                   </div>
@@ -288,14 +298,14 @@ export default function CustomersModern() {
 
         {/* Empty State */}
         {!loading && filteredCustomers.length === 0 && (
-          <div className="glass-card-light p-12">
+          <div className="glass-card p-12 rounded-2xl">
             <div className="text-center">
               <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <User className="w-8 h-8 text-gray-400" />
               </div>
-              <h3 className="text-lg font-semibold text-primary mb-2">{latinToCyrillic("Мижозлар Топилмади")}</h3>
-              <p className="text-secondary">
-                {latinToCyrillic("Қидириш шартларини ўзгартириб қайта уриниб кўринг")}
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">{latinToCyrillic("Mijozlar topilmadi")}</h3>
+              <p className="text-gray-500">
+                {latinToCyrillic("Qidirish shartlarini o'zgartirib qayta urinib ko'ring")}
               </p>
             </div>
           </div>
@@ -304,40 +314,40 @@ export default function CustomersModern() {
         {/* Stats Summary */}
         {!loading && customers.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="glass-card-light p-6">
+            <div className="glass-card hover-lift p-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
                   <Users className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm text-secondary">{latinToCyrillic("Жами Мижозлар")}</p>
-                  <p className="text-2xl font-bold text-primary">{customers.length}</p>
+                  <p className="text-sm text-gray-500">{latinToCyrillic("Jami mijozlar")}</p>
+                  <p className="text-2xl font-bold text-gray-900">{customers.length}</p>
                 </div>
               </div>
             </div>
-            
-            <div className="glass-card-light p-6">
+
+            <div className="glass-card hover-lift p-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center">
+                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
                   <DollarSign className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm text-secondary">{latinToCyrillic("Жами Баланс")}</p>
-                  <p className="text-2xl font-bold text-primary">
+                  <p className="text-sm text-gray-500">{latinToCyrillic("Jami balans")}</p>
+                  <p className="text-2xl font-bold text-gray-900">
                     {customers.reduce((sum, c) => sum + c.balance, 0).toLocaleString()} UZS
                   </p>
                 </div>
               </div>
             </div>
-            
-            <div className="glass-card-light p-6">
+
+            <div className="glass-card hover-lift p-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-600 rounded-2xl flex items-center justify-center">
+                <div className="w-10 h-10 bg-gradient-to-br from-rose-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
                   <TrendingUp className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm text-secondary">{latinToCyrillic("Жами Қарз")}</p>
-                  <p className="text-2xl font-bold text-primary">
+                  <p className="text-sm text-gray-500">{latinToCyrillic("Jami qarz")}</p>
+                  <p className="text-2xl font-bold text-gray-900">
                     {customers.reduce((sum, c) => sum + c.debt, 0).toLocaleString()} UZS
                   </p>
                 </div>
@@ -348,8 +358,8 @@ export default function CustomersModern() {
 
         {/* Add Customer Modal */}
         {showAddForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="glass-card-light p-6 w-full max-w-md mx-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="glass-card p-6 w-full max-w-md mx-4 rounded-2xl">
               <h3 className="text-xl font-bold mb-4">{latinToCyrillic("Yangi mijoz qo'shish")}</h3>
               
               <div className="space-y-4">
@@ -403,7 +413,7 @@ export default function CustomersModern() {
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={handleAddCustomer}
-                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                  className="btn-gradient-primary flex-1"
                 >
                   {latinToCyrillic("Qo'shish")}
                 </button>
@@ -412,7 +422,7 @@ export default function CustomersModern() {
                     setShowAddForm(false);
                     setNewCustomer({ name: '', phone: '', address: '', category: 'NORMAL' });
                   }}
-                  className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors"
+                  className="btn flex-1 bg-gray-200 text-gray-700 hover:bg-gray-300"
                 >
                   {latinToCyrillic("Bekor qilish")}
                 </button>
@@ -421,6 +431,6 @@ export default function CustomersModern() {
           </div>
         )}
       </div>
-    </ModernLayout>
+    </div>
   );
 }
