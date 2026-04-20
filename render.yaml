@@ -16,7 +16,7 @@ services:
     region: frankfurt
     plan: free
     buildCommand: npm install && npm run db:generate && npm run build:server
-    startCommand: npm run db:push && node server/dist/index.js
+    startCommand: if [ -z "$DATABASE_URL" ]; then echo "ERROR: DATABASE_URL not set"; sleep 10; exit 1; fi && npm run db:push && node server/dist/index.js
     envVars:
       - key: NODE_ENV
         value: production
