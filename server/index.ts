@@ -44,7 +44,7 @@ import bagLabelRoutes from './routes/bag-labels';
 import businessAIRoutes from './routes/business-ai';
 import budgetRoutes from './routes/budgets';
 // import loanRoutes from './routes/loans'; // Fayl yo'q
-import { botManager } from './bot/bot-manager';
+// import { botManager } from './bot/bot-manager'; // Vaqtinchalik o'chirildi
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -105,11 +105,11 @@ app.use('/api/business-ai', businessAIRoutes);
 // Public routes (autentifikatsiya kerak emas)
 app.use('/api/public', publicOrdersRoutes);
 
-// Bot API routes
-app.use('/api/drivers', driversRoutes);
-app.use('/api/bots', botApiRoutes);
-app.use('/api/customer-chat', customerChatRoutes);
-app.use('/api/customer-chats', customerChatsRoutes);
+// Bot API routes (vaqtinchalik o'chirildi)
+// app.use('/api/drivers', driversRoutes);
+// app.use('/api/bots', botApiRoutes);
+// app.use('/api/customer-chat', customerChatRoutes);
+// app.use('/api/customer-chats', customerChatsRoutes);
 app.use('/api/statistics', statisticsRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/print', printRoutes);
