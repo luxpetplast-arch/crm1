@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Plus,
   Search,
@@ -31,6 +31,8 @@ interface Customer {
 
 export default function CustomersModern() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isCashier = location.pathname.startsWith('/cashier');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -279,7 +281,7 @@ export default function CustomersModern() {
                 
                 <div className="flex gap-2">
                   <button
-                    onClick={() => navigate(`/customers/${customer.id}`)}
+                    onClick={() => navigate(isCashier ? `/cashier/customers/${customer.id}` : `/customers/${customer.id}`)}
                     className="btn-gradient-secondary flex-1 p-2 flex items-center justify-center gap-1"
                   >
                     <Eye className="w-4 h-4" />
