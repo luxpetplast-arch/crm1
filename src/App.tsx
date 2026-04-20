@@ -29,13 +29,35 @@ const CashierManagement = lazy(() => import('./pages/CashierManagement'));
 const ProfessionalLayout = lazy(() => import('./components/ProfessionalLayout'));
 const CashierLayout = lazy(() => import('./layouts/CashierLayout'));
 
-// Loading component
+// Modern Loading component with enhanced design
 const LoadingSpinner = () => (
-  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-    <div className="relative">
-      <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full animate-pulse"></div>
+  <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 bg-dots-pattern">
+    <div className="glass-card p-10 rounded-3xl shadow-glass-lg animate-scale-in">
+      <div className="relative">
+        {/* Outer ring with shimmer effect */}
+        <div className="animate-spin rounded-full h-20 w-20 border-4 border-blue-100 border-t-blue-600 border-r-blue-400 shadow-glow"></div>
+        
+        {/* Middle ring - counter spin */}
+        <div className="absolute top-1 left-1 animate-spin rounded-full h-18 w-18 border-3 border-indigo-100 border-b-indigo-500 border-l-indigo-300" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+        
+        {/* Inner animated gradient */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="h-10 w-10 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-full animate-pulse shadow-glow"></div>
+        </div>
+        
+        {/* Orbital dots */}
+        <div className="absolute inset-0 animate-spin-slow" style={{ animationDuration: '3s' }}>
+          <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-blue-400 rounded-full shadow-glow"></div>
+        </div>
+        <div className="absolute inset-0 animate-spin-slow" style={{ animationDirection: 'reverse', animationDuration: '4s' }}>
+          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-indigo-400 rounded-full shadow-glow"></div>
+        </div>
+      </div>
+      
+      {/* Loading text with shimmer effect */}
+      <div className="mt-8 text-center">
+        <p className="text-lg font-semibold text-gradient-blue animate-shimmer">Yuklanmoqda...</p>
+        <p className="text-sm text-gray-500 mt-2">Iltimos, kuting</p>
       </div>
     </div>
   </div>

@@ -5,6 +5,7 @@ const api = axios.create({
   baseURL: 'http://localhost:5003/api',
 });
 
+
 async function testProductCreate() {
   try {
     // Login
@@ -24,7 +25,7 @@ async function testProductCreate() {
     
     const preformType = typesRes.data.find(t => t.name === 'Preform');
     console.log('🎯 Preform turi:', preformType?.name, 'ID:', preformType?.id);
-
+                              
     // Mahsulot yaratish
     console.log('\n➕ Mahsulot yaratish...');
     const productData = {
@@ -42,8 +43,7 @@ async function testProductCreate() {
       active: true
     };
 
-    console.log('📤 Yuborilayotgan ma\'lumotlar:', JSON.stringify(productData, null, 2));
-
+    
     const productRes = await api.post('/products', productData);
     console.log('✅ Mahsulot yaratildi:', productRes.data.name);
     console.log('🆔 Mahsulot ID:', productRes.data.id);
@@ -58,3 +58,4 @@ async function testProductCreate() {
 }
 
 testProductCreate();
+  

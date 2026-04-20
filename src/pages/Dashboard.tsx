@@ -147,41 +147,45 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-        <div className="relative">
-          <div className="animate-spin rounded-full h-20 w-20 border-4 border-blue-200 border-t-blue-600"></div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="h-10 w-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full animate-pulse"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 bg-dots-pattern">
+        <div className="glass-card p-10 rounded-3xl shadow-glass-lg animate-scale-in">
+          <div className="relative">
+            <div className="animate-spin rounded-full h-20 w-20 border-4 border-blue-100 border-t-blue-600 border-r-blue-400 shadow-glow"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="h-10 w-10 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-full animate-pulse shadow-glow"></div>
+            </div>
           </div>
+          <p className="mt-6 text-center text-lg font-semibold text-gradient-blue animate-shimmer">
+            {latinToCyrillic('Yuklanmoqda...')}
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6">
+    <div className="min-h-screen p-6 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 bg-dots-pattern">
       {/* Header */}
       <div className="mb-8 animate-fade-in">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">
+            <h1 className="text-4xl font-bold text-gradient mb-2">
               {latinToCyrillic('Dashboard')}
             </h1>
             <p className="text-gray-600">
               {latinToCyrillic('LUX PET PLAST zavod boshqaruv tizimi')}
             </p>
           </div>
-          
+
           <div className="flex items-center gap-4">
-            <ProfessionalButton
+            <button
               onClick={handleRefresh}
-              loading={refreshing}
-              variant="outline"
-              className="hover:scale-105 transition-transform"
+              disabled={refreshing}
+              className="btn-gradient-primary group"
             >
-              <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
               {latinToCyrillic('Yangilash')}
-            </ProfessionalButton>
+            </button>
           </div>
         </div>
       </div>
@@ -235,25 +239,28 @@ export default function Dashboard() {
             <button
               key={index}
               onClick={() => navigate(action.href)}
-              className="group relative overflow-hidden bg-white rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 border border-gray-100"
+              className="group relative overflow-hidden glass-card p-6 hover-lift"
+              style={{ animationDelay: `${index * 100}ms` }}
             >
-              <div className={`absolute inset-0 bg-gradient-to-r ${action.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`}></div>
-              
+              <div className={`absolute inset-0 bg-gradient-to-r ${action.color} opacity-0 group-hover:opacity-10 transition-opacity duration-500`}></div>
+
               <div className="relative z-10">
-                <div className={`w-12 h-12 bg-gradient-to-r ${action.color} rounded-xl flex items-center justify-center mb-4`}>
+                <div className={`w-12 h-12 bg-gradient-to-r ${action.color} rounded-xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
                   <action.icon className="w-6 h-6 text-white" />
                 </div>
-                
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">
+
+                <h3 className="text-lg font-semibold text-gray-900 mb-1 group-hover:text-blue-700 transition-colors">
                   {latinToCyrillic(action.title)}
                 </h3>
                 <p className="text-sm text-gray-600">
                   {latinToCyrillic(action.description)}
                 </p>
               </div>
-              
-              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <ArrowUpRight className="w-5 h-5 text-gray-400" />
+
+              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform group-hover:translate-x-1 group-hover:-translate-y-1">
+                <div className={`p-2 rounded-lg bg-gradient-to-r ${action.color} shadow-md`}>
+                  <ArrowUpRight className="w-4 h-4 text-white" />
+                </div>
               </div>
             </button>
           ))}
@@ -263,9 +270,9 @@ export default function Dashboard() {
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Sales Chart */}
-        <Card className="animate-slide-up">
+        <Card className="glass-card hover-lift animate-slide-up">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-gradient-blue">
               <BarChart3 className="w-5 h-5 text-blue-500" />
               {latinToCyrillic('Sotuvlar Statistikasi')}
             </CardTitle>
@@ -302,7 +309,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Orders Pie Chart */}
-        <Card className="animate-slide-up" style={{ animationDelay: '0.1s' } as any}>
+        <Card className="glass-card hover-lift animate-slide-up animate-delay-100">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Target className="w-5 h-5 text-emerald-500" />
@@ -334,7 +341,7 @@ export default function Dashboard() {
       </div>
 
       {/* Recent Activities */}
-      <Card className="animate-slide-up" style={{ animationDelay: '0.2s' } as any}>
+      <Card className="glass-card hover-lift animate-slide-up animate-delay-200">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="w-5 h-5 text-violet-500" />
@@ -349,30 +356,37 @@ export default function Dashboard() {
                 className="flex items-center justify-between p-4 rounded-xl hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    activity.status === 'success' ? 'bg-emerald-100' :
-                    activity.status === 'pending' ? 'bg-amber-100' :
-                    'bg-red-100'
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md ${
+                    activity.status === 'success' ? 'bg-gradient-to-br from-emerald-400 to-emerald-500' :
+                    activity.status === 'pending' ? 'bg-gradient-to-br from-amber-400 to-amber-500' :
+                    'bg-gradient-to-br from-rose-400 to-rose-500'
                   }`}>
                     {activity.status === 'success' ? (
-                      <ArrowUpRight className="w-5 h-5 text-emerald-600" />
+                      <ArrowUpRight className="w-5 h-5 text-white" />
                     ) : activity.status === 'pending' ? (
-                      <AlertCircle className="w-5 h-5 text-amber-600" />
+                      <AlertCircle className="w-5 h-5 text-white" />
                     ) : (
-                      <ArrowDownRight className="w-5 h-5 text-red-600" />
+                      <ArrowDownRight className="w-5 h-5 text-white" />
                     )}
                   </div>
                   
                   <div>
-                    <p className="font-medium text-gray-900">
+                    <p className="font-medium text-gray-900 group-hover:text-blue-700 transition-colors">
                       {latinToCyrillic(activity.description)}
                     </p>
-                    <p className="text-sm text-gray-500">{activity.time}</p>
+                    <p className="text-sm text-gray-500 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                      {activity.time}
+                    </p>
                   </div>
                 </div>
                 
                 <div className="text-right">
-                  <p className="font-semibold text-gray-900">{activity.amount}</p>
+                  <p className={`font-semibold ${
+                    activity.status === 'success' ? 'text-emerald-600' :
+                    activity.status === 'warning' ? 'text-rose-600' :
+                    'text-amber-600'
+                  }`}>{activity.amount}</p>
                 </div>
               </div>
             ))}

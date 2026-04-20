@@ -123,26 +123,26 @@ export default function ProfessionalLayout({ children }: { children: ReactNode }
         key={item.name}
         to={item.href}
         className={cn(
-          "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300",
-          "hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700",
+          "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ease-out",
+          "hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:text-blue-700 hover:shadow-md",
           "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
           isActive 
-            ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25" 
+            ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-glow hover:shadow-glow-lg" 
             : "text-gray-600"
         )}
       >
         <item.icon className={cn(
-          "w-5 h-5 transition-transform duration-300",
-          "group-hover:scale-110",
-          isActive && "text-white"
+          "w-5 h-5 transition-all duration-300 ease-out",
+          "group-hover:scale-110 group-hover:rotate-3",
+          isActive && "text-white drop-shadow-md"
         )} />
         <span className="font-medium">{latinToCyrillic(item.name)}</span>
         {item.badge && (
           <span className={cn(
-            "ml-auto px-2 py-1 text-xs font-bold rounded-full",
+            "ml-auto px-2 py-1 text-xs font-bold rounded-full badge",
             isActive 
-              ? "bg-white/20 text-white" 
-              : "bg-blue-100 text-blue-700"
+              ? "bg-white/30 text-white shadow-inner" 
+              : "badge-blue"
           )}>
             {item.badge}
           </span>
@@ -188,22 +188,27 @@ export default function ProfessionalLayout({ children }: { children: ReactNode }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 bg-dots-pattern">
       {/* Sidebar */}
       <div
         ref={sidebarRef}
         className={cn(
-          "fixed left-0 top-0 h-full bg-white/95 backdrop-blur-xl border-r border-gray-200 shadow-2xl z-50 transition-all duration-300",
+          "fixed left-0 top-0 h-full glass-card border-r border-gray-200/50 shadow-2xl z-50 transition-all duration-300 ease-out",
           isSidebarOpen ? "w-56" : "w-12",
           isMobile && !isSidebarOpen && "-translate-x-full"
         )}
       >
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-center">
+        <div className="p-4 border-b border-gray-200/50 bg-gradient-to-r from-blue-600 to-indigo-600">
+          <div className="flex items-center justify-between">
+            {isSidebarOpen && (
+              <div className="text-white font-bold text-lg">
+                <span className="text-gradient animate-gradient">LUX PET PLAST</span>
+              </div>
+            )}
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-lg bg-white/20 hover:bg-white/30 text-white transition-all duration-200 hover:scale-105"
             >
               {isSidebarOpen ? (
                 <ChevronUp className="w-5 h-5" />
@@ -222,27 +227,27 @@ export default function ProfessionalLayout({ children }: { children: ReactNode }
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="p-4 border-t border-gray-200">
+        <div className="p-4 border-t border-gray-200/50 bg-gradient-to-b from-transparent to-gray-50/50">
           <div className="space-y-2">
             <button
               onClick={toggleTheme}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/80 hover:shadow-md transition-all duration-300 group"
             >
               {theme === 'dark' ? (
-                <Sun className="w-5 h-5 text-yellow-500" />
+                <Sun className="w-5 h-5 text-amber-500 group-hover:animate-spin-slow" />
               ) : (
-                <Moon className="w-5 h-5 text-gray-600" />
+                <Moon className="w-5 h-5 text-indigo-500 group-hover:animate-bounce-gentle" />
               )}
               {isSidebarOpen && (
-                <span className="font-medium">{latinToCyrillic("Mavzu")}</span>
+                <span className="font-medium text-gray-700">{latinToCyrillic("Mavzu")}</span>
               )}
             </button>
             
             <button
               onClick={logout}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-50 hover:shadow-md text-red-600 transition-all duration-300 group"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               {isSidebarOpen && (
                 <span className="font-medium">{latinToCyrillic("Chiqish")}</span>
               )}
@@ -255,12 +260,12 @@ export default function ProfessionalLayout({ children }: { children: ReactNode }
       {isMobile && (
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="fixed top-4 left-4 z-50 p-3 bg-white rounded-xl shadow-lg hover:shadow-xl transition-all"
+          className="fixed top-4 left-4 z-50 p-3 bg-white/90 backdrop-blur-xl rounded-xl shadow-float hover:shadow-glow transition-all duration-300 hover:scale-105"
         >
           {isSidebarOpen ? (
-            <X className="w-6 h-6" />
+            <X className="w-6 h-6 text-gray-700" />
           ) : (
-            <Menu className="w-6 h-6" />
+            <Menu className="w-6 h-6 text-blue-600" />
           )}
         </button>
       )}
@@ -274,7 +279,7 @@ export default function ProfessionalLayout({ children }: { children: ReactNode }
         
         {/* Page Content */}
         <main className="p-6">
-          <div className="animate-fade-in">
+          <div className="animate-fade-in transition-all duration-500">
             {children}
           </div>
         </main>

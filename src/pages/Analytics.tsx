@@ -34,13 +34,15 @@ import CustomerSegmentsChart from '../components/CustomerSegmentsChart';
 import StrategicRecommendations from '../components/StrategicRecommendations';
 import RiskAssessment from '../components/RiskAssessment';
 import AnomaliesDetection from '../components/AnomaliesDetection';
+import ProfessionalCEOAnalytics from '../components/ProfessionalCEOAnalytics';
+import { Crown } from 'lucide-react';
 
 export default function Analytics() {
   const [analytics, setAnalytics] = useState<any>(null);
   const [businessMetrics, setBusinessMetrics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('30');
-  const [activeView, setActiveView] = useState<'ai' | 'business' | 'charts'>('ai');
+  const [activeView, setActiveView] = useState<'ai' | 'business' | 'charts' | 'ceo'>('ceo');
 
   useEffect(() => {
     loadAnalytics();
@@ -159,6 +161,17 @@ export default function Analytics() {
         >
           <PieChart className="w-4 h-4" />
           Chartlar
+        </button>
+        <button
+          onClick={() => setActiveView('ceo')}
+          className={`flex items-center gap-2 px-4 py-2 border-b-2 transition-colors whitespace-nowrap ${
+            activeView === 'ceo'
+              ? 'border-amber-500 text-amber-600'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Crown className="w-4 h-4" />
+          CEO Analytics
         </button>
       </div>
 
@@ -401,6 +414,11 @@ export default function Analytics() {
             </Card>
           )}
         </div>
+      )}
+
+      {/* CEO Analytics View */}
+      {activeView === 'ceo' && (
+        <ProfessionalCEOAnalytics />
       )}
     </div>
   );
