@@ -64,10 +64,17 @@ export default function CustomerProfile() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <div className="relative">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
-          <Sparkles className="w-6 h-6 text-blue-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 bg-dots-pattern">
+        <div className="glass-card p-10 rounded-3xl shadow-glass-lg animate-scale-in">
+          <div className="relative">
+            <div className="animate-spin rounded-full h-20 w-20 border-4 border-blue-100 border-t-blue-600 border-r-blue-400 shadow-glow"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="h-10 w-10 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-full animate-pulse shadow-glow"></div>
+            </div>
+          </div>
+          <p className="mt-6 text-center text-lg font-semibold text-gradient-blue animate-shimmer">
+            {latinToCyrillic('Yuklanmoqda...')}
+          </p>
         </div>
       </div>
     );
@@ -75,12 +82,17 @@ export default function CustomerProfile() {
 
   if (!customer) {
     return (
-      <div className="text-center py-20 bg-white dark:bg-gray-900 rounded-[3rem] shadow-xl border border-gray-100 dark:border-gray-800">
-        <AlertTriangle className="w-20 h-20 text-rose-500 mx-auto mb-6" />
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">{latinToCyrillic("Mijoz topilmadi")}</h2>
-        <Button onClick={() => navigate('/customers')} className="rounded-2xl px-10 py-4 bg-blue-600">
-          {latinToCyrillic("Mijozlar ro'yxatiga qaytish")}
-        </Button>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 bg-dots-pattern p-6">
+        <div className="glass-card p-12 rounded-3xl shadow-premium text-center max-w-md">
+          <AlertTriangle className="w-20 h-20 text-rose-500 mx-auto mb-6" />
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">{latinToCyrillic("Mijoz topilmadi")}</h2>
+          <button
+            onClick={() => navigate('/customers')}
+            className="btn-gradient-primary px-8 py-3"
+          >
+            {latinToCyrillic("Mijozlar ro'yxatiga qaytish")}
+          </button>
+        </div>
       </div>
     );
   }
@@ -109,19 +121,16 @@ export default function CustomerProfile() {
   };
 
   return (
-    <div className="space-y-12 pb-20 animate-in fade-in duration-700">
+    <div className="min-h-screen p-6 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 bg-dots-pattern animate-fade-in">
       {/* Premium Header */}
-      <div className="relative overflow-hidden bg-white dark:bg-gray-900 rounded-[3rem] p-8 sm:p-12 shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white dark:border-gray-800">
-        <div className="absolute top-0 -left-10 w-64 h-64 bg-indigo-100 dark:bg-indigo-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob pointer-events-none"></div>
-        <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-purple-100 dark:bg-purple-900/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000 pointer-events-none"></div>
-
-        <div className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8">
+      <div className="glass-card rounded-3xl p-8 sm:p-12 mb-8 hover-lift">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-            <button 
-              onClick={() => navigate('/customers')}
-              className="p-4 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-2xl transition-all active:scale-90 group"
+            <button
+              onClick={() => navigate(-1)}
+              className="p-4 bg-gray-100 hover:bg-gray-200 rounded-2xl transition-all active:scale-90 group hover-lift"
             >
-              <ArrowLeft className="w-6 h-6 text-gray-600 dark:text-gray-400 group-hover:-translate-x-1 transition-transform" />
+              <ArrowLeft className="w-6 h-6 text-gray-600 group-hover:-translate-x-1 transition-transform" />
             </button>
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-full border border-indigo-100 dark:border-indigo-800 text-[10px] font-semibold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
@@ -135,24 +144,24 @@ export default function CustomerProfile() {
           </div>
 
           <div className="flex flex-wrap gap-3 w-full lg:w-auto">
-            <button 
+            <button
               onClick={handleRefresh}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl font-semibold text-sm transition-all active:scale-95 text-gray-900 dark:text-white shadow-md border border-gray-100 dark:border-gray-700"
+              className="btn bg-white hover:bg-gray-50 shadow-md"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
               {latinToCyrillic("Yangilash")}
             </button>
-            <button 
+            <button
               onClick={handleExportExcel}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded-xl font-semibold text-sm transition-all active:scale-95 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800"
+              className="btn bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200"
             >
               <FileSpreadsheet className="w-4 h-4" />
               Excel
             </button>
             {customer.telegramChatId && (
-              <button 
+              <button
                 onClick={() => navigate('/customer-chat')}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold text-sm transition-all active:scale-95 text-white shadow-lg shadow-blue-500/30"
+                className="btn-gradient-primary"
               >
                 <Send className="w-4 h-4" />
                 Telegram
@@ -165,10 +174,7 @@ export default function CustomerProfile() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Profile Card */}
         <div className="lg:col-span-1 space-y-8">
-          <div className="bg-white dark:bg-gray-900 rounded-[3rem] p-10 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-gray-100 dark:border-gray-800 overflow-hidden relative group">
-            <div className={`absolute top-0 right-0 w-32 h-32 blur-3xl opacity-20 transition-all duration-700 group-hover:scale-150 ${
-              customer.category === 'VIP' ? 'bg-amber-500' : 'bg-blue-500'
-            }`}></div>
+          <div className="glass-card hover-lift p-10 overflow-hidden relative group">
             
             <div className="relative z-10 text-center">
               <div className="relative inline-block mb-6">
@@ -180,20 +186,20 @@ export default function CustomerProfile() {
                   {customer.name.charAt(0).toUpperCase()}
                 </div>
                 {customer.category === 'VIP' && (
-                  <div className="absolute -top-3 -right-3 w-10 h-10 bg-white dark:bg-gray-800 rounded-2xl shadow-xl flex items-center justify-center">
+                  <div className="absolute -top-3 -right-3 w-10 h-10 bg-white rounded-2xl shadow-xl flex items-center justify-center">
                     <Crown className="w-6 h-6 text-amber-500 animate-bounce" />
                   </div>
                 )}
               </div>
 
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight mb-2">{customer.name}</h2>
-              <div className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[10px] font-semibold uppercase tracking-wide ${
-                customer.category === 'VIP' ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/30' : 
-                customer.category === 'RISK' ? 'bg-rose-50 text-rose-600 dark:bg-rose-900/30' : 
-                'bg-gray-50 text-gray-600 dark:bg-gray-800'
+              <h2 className="text-2xl font-bold text-gray-900 tracking-tight mb-2">{customer.name}</h2>
+              <span className={`badge ${
+                customer.category === 'VIP' ? 'badge-warning' :
+                customer.category === 'RISK' ? 'badge-error' :
+                'badge-blue'
               }`}>
                 {customer.category} {latinToCyrillic("mijoz")}
-              </div>
+              </span>
 
               <div className="mt-10 space-y-4">
                 <div className="flex items-center gap-4 p-5 bg-gray-50 dark:bg-gray-800/50 rounded-3xl border border-transparent hover:border-gray-200 dark:hover:border-gray-700 transition-all">
@@ -237,30 +243,28 @@ export default function CustomerProfile() {
           {/* Stats Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {/* Balance Card */}
-            <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-gray-100 dark:border-gray-800 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 dark:bg-blue-900/20 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-700"></div>
+            <div className="glass-card hover-lift p-8 relative overflow-hidden group">
               <div className="relative z-10">
-                <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600 mb-6">
+                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mb-6">
                   <DollarSign className="w-6 h-6" />
                 </div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">{latinToCyrillic("Joriy Balans")}</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">{latinToCyrillic("Joriy Balans")}</p>
                 <div className="space-y-1">
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">${(customer.balanceUSD || 0).toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-gray-900 tracking-tight">${(customer.balanceUSD || 0).toFixed(2)}</p>
                   <p className="text-xs font-bold text-gray-400">{(customer.balanceUZS || 0).toLocaleString()} sum</p>
                 </div>
               </div>
             </div>
 
             {/* Debt Card */}
-            <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-gray-100 dark:border-gray-800 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-rose-50 dark:bg-rose-900/20 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-700"></div>
+            <div className="glass-card hover-lift p-8 relative overflow-hidden group">
               <div className="relative z-10">
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-6 ${
-                  (customer.debtUSD > 0 || customer.debtUZS > 0) ? 'bg-rose-50 text-rose-600 dark:bg-rose-900/30' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30'
+                  (customer.debtUSD > 0 || customer.debtUZS > 0) ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
                 }`}>
                   <AlertTriangle className="w-6 h-6" />
                 </div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">{latinToCyrillic("Jami Qarz")}</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">{latinToCyrillic("Jami Qarz")}</p>
                 <div className="space-y-1">
                   <p className={`text-2xl font-bold tracking-tight ${customer.debtUSD > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                     ${(customer.debtUSD || 0).toFixed(2)}
@@ -271,25 +275,25 @@ export default function CustomerProfile() {
             </div>
 
             {/* Purchase Summary */}
-            <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-gray-100 dark:border-gray-800 sm:col-span-2">
+            <div className="glass-card hover-lift p-8 sm:col-span-2">
               <div className="flex items-center gap-4 mb-8">
-                <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center text-indigo-600">
+                <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
                   <Activity className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white tracking-tight">{latinToCyrillic("Mijoz ma'lumotlari")}</h3>
+                <h3 className="text-lg font-bold text-gray-900 tracking-tight">{latinToCyrillic("Mijoz ma'lumotlari")}</h3>
               </div>
-              
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">{latinToCyrillic("Jami Xaridlar")}</p>
-                  <p className="text-xl font-bold text-gray-900 dark:text-white">{sales.length} {latinToCyrillic("ta")}</p>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">{latinToCyrillic("Jami Xaridlar")}</p>
+                  <p className="text-xl font-bold text-gray-900">{sales.length} {latinToCyrillic("ta")}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">{latinToCyrillic("Umumiy Qiymat")}</p>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">{latinToCyrillic("Umumiy Qiymat")}</p>
                   <p className="text-xl font-bold text-emerald-600">${totalPurchases.toFixed(2)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">{latinToCyrillic("O'rtacha Chek")}</p>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">{latinToCyrillic("O'rtacha Chek")}</p>
                   <p className="text-xl font-bold text-blue-600">${averagePurchase.toFixed(2)}</p>
                 </div>
               </div>
@@ -297,10 +301,10 @@ export default function CustomerProfile() {
           </div>
 
           {/* History Table */}
-          <div className="bg-white dark:bg-gray-900 rounded-[3rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-gray-100 dark:border-gray-800 overflow-hidden">
-            <div className="p-8 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center bg-gray-50/30 dark:bg-gray-800/10">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{latinToCyrillic("Savdolar Tarixi")}</h3>
-              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600">
+          <div className="glass-card overflow-hidden">
+            <div className="p-8 border-b border-gray-200/50 flex justify-between items-center bg-gray-50/30">
+              <h3 className="text-xl font-bold text-gray-900 tracking-tight">{latinToCyrillic("Savdolar Tarixi")}</h3>
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
                 <Clock className="w-5 h-5" />
               </div>
             </div>
