@@ -334,23 +334,23 @@ export default function CustomerProfile() {
                         </div>
                       </td>
                       <td className="px-8 py-6 text-right">
-                        <p className="font-bold text-gray-900 dark:text-white text-sm">
-                          {sale.currency === 'USD' ? '$' : ''}{sale.totalAmount.toLocaleString()}{sale.currency === 'UZS' ? ' sum' : ''}
+                        <p className="font-bold text-gray-900 text-sm">
+                          {sale.currency === 'USD' ? '$' : ''}{(sale.totalAmount || 0).toLocaleString()}{sale.currency === 'UZS' ? ' sum' : ''}
                         </p>
                       </td>
                       <td className="px-8 py-6 text-right">
-                        <p className={`font-bold text-sm ${sale.debtAmount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                          {sale.currency === 'USD' ? '$' : ''}{sale.debtAmount.toLocaleString()}{sale.currency === 'UZS' ? ' sum' : ''}
+                        <p className={`font-bold text-sm ${(sale.debtAmount || 0) > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                          {sale.currency === 'USD' ? '$' : ''}{(sale.debtAmount || 0).toLocaleString()}{sale.currency === 'UZS' ? ' sum' : ''}
                         </p>
                       </td>
                       <td className="px-8 py-6 text-center">
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
-                          sale.debtAmount > 0 
-                            ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400' 
-                            : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
+                          (sale.debtAmount || 0) > 0
+                            ? 'bg-rose-100 text-rose-600'
+                            : 'bg-emerald-100 text-emerald-600'
                         }`}>
-                          <div className={`w-1 h-1 rounded-full ${sale.debtAmount > 0 ? 'bg-rose-500' : 'bg-emerald-500'} animate-pulse`} />
-                          {sale.debtAmount > 0 ? latinToCyrillic("Qarz") : latinToCyrillic("To'langan")}
+                          <div className={`w-1 h-1 rounded-full ${(sale.debtAmount || 0) > 0 ? 'bg-rose-500' : 'bg-emerald-500'} animate-pulse`} />
+                          {(sale.debtAmount || 0) > 0 ? latinToCyrillic("Qarz") : latinToCyrillic("To'langan")}
                         </span>
                       </td>
                     </tr>
