@@ -64,17 +64,13 @@ export default function CustomerProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 bg-dots-pattern">
-        <div className="glass-card p-10 rounded-3xl shadow-glass-lg animate-scale-in">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-20 w-20 border-4 border-blue-100 border-t-blue-600 border-r-blue-400 shadow-glow"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="h-10 w-10 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-full animate-pulse shadow-glow"></div>
-            </div>
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center">
+          <div className="relative inline-block">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
+            <Sparkles className="w-6 h-6 text-blue-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-pulse" />
           </div>
-          <p className="mt-6 text-center text-lg font-semibold text-gradient-blue animate-shimmer">
-            {latinToCyrillic('Yuklanmoqda...')}
-          </p>
+          <p className="mt-4 text-lg font-semibold text-gray-600">{latinToCyrillic('Yuklanmoqda...')}</p>
         </div>
       </div>
     );
@@ -82,12 +78,12 @@ export default function CustomerProfile() {
 
   if (!customer) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 bg-dots-pattern p-6">
-        <div className="glass-card p-12 rounded-3xl shadow-premium text-center max-w-md">
+      <div className="flex items-center justify-center py-20">
+        <div className="glass-card p-12 rounded-3xl text-center max-w-md">
           <AlertTriangle className="w-20 h-20 text-rose-500 mx-auto mb-6" />
           <h2 className="text-3xl font-bold text-gray-900 mb-4">{latinToCyrillic("Mijoz topilmadi")}</h2>
           <button
-            onClick={() => navigate('/customers')}
+            onClick={() => navigate('/cashier/customers')}
             className="btn-gradient-primary px-8 py-3"
           >
             {latinToCyrillic("Mijozlar ro'yxatiga qaytish")}
@@ -121,7 +117,7 @@ export default function CustomerProfile() {
   };
 
   return (
-    <div className="min-h-screen p-6 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 bg-dots-pattern animate-fade-in">
+    <div className="w-full animate-fade-in">
       {/* Premium Header */}
       <div className="glass-card rounded-3xl p-8 sm:p-12 mb-8 hover-lift">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8">
