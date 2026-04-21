@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Brain, 
   TrendingUp, 
@@ -7,27 +7,21 @@ import {
   Users, 
   Target, 
   Zap,
-  Eye,
   RefreshCw,
   Settings,
   Download,
-  Play,
-  Pause,
   CheckCircle,
   XCircle,
   Star,
-  Heart,
   MessageSquare,
   ThumbsUp,
   ThumbsDown,
-  Lightbulb,
   Activity
 } from 'lucide-react';
 import { 
   aiAnalytics, 
   PredictionType, 
-  ModelType,
-  getAnalyticsDashboard 
+  ModelType
 } from '../lib/professionalAIAnalytics';
 
 interface AIAnalyticsDashboardProps {

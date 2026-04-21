@@ -14,8 +14,9 @@ import {
   Settings,
   RefreshCw
 } from 'lucide-react';
-import api from '../lib/api';
+import api from '../lib/professionalApi';
 import { latinToCyrillic } from '../lib/transliterator';
+import { errorHandler } from '../lib/professionalErrorHandler';
 
 interface CustomerMessage {
   id: string;

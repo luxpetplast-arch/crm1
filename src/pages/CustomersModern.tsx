@@ -15,7 +15,8 @@ import {
   Users
 } from 'lucide-react';
 import { latinToCyrillic } from '../lib/transliterator';
-import api from '../lib/api';
+import { errorHandler } from '../lib/professionalErrorHandler';
+import api from '../lib/professionalApi';
 
 interface Customer {
   id: string;

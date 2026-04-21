@@ -22,15 +22,33 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Xatolikni log qilish
+    if (error.response) {
+      console.error(`[API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url}:`, {
+        status: error.response.status,
+        data: error.response.data,
+      });
+    } else if (error.request) {
+      console.error('[API Error] Network error:', error.message);
+    }
+
     if (error.response?.status === 401) {
       // Tokenni tozalash
       localStorage.removeItem('auth-storage');
-      // Login ga yo'naltirish
-      if (window.location.pathname !== '/') {
+      // Login ga yo'naltirish (faqat login sahifasida bo'lmasa)
+      if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
         window.location.href = '/';
       }
     }
-    return Promise.reject(error);
+    
+    // Xato obyektini boyitish
+    const enhancedError = {
+      ...error,
+      userMessage: error.response?.data?.error || error.message || 'Xatolik yuz berdi',
+      statusCode: error.response?.status,
+    };
+    
+    return Promise.reject(enhancedError);
   }
 );
 

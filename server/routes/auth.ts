@@ -39,7 +39,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { id: user.id, role: user.role, name: user.name },
       JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '30d' }
     );
 
     res.json({ token, user: { id: user.id, name: user.name, role: user.role } });
@@ -85,7 +85,7 @@ router.post('/cashier-login', async (req, res) => {
     const token = jwt.sign(
       { id: user.id, role: user.role, name: user.name },
       JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '30d' }
     );
 
     res.json({ token, user: { id: user.id, name: user.name, role: user.role } });
@@ -154,6 +154,33 @@ router.get('/me', async (req, res) => {
       error: 'Token noto\'g\'ri yoki muddati tugagan',
       details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : 'Unknown error') : undefined
     });
+  }
+});
+
+// Token refresh endpoint
+router.post('/refresh', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    // Verify existing token
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: string; role: string; name?: string };
+    
+    // Generate new token
+    const newToken = jwt.sign(
+      { id: decoded.id, role: decoded.role, name: decoded.name },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    res.json({ token: newToken });
+  } catch (error) {
+    console.error('❌ Token refresh error:', error instanceof Error ? error.message : 'Unknown');
+    res.status(401).json({ error: 'Invalid token' });
   }
 });
 

@@ -94,7 +94,7 @@ export default function SimplifiedInventory() {
         pricePerPiece: parseFloat(editingPricePiece) || 0
       };
       
-      await api.patch(`/products/${productId}`, updateData);
+      await api.put(`/products/${productId}`, updateData);
       loadProducts();
       setEditingProduct(null);
       alert(latinToCyrillic('✅ Ma\'lumotlar yangilandi!'));
@@ -427,19 +427,19 @@ export default function SimplifiedInventory() {
             </div>
 
             {/* Kategoriya tugmalari */}
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
               {categories.map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id as any)}
-                  className={`py-3 px-2 rounded-2xl text-sm font-black transition-all hover-scale ${
+                  className={`group py-4 px-3 rounded-2xl text-sm font-black transition-all duration-300 hover:scale-105 hover:shadow-lg ${
                     activeCategory === cat.id
-                      ? `bg-gradient-to-r from-${cat.color}-500 to-${cat.color}-600 text-white shadow-xl shadow-${cat.color}-500/30`
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-2 border-transparent hover:border-gray-300'
+                      ? `bg-gradient-to-br from-${cat.color}-500 via-${cat.color}-600 to-${cat.color}-700 text-white shadow-xl shadow-${cat.color}-500/30 ring-2 ring-${cat.color}-300/50`
+                      : 'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-600 hover:from-gray-200 hover:to-gray-300 border-2 border-transparent hover:border-gray-400 hover:shadow-gray-400/20'
                   }`}
                 >
-                  <div className="text-2xl mb-1">{cat.icon}</div>
-                  <div>{cat.label}</div>
+                  <div className="text-2xl mb-1 group-hover:scale-110 transition-transform duration-300">{cat.icon}</div>
+                  <div className="group-hover:font-extrabold transition-all">{cat.label}</div>
                 </button>
               ))}
             </div>
@@ -457,7 +457,7 @@ export default function SimplifiedInventory() {
               <p className="text-gray-400">{latinToCyrillic("Qidiruv shartlarini o'zgartiring")}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {groupNames.map((groupName) => {
               const groupProducts = groupedProducts[groupName];
               const isExpanded = expandedGroups.includes(groupName);
@@ -465,83 +465,96 @@ export default function SimplifiedInventory() {
               const totalValue = groupProducts.reduce((sum, p) => sum + ((p.currentStock || 0) * (p.pricePerBag || 0)), 0);
               
               return (
-                <div key={groupName} className="border-2 border-gray-200 rounded-2xl overflow-hidden bg-white">
+                <div key={groupName} className="group border-2 border-gray-200/60 rounded-3xl overflow-hidden bg-white shadow-lg hover:shadow-2xl transition-all duration-500 hover:border-blue-300/60 hover:scale-[1.02]">
                   {/* Guruh headeri */}
                   <div 
                     onClick={() => toggleGroup(groupName)}
-                    className="p-3 bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200 cursor-pointer hover:from-gray-100 hover:to-gray-200 transition-all"
+                    className="p-4 bg-gradient-to-br from-gray-50 via-white to-blue-50/30 border-b-2 border-gray-200/60 cursor-pointer hover:from-blue-50/40 hover:via-white hover:to-blue-100/40 transition-all duration-300 relative overflow-hidden"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 ${
+                    {/* Background gradient orqali */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    
+                    <div className="relative flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-lg ${
                           isExpanded 
-                            ? 'bg-blue-500 text-white shadow-md' 
-                            : 'bg-gray-200 text-gray-600 hover:bg-blue-100 hover:text-blue-600'
+                            ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-blue-500/30 scale-110' 
+                            : 'bg-gradient-to-br from-gray-200 to-gray-300 text-gray-600 hover:from-blue-100 hover:to-blue-200 hover:text-blue-600 hover:shadow-blue-200/30'
                         }`}>
-                          {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                          {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                         </div>
                         
-                        <div>
-                          <h3 className="text-sm font-bold text-gray-900 truncate max-w-[120px]">{groupName}</h3>
-                          <p className="text-xs text-gray-500">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base font-black text-gray-900 truncate max-w-[140px] group-hover:text-blue-700 transition-colors">{groupName}</h3>
+                          <p className="text-xs font-bold text-gray-500 group-hover:text-blue-600 transition-colors">
                             {groupProducts.length} {latinToCyrillic("ta")} • {totalStock} {latinToCyrillic("qop")}
                           </p>
                         </div>
                       </div>
                       
                       <div className="text-right">
-                        <p className="text-xs font-bold text-blue-600">{formatPrice(totalValue)}</p>
+                        <p className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 group-hover:from-blue-700 group-hover:to-purple-700 transition-all">
+                          {formatPrice(totalValue)}
+                        </p>
+                        <p className="text-xs text-gray-400 group-hover:text-blue-500 transition-colors">
+                          {latinToCyrillic("Jami qiymat")}
+                        </p>
                       </div>
                     </div>
                   </div>
 
                   {/* Mahsulotlar ro'yxati */}
                   {isExpanded && (
-                    <div className="p-4">
-                      <div className="space-y-2">
+                    <div className="p-4 bg-gradient-to-br from-gray-50/50 via-white to-blue-50/20">
+                      <div className="space-y-3">
                         {groupProducts.map((product) => {
                           const stockStatus = getStockStatus(product);
                           const StatusIcon = stockStatus.icon;
                           const isEditing = editingProduct === product.id;
                           
                           return (
-                            <div key={product.id} className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
+                            <div key={product.id} className="group bg-gradient-to-br from-white via-gray-50/50 to-blue-50/30 rounded-2xl border border-gray-200/60 overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:scale-[1.02] hover:border-blue-300/60">
                               {/* Mahsulot header */}
-                              <div className={`p-3 border-b-2 ${stockStatus.bgColor}`}>
-                                <div className="flex items-center justify-between">
+                              <div className={`p-4 border-b-2 ${stockStatus.bgColor} bg-gradient-to-r ${stockStatus.bgColor.replace('bg-', 'from-').replace('border-', 'to-')} relative overflow-hidden`}>
+                                {/* Background pattern */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-white/10"></div>
+                                
+                                <div className="relative flex items-center justify-between">
                                   <div className="flex-1 min-w-0">
                                     {isEditing ? (
                                       <input
                                         type="text"
                                         value={editingName}
                                         onChange={(e) => setEditingName(e.target.value)}
-                                        className="w-full px-3 py-2 border-2 border-gray-300 rounded-xl font-black text-gray-900 mb-2"
+                                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-2xl font-black text-gray-900 mb-3 bg-white/90 backdrop-blur-sm shadow-inner focus:border-blue-500 focus:ring-2 focus:ring-blue-200/50 transition-all"
                                       />
                                     ) : (
-                                      <div className="flex items-center gap-2">
-                                        <h4 className="font-bold text-gray-900 text-sm truncate">{product.name}</h4>
+                                      <div className="flex items-center gap-3 mb-2">
+                                        <h4 className="font-black text-gray-900 text-sm truncate group-hover:text-blue-700 transition-colors">{product.name}</h4>
                                         {/* Zaxira miqdori badge */}
-                                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                        <span className={`text-xs font-black px-3 py-1.5 rounded-full shadow-md transition-all group-hover:scale-105 ${
                                           product.currentStock === 0 
-                                            ? 'bg-red-100 text-red-700 border border-red-300' 
+                                            ? 'bg-gradient-to-r from-red-500 to-red-600 text-white border-2 border-red-300 shadow-red-500/20' 
                                             : product.currentStock < 50 
-                                              ? 'bg-amber-100 text-amber-700 border border-amber-300'
-                                              : 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                                              ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white border-2 border-amber-300 shadow-amber-500/20'
+                                              : 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-2 border-emerald-300 shadow-emerald-500/20'
                                         }`}>
                                           {product.currentStock || 0} {latinToCyrillic('qop')}
                                         </span>
                                       </div>
                                     )}
                                     
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <StatusIcon className="w-3 h-3 text-gray-600" />
-                                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${stockStatus.bgColor} ${stockStatus.color}`}>
+                                    <div className="flex items-center gap-2">
+                                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${stockStatus.bgColor} shadow-md`}>
+                                        <StatusIcon className="w-3 h-3 text-white" />
+                                      </div>
+                                      <span className={`text-xs font-black px-3 py-1 rounded-full ${stockStatus.bgColor} ${stockStatus.color} shadow-sm`}>
                                         {stockStatus.emoji} {stockStatus.label}
                                       </span>
                                     </div>
                                   </div>
                                   
-                                  <div className="flex items-center gap-1 ml-2">
+                                  <div className="flex items-center gap-2 ml-3">
                                     {isEditing ? (
                                       <>
                                         <button
@@ -561,21 +574,21 @@ export default function SimplifiedInventory() {
                                       <>
                                         <button
                                           onClick={() => navigate(`/cashier/products/${product.id}`)}
-                                          className="h-8 px-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg flex items-center gap-1.5 transition-all hover-scale shadow-md shadow-emerald-500/20"
+                                          className="h-9 px-3 bg-gradient-to-r from-emerald-500 via-emerald-600 to-emerald-700 hover:from-emerald-600 hover:via-emerald-700 hover:to-emerald-800 text-white rounded-2xl flex items-center gap-1.5 transition-all duration-300 hover:scale-105 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 font-black text-xs"
                                         >
                                           <Eye className="w-4 h-4" />
-                                          <span className="text-xs font-semibold">{latinToCyrillic("Батафсил")}</span>
+                                          <span>{latinToCyrillic("Батафсил")}</span>
                                         </button>
                                         <button
                                           onClick={() => startEditing(product)}
-                                          className="w-8 h-8 bg-blue-100 hover:bg-blue-500 text-blue-500 hover:text-white rounded-lg flex items-center justify-center transition-all hover-scale"
+                                          className="w-9 h-9 bg-gradient-to-br from-blue-100 to-blue-200 hover:from-blue-500 hover:to-blue-600 text-blue-600 hover:text-white rounded-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg hover:shadow-blue-500/30"
                                           title={latinToCyrillic("Таҳрир")}
                                         >
                                           <Pencil className="w-4 h-4" />
                                         </button>
                                         <button
                                           onClick={() => deleteProduct(product.id)}
-                                          className="w-8 h-8 bg-red-100 hover:bg-red-500 text-red-500 hover:text-white rounded-lg flex items-center justify-center transition-all hover-scale"
+                                          className="w-9 h-9 bg-gradient-to-br from-red-100 to-red-200 hover:from-red-500 hover:to-red-600 text-red-600 hover:text-white rounded-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg hover:shadow-red-500/30"
                                           title={latinToCyrillic("Ўчириш")}
                                         >
                                           <Trash2 className="w-4 h-4" />
@@ -587,10 +600,17 @@ export default function SimplifiedInventory() {
                               </div>
 
                               {/* Mahsulot ma'lumotlari - Narx */}
-                              <div className="p-2 px-3 bg-white">
-                                <div className="flex justify-between items-center text-sm">
-                                  <span className="text-gray-500 text-xs">{latinToCyrillic("Narx/qop")}</span>
-                                  <span className="font-bold text-blue-600">{formatPrice(product.pricePerBag || 0)}</span>
+                              <div className="p-4 bg-gradient-to-br from-white via-gray-50/50 to-blue-50/20 border-t border-gray-200/60">
+                                <div className="flex justify-between items-center">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center">
+                                      <span className="text-xs font-black text-blue-600">₽</span>
+                                    </div>
+                                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{latinToCyrillic("Narx/qop")}</span>
+                                  </div>
+                                  <span className="text-base font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                                    {formatPrice(product.pricePerBag || 0)}
+                                  </span>
                                 </div>
                               </div>
                             </div>

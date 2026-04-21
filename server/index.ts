@@ -48,7 +48,7 @@ import budgetRoutes from './routes/budgets';
 // import { botManager } from './bot/bot-manager'; // Vaqtinchalik o'chirildi
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 5003;
 
 console.log('🚀 Server starting...');
 console.log('🔐 JWT_SECRET exists:', !!process.env.JWT_SECRET);
@@ -61,12 +61,24 @@ const allowedOrigins = [
   'http://127.0.0.1:5173'
 ];
 
-app.use(cors({
-  origin: allowedOrigins,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id', 'X-Request-ID', 'x-request-time', 'X-Request-Time'],
-  credentials: true
-}));
+// Development uchun barcha CORS sozlamalari
+if (process.env.NODE_ENV === 'development') {
+  app.use(cors({
+    origin: '*', // Barcha originlarga ruxsat
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id', 'X-Request-ID', 'x-request-time', 'X-Request-Time', 'Origin', 'Accept'],
+    credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 200
+  }));
+} else {
+  app.use(cors({
+    origin: allowedOrigins,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id', 'X-Request-ID', 'x-request-time', 'X-Request-Time'],
+    credentials: true
+  }));
+}
 app.use(express.json());
 
 // Swagger API Documentation

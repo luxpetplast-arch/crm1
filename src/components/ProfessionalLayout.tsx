@@ -151,6 +151,17 @@ export default function ProfessionalLayout({ children }: { children: ReactNode }
     );
   };
 
+  // Kategoriya nomlarini o'zbek tiliga tarjima qilish
+  const getCategoryName = (category: string) => {
+    const translations: Record<string, string> = {
+      'main': 'Asosiy',
+      'analytics': 'Analitika',
+      'management': 'Boshqaruv',
+      'tools': 'Vositalar'
+    };
+    return latinToCyrillic(translations[category] || category);
+  };
+
   const renderNavigationCategory = (category: string, items: NavigationItem[]) => {
     const isExpanded = expandedCategories.has(category);
     const hasActiveItem = items.some(item => 
@@ -169,7 +180,7 @@ export default function ProfessionalLayout({ children }: { children: ReactNode }
           )}
         >
           <span className="font-semibold text-sm uppercase tracking-wider">
-            {latinToCyrillic(category)}
+            {getCategoryName(category)}
           </span>
           {isExpanded ? (
             <ChevronUp className="w-4 h-4" />

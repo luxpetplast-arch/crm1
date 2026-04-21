@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import api from '../lib/api';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
+import { restoreLastSession } from '../lib/authUtils';
 
 export default function CashierLogin() {
   const [login, setLogin] = useState('');
@@ -12,6 +13,16 @@ export default function CashierLogin() {
   const [error, setError] = useState('');
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
+
+  // Sessiyani tiklash
+  useEffect(() => {
+    const session = restoreLastSession();
+    if (session) {
+      console.log('🔄 Sessiya tiklanmoqda:', session.path);
+      // Agar avvalgi sahifa saqlangan bo'lsa, uni eslatish
+      setError(`⏰ Uzoq vaftdan keyin qayta login qiling. Avvalgi sahifa: ${session.path}`);
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,8 +40,16 @@ export default function CashierLogin() {
         return;
       }
       
-      // Kassir sahifasiga yo'naltirish
-      navigate('/sales');
+      // Sessiyani tozalash va avvalgi sahifaga yo'naltirish
+      sessionStorage.removeItem('lastSession');
+      
+      // Agar avvalgi sahifa saqlangan bo'lsa, o'sha sahifaga yo'naltirish
+      const session = restoreLastSession();
+      if (session && session.path !== '/login' && session.path !== '/') {
+        navigate(session.path);
+      } else {
+        navigate('/sales');
+      }
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || 'Кириш муваффақиятсиз. Login ёки парол хато.';
       setError(errorMsg);

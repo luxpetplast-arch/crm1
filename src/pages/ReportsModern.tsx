@@ -13,10 +13,12 @@ import {
   ArrowLeft,
   Plus,
   Eye,
-  Printer
+  Printer,
+  RefreshCw
 } from 'lucide-react';
 import { latinToCyrillic } from '../lib/transliterator';
 import ModernLayout from '../components/ModernLayout';
+import api from '../lib/api';
 
 interface Report {
   id: string;
@@ -40,60 +42,74 @@ export default function ReportsModern() {
   const types = ['all', 'sales', 'inventory', 'customers', 'financial'];
   const statuses = ['all', 'generated', 'pending', 'failed'];
 
-  useEffect(() => {
-    const loadReports = async () => {
-      try {
-        setLoading(true);
-        
-        // Mock data for now
-        const mockReports: Report[] = [
-          {
-            id: '1',
-            name: 'Oylik Sotuv Hisoboti',
-            type: 'sales',
-            date: '2024-04-13',
-            status: 'generated',
-            size: 256000,
-            generatedBy: 'Admin'
-          },
-          {
-            id: '2',
-            name: 'Mahsulot Qoldiqlari',
-            type: 'inventory',
-            date: '2024-04-12',
-            status: 'generated',
-            size: 128000,
-            generatedBy: 'Admin'
-          },
-          {
-            id: '3',
-            name: 'Mijozlar Ro\'yxati',
-            type: 'customers',
-            date: '2024-04-11',
-            status: 'generated',
-            size: 64000,
-            generatedBy: 'Admin'
-          },
-          {
-            id: '4',
-            name: 'Moliyaviy Hisobot',
-            type: 'financial',
-            date: '2024-04-10',
-            status: 'pending',
-            size: 512000,
-            generatedBy: 'Admin'
-          }
-        ];
-        
-        setReports(mockReports);
-        
-      } catch (error) {
-        console.error('Error loading reports:', error);
-      } finally {
-        setLoading(false);
+  // Hisobotlarni API dan yuklash
+  const loadReports = async () => {
+    try {
+      setLoading(true);
+      
+      // Haqiqiy API dan ma'lumotlarni olish
+      const [salesRes, inventoryRes, customersRes, financialRes] = await Promise.all([
+        api.get('/reports/sales').catch(() => ({ data: [] })),
+        api.get('/reports/inventory').catch(() => ({ data: [] })),
+        api.get('/reports/customers').catch(() => ({ data: [] })),
+        api.get('/reports/profit-loss').catch(() => ({ data: null }))
+      ]);
+      
+      // Hisobotlar ro'yxatini yaratish
+      const generatedReports: Report[] = [
+        {
+          id: 'sales-' + Date.now(),
+          name: 'Sotuvlar Hisoboti',
+          type: 'sales',
+          date: new Date().toISOString().split('T')[0],
+          status: 'generated',
+          size: JSON.stringify(salesRes.data).length,
+          generatedBy: 'System'
+        },
+        {
+          id: 'inventory-' + Date.now(),
+          name: 'Ombor Hisoboti',
+          type: 'inventory',
+          date: new Date().toISOString().split('T')[0],
+          status: 'generated',
+          size: JSON.stringify(inventoryRes.data).length,
+          generatedBy: 'System'
+        },
+        {
+          id: 'customers-' + Date.now(),
+          name: 'Mijozlar Hisoboti',
+          type: 'customers',
+          date: new Date().toISOString().split('T')[0],
+          status: 'generated',
+          size: JSON.stringify(customersRes.data).length,
+          generatedBy: 'System'
+        }
+      ];
+      
+      if (financialRes.data) {
+        generatedReports.push({
+          id: 'financial-' + Date.now(),
+          name: 'Moliyaviy Hisobot',
+          type: 'financial',
+          date: new Date().toISOString().split('T')[0],
+          status: 'generated',
+          size: JSON.stringify(financialRes.data).length,
+          generatedBy: 'System'
+        });
       }
-    };
+      
+      setReports(generatedReports);
+      
+    } catch (error) {
+      console.error('Error loading reports:', error);
+      // Xatolik yuz bersa, bo'sh ro'yxat ko'rsatish
+      setReports([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     loadReports();
   }, []);
 
@@ -229,14 +245,27 @@ export default function ReportsModern() {
             </div>
           </div>
           
-          {/* Generate Report Button */}
-          <button
-            onClick={() => navigate('/reports/generate')}
-            className="btn-gradient-primary px-6 py-3 flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            {latinToCyrillic("Янги Ҳисбот")}
-          </button>
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+            {/* Refresh Button */}
+            <button
+              onClick={loadReports}
+              disabled={loading}
+              className="btn-gradient-secondary px-4 py-3 flex items-center gap-2 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+              {latinToCyrillic("Янгилаш")}
+            </button>
+            
+            {/* Generate Report Button */}
+            <button
+              onClick={() => navigate('/reports/generate')}
+              className="btn-gradient-primary px-6 py-3 flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              {latinToCyrillic("Янги Ҳисбот")}
+            </button>
+          </div>
         </div>
 
         {/* Stats Cards */}

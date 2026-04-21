@@ -24,6 +24,10 @@ import Cashbox from './pages/Cashbox';
 import KomplektYigish from './pages/KomplektYigish';
 const AddSale = lazy(() => import('./pages/AddSale'));
 const CashierManagement = lazy(() => import('./pages/CashierManagement'));
+const CashierShift = lazy(() => import('./pages/CashierShift'));
+const CashierBot = lazy(() => import('./pages/CashierBot'));
+const ModernChat = lazy(() => import('./pages/ModernChat'));
+const Analytics = lazy(() => import('./components/ProfessionalCEOAnalytics'));
 
 // Layouts
 const ProfessionalLayout = lazy(() => import('./components/ProfessionalLayout'));
@@ -145,6 +149,9 @@ function App() {
                 <Route path="/cashier/customers" element={<Customers />} />
                 <Route path="/cashier/customers/:id" element={<CustomerProfile />} />
                 <Route path="/cashier/cashbox" element={<Cashbox />} />
+                <Route path="/cashier/shift" element={<CashierShift />} />
+                <Route path="/cashier/bot" element={<CashierBot />} />
+                <Route path="/cashier/chat" element={<ModernChat />} />
                 <Route path="/cashier/expenses" element={<div className="p-8 text-center"><h2 className="text-2xl font-bold">Xarajatlar</h2><p className="text-gray-500">Tez kunda...</p></div>} />
                 <Route path="*" element={<Navigate to="/cashier/sales" />} />
               </Routes>
@@ -212,6 +219,24 @@ function App() {
               <Route path="/cashiers" element={<CashierManagement />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/settings" element={<Settings />} />
+              
+              {/* Analytics routes */}
+              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/revenue" element={<div className="p-8 text-center"><h2 className="text-2xl font-bold">Revenue Calculator</h2><p className="text-gray-500">Tez kunda...</p></div>} />
+              <Route path="/activity" element={<div className="p-8 text-center"><h2 className="text-2xl font-bold">Activity Monitor</h2><p className="text-gray-500">Tez kunda...</p></div>} />
+              
+              {/* Management routes */}
+              <Route path="/suppliers" element={<div className="p-8 text-center"><h2 className="text-2xl font-bold">Suppliers</h2><p className="text-gray-500">Tez kunda...</p></div>} />
+              <Route path="/production" element={<div className="p-8 text-center"><h2 className="text-2xl font-bold">Production</h2><p className="text-gray-500">Tez kunda...</p></div>} />
+              <Route path="/quality" element={<div className="p-8 text-center"><h2 className="text-2xl font-bold">Quality Control</h2><p className="text-gray-500">Tez kunda...</p></div>} />
+              <Route path="/logistics" element={<div className="p-8 text-center"><h2 className="text-2xl font-bold">Logistics</h2><p className="text-gray-500">Tez kunda...</p></div>} />
+              
+              {/* Tools routes */}
+              <Route path="/ai-assistant" element={<div className="p-8 text-center"><h2 className="text-2xl font-bold">AI Assistant</h2><p className="text-gray-500">Tez kunda...</p></div>} />
+              <Route path="/bots" element={<div className="p-8 text-center"><h2 className="text-2xl font-bold">Bot Management</h2><p className="text-gray-500">Tez kunda...</p></div>} />
+              <Route path="/cloud-backup" element={<div className="p-8 text-center"><h2 className="text-2xl font-bold">Cloud Backup</h2><p className="text-gray-500">Tez kunda...</p></div>} />
+              <Route path="/shortcuts" element={<div className="p-8 text-center"><h2 className="text-2xl font-bold">Keyboard Shortcuts</h2><p className="text-gray-500">Tez kunda...</p></div>} />
+              
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </ProfessionalLayout>

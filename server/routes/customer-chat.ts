@@ -233,4 +233,181 @@ router.delete('/:customerId/clear', async (req, res) => {
   }
 });
 
+// Chatni pin qilish
+router.post('/:customerId/pin', async (req: AuthRequest, res) => {
+  try {
+    const { customerId } = req.params;
+
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId }
+    });
+
+    if (!customer) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    // Update customer with pin status (you may need to add isPinned field to customer model)
+    // For now, we'll use a simple approach
+    res.json({ success: true, isPinned: true });
+  } catch (error) {
+    console.error('Pin chat error:', error);
+    res.status(500).json({ error: 'Failed to pin chat' });
+  }
+});
+
+// Chatni archive qilish
+router.post('/:customerId/archive', async (req: AuthRequest, res) => {
+  try {
+    const { customerId } = req.params;
+
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId }
+    });
+
+    if (!customer) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    // Update customer with archive status (you may need to add isArchived field to customer model)
+    // For now, we'll use a simple approach
+    res.json({ success: true, isArchived: true });
+  } catch (error) {
+    console.error('Archive chat error:', error);
+    res.status(500).json({ error: 'Failed to archive chat' });
+  }
+});
+
+// Xabarni tahrirlash
+router.put('/messages/:messageId', async (req: AuthRequest, res) => {
+  try {
+    const { messageId } = req.params;
+    const { text } = req.body;
+
+    if (!text?.trim()) {
+      return res.status(400).json({ error: 'Message text is required' });
+    }
+
+    const message = await prisma.customerChat.findFirst({
+      where: {
+        id: messageId,
+        senderType: 'ADMIN'
+      }
+    });
+
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found or cannot be edited' });
+    }
+
+    const updatedMessage = await prisma.customerChat.update({
+      where: { id: messageId },
+      data: {
+        text: text.trim(),
+        isEdited: true,
+        updatedAt: new Date()
+      }
+    });
+
+    res.json(updatedMessage);
+  } catch (error) {
+    console.error('Edit message error:', error);
+    res.status(500).json({ error: 'Failed to edit message' });
+  }
+});
+
+// Xabarni o'chirish
+router.delete('/messages/:messageId', async (req: AuthRequest, res) => {
+  try {
+    const { messageId } = req.params;
+
+    const message = await prisma.customerChat.findFirst({
+      where: {
+        id: messageId,
+        senderType: 'ADMIN'
+      }
+    });
+
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found or cannot be deleted' });
+    }
+
+    await prisma.customerChat.delete({
+      where: { id: messageId }
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete message error:', error);
+    res.status(500).json({ error: 'Failed to delete message' });
+  }
+});
+
+// Typing indicator
+router.post('/:customerId/typing', async (req: AuthRequest, res) => {
+  try {
+    const { customerId } = req.params;
+    const { isTyping } = req.body;
+
+    // Update customer typing status (you may need to add typing status fields)
+    // For now, we'll just return success
+    res.json({ success: true, isTyping: isTyping || false });
+  } catch (error) {
+    console.error('Typing indicator error:', error);
+    res.status(500).json({ error: 'Failed to set typing indicator' });
+  }
+});
+
+// Online status
+router.post('/:customerId/online', async (req: AuthRequest, res) => {
+  try {
+    const { customerId } = req.params;
+    const { isOnline } = req.body;
+
+    // Update customer online status (you may need to add online status fields)
+    // For now, we'll just return success
+    res.json({ success: true, isOnline: isOnline || false });
+  } catch (error) {
+    console.error('Online status error:', error);
+    res.status(500).json({ error: 'Failed to set online status' });
+  }
+});
+
+// Chat statistics
+router.get('/stats', async (req: AuthRequest, res) => {
+  try {
+    const totalConversations = await prisma.customer.count({
+      where: {
+        telegramChatId: { not: null }
+      }
+    });
+
+    const totalMessages = await prisma.customerChat.count();
+
+    const unreadMessages = await prisma.customerChat.count({
+      where: {
+        senderType: 'CUSTOMER',
+        isRead: false
+      }
+    });
+
+    const activeConversations = await prisma.customer.count({
+      where: {
+        telegramChatId: { not: null },
+        updatedAt: {
+          gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
+        }
+      }
+    });
+
+    res.json({
+      totalConversations,
+      totalMessages,
+      unreadMessages,
+      activeConversations
+    });
+  } catch (error) {
+    console.error('Chat stats error:', error);
+    res.status(500).json({ error: 'Failed to fetch chat statistics' });
+  }
+});
+
 export default router;

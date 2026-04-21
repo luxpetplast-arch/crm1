@@ -5,9 +5,10 @@ import Input from '../components/Input';
 import CustomerSelector from '../components/CustomerSelector';
 import ProductSelector from '../components/ProductSelector';
 import DebugInfo from '../components/DebugInfo';
-import api from '../lib/api';
+import api from '../lib/professionalApi';
 import { formatDate } from '../lib/dateUtils';
 import { useNavigate } from 'react-router-dom';
+import { errorHandler } from '../lib/professionalErrorHandler';
 import { 
   Package, 
   Plus, 

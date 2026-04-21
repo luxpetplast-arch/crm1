@@ -35,11 +35,7 @@ import {
   CloudBackupService, 
   createCloudBackupService,
   BackupResult,
-  CloudFileInfo,
-  GOOGLE_DRIVE_CONFIG,
-  DROPBOX_CONFIG,
-  ONEDRIVE_CONFIG,
-  AWS_S3_CONFIG
+  CloudFileInfo
 } from '../lib/cloudBackupService';
 
 interface CloudBackupComponentProps {
@@ -52,19 +48,19 @@ export default function CloudBackupComponent({ className = '' }: CloudBackupComp
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [backupHistory, setBackupHistory] = useState<BackupResult[]>([]);
-  const [cloudFiles, setCloudFiles] = useState<CloudFileInfo[]>([]);
+  const [, setCloudFiles] = useState<CloudFileInfo[]>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [compressionEnabled, setCompressionEnabled] = useState(true);
   const [encryptionEnabled, setEncryptionEnabled] = useState(true);
   const [autoBackup, setAutoBackup] = useState(true);
   const [backupInterval, setBackupInterval] = useState(60);
   const [accessToken, setAccessToken] = useState('');
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey] = useState('');
   const [bucketName, setBucketName] = useState('luxpetplast-backup');
   const [encryptionKey, setEncryptionKey] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [, setSelectedFiles] = useState<string[]>([]);
   const [systemStatus, setSystemStatus] = useState({
     lastBackup: null as Date | null,
     totalBackups: 0,

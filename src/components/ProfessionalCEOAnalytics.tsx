@@ -2,19 +2,20 @@ import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
 import api from '../lib/api';
 import { formatCurrency } from '../lib/utils';
+import ModernLayout from './ModernLayout';
+import { latinToCyrillic } from '../lib/transliterator';
 import {
-  TrendingUp, TrendingDown, DollarSign, Users, Package,
+  DollarSign, Users,
   AlertTriangle, Target, Activity, Flame, Brain,
-  BarChart3, PieChart, LineChart as LineChartIcon,
+  BarChart3,
   Shield, Zap, Crown, ArrowUpRight, ArrowDownRight,
-  Clock, Wallet, ShoppingCart, RefreshCcw, AlertCircle,
+  RefreshCcw, AlertCircle,
   CheckCircle, XCircle, TrendingUp as TrendIcon,
   Percent, Calculator, Eye, Award
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, BarChart, Bar, PieChart as RePieChart,
-  Pie, Cell, AreaChart, Area, ComposedChart
+  ResponsiveContainer, BarChart, Bar, AreaChart, Area
 } from 'recharts';
 
 // 🔥 1. MONEY FLOW - Burn Rate & Runway
@@ -841,16 +842,20 @@ export default function ProfessionalCEOAnalytics() {
   ];
 
   return (
-    <div className="space-y-6 p-4">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Crown className="w-8 h-8 text-amber-600" />
-            CEO Professional Analytics
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            12 ta professional biznes tahlil moduli
+    <ModernLayout 
+      title={latinToCyrillic("CEO Analytics")}
+      subtitle={latinToCyrillic("12 ta professional biznes tahlil moduli")}
+    >
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <Crown className="w-8 h-8 text-amber-600" />
+              CEO Professional Analytics
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              12 ta professional biznes tahlil moduli
           </p>
         </div>
       </div>
@@ -917,6 +922,6 @@ export default function ProfessionalCEOAnalytics() {
           </div>
         )}
       </div>
-    </div>
+    </ModernLayout>
   );
 }

@@ -75,6 +75,27 @@ export default function AddSale() {
     }
   }, [selectedCustomer?.productPrices]);
 
+  // Mahsulotlar ro'yxatini yangilash - har 30 sekundda bir marta
+  useEffect(() => {
+    const refreshProducts = async () => {
+      try {
+        const productsResponse = await api.get('/products');
+        if (productsResponse.data) {
+          setProducts(productsResponse.data);
+          console.log('🔄 Mahsulotlar ro\'yxati yangilandi:', productsResponse.data?.length || 0);
+        }
+      } catch (error) {
+        console.error('Mahsulotlarni yangilashda xatolik:', error);
+      }
+    };
+
+    // Har 30 sekundda mahsulotlarni yangilash
+    const interval = setInterval(refreshProducts, 30000);
+    
+    // Component unmount bo'lganda intervalni to'xtatish
+    return () => clearInterval(interval);
+  }, []);
+
   // Mijoz narxini yuklash - faqat mijoz o'zgarganda ishlaydi, mahsulot o'zgarganda emas
   useEffect(() => {
     // Agar mahsulot tanlanmagan bo'lsa, narxni yangilash shart emas
@@ -1001,7 +1022,7 @@ export default function AddSale() {
                                             return null;
                                           };
                                           
-                                          // Narxni aniqlash - mijoz narxi > maxsus narx > ombor narx
+                                          // Narxni aniqlash - mijoz narxi > maxsus narx > ombor narxi
                                           let basePrice: number;
                                           const customerPrice = selectedCustomer && customerPrices[product.id];
                                           
@@ -1012,8 +1033,27 @@ export default function AddSale() {
                                             // Mijozning umumiy narxi
                                             basePrice = parseFloat(selectedCustomer.pricePerBag) || 0;
                                           } else {
-                                            // Mahsulotning asosiy narxi
+                                            // Mahsulotning asosiy narxi - har doim eng yangi narxni olish
                                             basePrice = parseFloat(product.pricePerBag) || 0;
+                                            
+                                            // Mahsulotni qayta yuklab, eng yangi narxni olish
+                                            const refreshProductPrice = async () => {
+                                              try {
+                                                const productResponse = await api.get(`/products/${product.id}`);
+                                                if (productResponse.data && productResponse.data.pricePerBag) {
+                                                  const latestPrice = parseFloat(productResponse.data.pricePerBag);
+                                                  if (latestPrice !== basePrice) {
+                                                    basePrice = latestPrice;
+                                                    console.log(`🔄 ${product.name} narxi yangilandi: $${latestPrice}`);
+                                                  }
+                                                }
+                                              } catch (error) {
+                                                console.error('Mahsulot narxini yangilashda xatolik:', error);
+                                              }
+                                            };
+                                            
+                                            // Narxni real-time yangilash
+                                            refreshProductPrice();
                                           }
                                           
                                           // Maxsus narxni tekshirish (komplekt uchun)

@@ -1,11 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
-import Button from '../components/Button';
-import Input from '../components/Input';
 import CashboxHistory from '../components/CashboxHistory';
-import api from '../lib/api';
+import api from '../lib/professionalApi';
 import { formatCurrency } from '../lib/utils';
-import { t } from '../lib/transliterator';
 import { 
   Wallet,
   TrendingUp,
@@ -18,7 +14,6 @@ import {
   Banknote,
   Smartphone,
   PieChart as PieChartIcon,
-  RefreshCw,
   Filter,
   ArrowLeftRight,
   AlertTriangle,
@@ -47,8 +42,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Legend
-} from 'recharts';
+  } from 'recharts';
 import { exportToExcel } from '../lib/excelUtils';
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b'];

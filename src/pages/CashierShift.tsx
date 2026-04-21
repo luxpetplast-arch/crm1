@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
-import Button from '../components/Button';
-import Input from '../components/Input';
+import { ProfessionalCard, ProfessionalButton, ProfessionalInput } from '../components/ProfessionalComponents';
 import Modal from '../components/Modal';
+import api from '../lib/professionalApi';
 import { formatCurrency, formatDate } from '../lib/utils';
-import api from '../lib/api';
+import { errorHandler } from '../lib/professionalErrorHandler';
 import { Clock, CheckCircle } from 'lucide-react';
 
 export default function CashierShift() {
@@ -23,7 +22,7 @@ export default function CashierShift() {
       const { data } = await api.get('/cashier/current-shift');
       setCurrentShift(data);
     } catch (error) {
-      console.error('No active shift');
+      errorHandler.handleError(error, { action: 'loadCurrentShift' });
     }
   };
 
@@ -32,7 +31,7 @@ export default function CashierShift() {
       const { data } = await api.get('/cashier/shifts');
       setShifts(data);
     } catch (error) {
-      console.error('Failed to load shifts');
+      errorHandler.handleError(error, { action: 'loadShifts' });
     }
   };
 
@@ -45,9 +44,10 @@ export default function CashierShift() {
         openingBalance: parseFloat(openingBalance),
       });
       loadCurrentShift();
-      alert('Smena ochildi');
+      alert(latinToCyrillic('✅ Smena muvaffaqiyatli ochildi'));
     } catch (error) {
-      alert('Xatolik yuz berdi');
+      const professionalError = errorHandler.handleError(error, { action: 'openShift' });
+      alert(latinToCyrillic('❌ Xatolik: ' + professionalError.userMessage));
     }
   };
 
@@ -59,9 +59,10 @@ export default function CashierShift() {
       setShowCloseModal(false);
       setCurrentShift(null);
       loadShifts();
-      alert('Smena yopildi');
+      alert(latinToCyrillic('✅ Smena muvaffaqiyatli yopildi'));
     } catch (error) {
-      alert('Xatolik yuz berdi');
+      const professionalError = errorHandler.handleError(error, { action: 'closeShift' });
+      alert(latinToCyrillic('❌ Xatolik: ' + professionalError.userMessage));
     }
   };
 
@@ -70,24 +71,22 @@ export default function CashierShift() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Kassir Smenasi</h1>
         {!currentShift ? (
-          <Button onClick={handleOpenShift}>
+          <ProfessionalButton onClick={handleOpenShift}>
             <Clock className="w-4 h-4 mr-2" />
             Smena Ochish
-          </Button>
+          </ProfessionalButton>
         ) : (
-          <Button variant="destructive" onClick={() => setShowCloseModal(true)}>
+          <ProfessionalButton variant="error" onClick={() => setShowCloseModal(true)}>
             <CheckCircle className="w-4 h-4 mr-2" />
             Smena Yopish
-          </Button>
+          </ProfessionalButton>
         )}
       </div>
 
       {currentShift && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Joriy Smena</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <ProfessionalCard>
+          <div className="p-6">
+            <h2 className="text-xl font-bold mb-4">Joriy Smena</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               <div>
                 <p className="text-sm text-muted-foreground">Boshlang'ich Balans</p>
@@ -112,15 +111,13 @@ export default function CashierShift() {
                 {formatCurrency(currentShift.openingBalance + currentShift.cashSales, 'UZS')}
               </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </ProfessionalCard>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Smena Tarixi</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <ProfessionalCard>
+        <div className="p-6">
+          <h2 className="text-xl font-bold mb-4">Smena Tarixi</h2>
           <div className="space-y-3">
             {shifts.map((shift) => {
               const difference = shift.closingBalance - (shift.openingBalance + shift.cashSales);
@@ -160,8 +157,8 @@ export default function CashierShift() {
               );
             })}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </ProfessionalCard>
 
       <Modal
         isOpen={showCloseModal}
@@ -175,16 +172,16 @@ export default function CashierShift() {
               {formatCurrency(currentShift?.openingBalance + currentShift?.cashSales || 0, 'UZS')}
             </p>
           </div>
-          <Input
+          <ProfessionalInput
             label="Haqiqiy Yakuniy Balans (UZS)"
             type="number"
             value={closingBalance}
             onChange={(e) => setClosingBalance(e.target.value)}
             required
           />
-          <Button onClick={handleCloseShift} className="w-full">
+          <ProfessionalButton onClick={handleCloseShift} className="w-full">
             Smenani Yopish
-          </Button>
+          </ProfessionalButton>
         </div>
       </Modal>
     </div>

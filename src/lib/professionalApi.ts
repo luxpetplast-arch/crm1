@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
+import { checkAndRefreshToken, saveSessionBeforeLogout } from './authUtils';
 
 // API Configuration Types
 export interface ApiConfig {
@@ -74,7 +75,10 @@ class ProfessionalApi {
   private setupInterceptors() {
     // Request Interceptor
     this.instance.interceptors.request.use(
-      (config) => {
+      async (config) => {
+        // Tokenni tekshirish va yangilash
+        await checkAndRefreshToken();
+        
         // Add auth token
         const token = this.getAuthToken();
         if (token) {
@@ -177,11 +181,15 @@ class ProfessionalApi {
   }
 
   private async handleUnauthorized() {
+    // Sessiyani saqlash
+    saveSessionBeforeLogout();
+    
     // Clear auth storage
     localStorage.removeItem('auth-storage');
     
-    // Redirect to login if not already there
+    // Faqat agar login sahifasida bo'lmasa, redirect qilish
     if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
+      console.log('🔐 Unauthorized - redirecting to login...');
       window.location.href = '/';
     }
   }

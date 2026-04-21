@@ -248,7 +248,7 @@ router.post('/', authorize('ADMIN', 'WAREHOUSE_MANAGER'), async (req: AuthReques
   }
 });
 
-router.put('/:id', authorize('ADMIN', 'WAREHOUSE_MANAGER', 'MANAGER'), async (req: AuthRequest, res) => {
+router.put('/:id', authorize('ADMIN', 'WAREHOUSE_MANAGER', 'MANAGER', 'CASHIER'), async (req: AuthRequest, res) => {
   try {
     const oldProduct = await prisma.product.findUnique({
       where: { id: req.params.id },
@@ -302,6 +302,69 @@ router.put('/:id', authorize('ADMIN', 'WAREHOUSE_MANAGER', 'MANAGER'), async (re
     res.json(product);
   } catch (error: any) {
     console.error('Product update error:', error);
+    let details = error.message;
+    if (error.code === 'P2002') {
+      details = 'Bu nomli mahsulot allaqachon mavjud';
+    }
+    res.status(500).json({ error: 'Failed to update product', details });
+  }
+});
+
+// PATCH endpoint - partial update (frontend compatibility)
+router.patch('/:id', authorize('ADMIN', 'WAREHOUSE_MANAGER', 'MANAGER', 'CASHIER'), async (req: AuthRequest, res) => {
+  try {
+    const oldProduct = await prisma.product.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!oldProduct) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    // Prepare update data
+    const updateData = { ...req.body };
+    
+    // Ensure numeric fields are correctly typed if they come as strings
+    if (updateData.unitsPerBag) updateData.unitsPerBag = parseFloat(updateData.unitsPerBag);
+    if (updateData.pricePerBag) updateData.pricePerBag = parseFloat(updateData.pricePerBag);
+    if (updateData.pricePerPiece) updateData.pricePerPiece = parseFloat(updateData.pricePerPiece);
+    if (updateData.currentStock) updateData.currentStock = parseFloat(updateData.currentStock);
+    if (updateData.minStockLimit) updateData.minStockLimit = parseFloat(updateData.minStockLimit);
+    if (updateData.optimalStock) updateData.optimalStock = parseFloat(updateData.optimalStock);
+    if (updateData.maxCapacity) updateData.maxCapacity = parseFloat(updateData.maxCapacity);
+    if (updateData.sizeValue) updateData.sizeValue = parseFloat(updateData.sizeValue);
+
+    const product = await prisma.product.update({
+      where: { id: req.params.id },
+      data: updateData,
+    });
+
+    // Audit log
+    try {
+      await logInventoryAction({
+        userId: req.user!.id,
+        userName: (req.user as any).name || req.user!.email,
+        action: 'MAHSULOT_TAHRIRLASH',
+        entity: 'INVENTORY',
+        entityId: product.id,
+        productId: product.id,
+        productName: product.name,
+        details: {
+          type: 'PATCH',
+          oldValue: oldProduct,
+          newValue: product,
+          notes: 'Mahsulot ma\'lumotlari yangilandi (PATCH)',
+        },
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      });
+    } catch (auditError) {
+      console.error('Audit log error during patch:', auditError);
+    }
+
+    res.json(product);
+  } catch (error: any) {
+    console.error('Product patch error:', error);
     let details = error.message;
     if (error.code === 'P2002') {
       details = 'Bu nomli mahsulot allaqachon mavjud';

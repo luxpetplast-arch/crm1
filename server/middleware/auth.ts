@@ -1,12 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
+// FIXED: JWT secret har doim bir xil bo'lishi kerak
 const JWT_SECRET = process.env.JWT_SECRET || (() => {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('JWT_SECRET environment variable is required in production');
   }
-  // Development uchun random secret generatsiya qilish
-  return 'dev-secret-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  // Development uchun doimiy secret (server restart qilganda ham o'zgarmaydi)
+  return 'dev-secret-lux-pet-plast-2024-fixed-key-do-not-use-in-production';
 })();
 
 export interface AuthRequest extends Request {
