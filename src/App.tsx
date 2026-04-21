@@ -27,7 +27,6 @@ const CashierManagement = lazy(() => import('./pages/CashierManagement'));
 const CashierShift = lazy(() => import('./pages/CashierShift'));
 const CashierBot = lazy(() => import('./pages/CashierBot'));
 const ModernChat = lazy(() => import('./pages/ModernChat'));
-const Analytics = lazy(() => import('./components/ProfessionalCEOAnalytics'));
 
 // Layouts
 const ProfessionalLayout = lazy(() => import('./components/ProfessionalLayout'));
@@ -221,7 +220,7 @@ function App() {
               <Route path="/settings" element={<Settings />} />
               
               {/* Analytics routes */}
-              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/analytics" element={<div className="p-8 text-center"><h2 className="text-2xl font-bold">CEO Analytics</h2><p className="text-gray-500">Tez kunda...</p></div>} />
               <Route path="/revenue" element={<div className="p-8 text-center"><h2 className="text-2xl font-bold">Revenue Calculator</h2><p className="text-gray-500">Tez kunda...</p></div>} />
               <Route path="/activity" element={<div className="p-8 text-center"><h2 className="text-2xl font-bold">Activity Monitor</h2><p className="text-gray-500">Tez kunda...</p></div>} />
               
