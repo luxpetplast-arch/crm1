@@ -231,25 +231,48 @@ export class SalesService {
         });
       }
 
-      // 4. Mijoz balans/qarz yangilash
+      // 4. Mijoz balans/qarz yangilash (valyuta bo'yicha alohida)
       if (!isKocha && customerId) {
         const debtAmount = totalAmount - paidAmount;
-        if (debtAmount > 0) {
-          await tx.customer.update({
-            where: { id: customerId },
-            data: {
-              debtUSD: { increment: debtAmount },
-              lastPurchase: new Date()
-            }
-          });
+        
+        if (currency === 'UZS') {
+          // UZS valyutasi uchun
+          if (debtAmount > 0) {
+            await tx.customer.update({
+              where: { id: customerId },
+              data: {
+                debtUZS: { increment: debtAmount },
+                lastPurchase: new Date()
+              }
+            });
+          } else {
+            await tx.customer.update({
+              where: { id: customerId },
+              data: {
+                balanceUZS: { increment: paidAmount },
+                lastPurchase: new Date()
+              }
+            });
+          }
         } else {
-          await tx.customer.update({
-            where: { id: customerId },
-            data: {
-              balanceUSD: { increment: paidAmount },
-              lastPurchase: new Date()
-            }
-          });
+          // USD valyutasi uchun (default)
+          if (debtAmount > 0) {
+            await tx.customer.update({
+              where: { id: customerId },
+              data: {
+                debtUSD: { increment: debtAmount },
+                lastPurchase: new Date()
+              }
+            });
+          } else {
+            await tx.customer.update({
+              where: { id: customerId },
+              data: {
+                balanceUSD: { increment: paidAmount },
+                lastPurchase: new Date()
+              }
+            });
+          }
         }
       }
 
