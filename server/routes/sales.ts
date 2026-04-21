@@ -359,15 +359,22 @@ router.post('/', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthReques
     // 3. SALE ITEMS ЯРАТИШ
     const saleItems = [];
     for (const validation of validationResults) {
+      const saleItemData: any = {
+        saleId: sale.id,
+        productId: validation.item.productId,
+        quantity: parseFloat(validation.item.quantity),
+        pricePerBag: parseFloat(validation.item.pricePerBag || validation.item.pricePerPiece || 0),
+        subtotal: validation.subtotal,
+        saleType: validation.item.saleType || 'bag'
+      };
+      
+      // Agar variantId bo'lsa, saqlash
+      if (validation.item.variantId) {
+        saleItemData.variantId = validation.item.variantId;
+      }
+      
       const saleItem = await prisma.saleItem.create({
-        data: {
-          saleId: sale.id,
-          productId: validation.item.productId,
-          quantity: parseFloat(validation.item.quantity),
-          pricePerBag: parseFloat(validation.item.pricePerBag || validation.item.pricePerPiece || 0),
-          subtotal: validation.subtotal,
-          saleType: validation.item.saleType || 'bag'
-        },
+        data: saleItemData,
         include: {
           product: true
         }
@@ -423,6 +430,7 @@ router.post('/', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthReques
           newUnits
         });
         
+        // Asosiy mahsulot omborini yangilash
         await prisma.product.update({
           where: { id: product.id },
           data: {
@@ -430,6 +438,21 @@ router.post('/', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthReques
             currentUnits: newUnits
           }
         });
+        
+        // AGAR VARIANT BO'LSA - variant omborini ham yangilash
+        if (item.variantId) {
+          try {
+            await prisma.$queryRaw`
+              UPDATE ProductVariant 
+              SET currentStock = currentStock - ${bagsToDeduct},
+                  currentUnits = currentUnits - ${unitsToDeduct}
+              WHERE id = ${item.variantId}
+            `;
+            console.log(`✅ Variant ${item.variantId} ombori yangilandi: -${bagsToDeduct} qop, -${unitsToDeduct} dona`);
+          } catch (variantError) {
+            console.log(`⚠️ Variant omborini yangilashda xatolik:`, variantError);
+          }
+        }
 
         console.log(`✅ ${product.name} stock yangilandi: ${product.currentStock} → ${newStock}`);
 
