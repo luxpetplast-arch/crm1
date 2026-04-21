@@ -810,28 +810,19 @@ router.post('/:id/payment', async (req, res) => {
 
 
 
-      // Kassa tranzaksiyasini yaratish
-
+      // Kassa tranzaksiyasini yaratish (valyuta va to'lov usuli bo'yicha)
+      const paymentType = type === 'CLICK' ? 'Click' : (type === 'CARD' ? 'Karta' : 'Naqd');
+      
       await tx.cashboxTransaction.create({
-
         data: {
-
           type: 'INCOME',
-
           amount,
-
           category: 'CUSTOMER_PAYMENT',
-
-          description: `Mijoz to\'lovi: ${customer.name} - ${notes || ''}`,
-
+          description: `Mijoz to\'lovi: ${customer.name} (${paymentType} ${currency})${notes ? ' - ' + notes : ''}`,
           reference: newPayment.id,
-
           userId: (req as any).user?.id,
-
           userName: (req as any).user?.name || 'Admin'
-
         }
-
       });
 
 
