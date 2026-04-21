@@ -1,57 +1,54 @@
 services:
-  # PostgreSQL Database
-  - type: pserv
-    name: luxpetplast-db
-    env: docker
-    plan: free
-    region: frankfurt
-    databases:
-      - name: luxpetplast_erp
-        user: luxpetplast_user
+  # PostgreSQL Database (Supabase ulanishi uchun)
+  # DATABASE_URL ni qo'lda sozlash kerak
 
-  # Backend API
+  # Unified Web Service (Backend + Frontend)
   - type: web
-    name: luxpetplast-api
+    name: luxpetplast
     env: node
     region: frankfurt
     plan: free
-    buildCommand: npm install && npm run db:generate && npm run build:server
-    startCommand: if [ -z "$DATABASE_URL" ]; then echo "ERROR: DATABASE_URL not set"; sleep 10; exit 1; fi && npm run db:push && node server/dist/index.js
+    buildCommand: |
+      echo "=== Build started ===" &&
+      npm install &&
+      echo "=== Building client ===" &&
+      npm run build:client &&
+      echo "=== Generating Prisma client ===" &&
+      npm run db:generate &&
+      echo "=== Building server ===" &&
+      npm run build:server &&
+      echo "=== Build completed ==="
+    startCommand: |
+      if [ -z "$DATABASE_URL" ]; then 
+        echo "ERROR: DATABASE_URL not set"
+        echo "Please set DATABASE_URL in Render Dashboard"
+        sleep 10
+        exit 1
+      fi &&
+      echo "=== Database check ===" &&
+      npx prisma db push --accept-data-loss &&
+      echo "=== Starting server ===" &&
+      node server/dist/index.js
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
         sync: false
-      - key: DB_PROVIDER
-        value: postgresql
       - key: JWT_SECRET
         generateValue: true
       - key: PORT
-        value: 5000
+        value: 10000
       - key: USD_TO_UZS_RATE
         value: 12500
       # - key: TELEGRAM_BOT_TOKEN
       #   sync: false
       # - key: TELEGRAM_ADMIN_CHAT_ID
       #   sync: false
-      - key: FRONTEND_URL
-        value: https://luxpetplast.onrender.com
-      - key: CORS_ORIGIN
-        value: https://luxpetplast.onrender.com
     healthCheckPath: /api/health
 
-  # Frontend (Static Site)
-  - type: web
-    name: luxpetplast
-    env: static
-    region: frankfurt
-    plan: free
-    buildCommand: npm install && npm run build:client
-    staticPublishPath: ./dist
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: VITE_API_URL
-        value: https://luxpetplast-api.onrender.com
+# Manual deploy commands:
+# 1. Push code to GitHub
+# 2. Go to https://dashboard.render.com
+# 3. Find "luxpetplast" service
+# 4. Click "Manual Deploy" → "Deploy latest commit"
+# 5. Set DATABASE_URL in Environment Variables
