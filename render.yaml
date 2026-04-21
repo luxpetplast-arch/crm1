@@ -10,7 +10,7 @@ services:
     plan: free
     buildCommand: |
       echo "=== Build started ===" &&
-      npm install &&
+      npm install --include=dev &&
       echo "=== Building client ===" &&
       npm run build:client &&
       echo "=== Generating Prisma client ===" &&
