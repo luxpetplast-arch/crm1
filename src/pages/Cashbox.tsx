@@ -592,7 +592,7 @@ export default function Cashbox() {
                 <Wallet className="w-8 h-8 text-accent-600" />
               </div>
               <div>
-                <h1 className="text-3xl font-black bg-gradient-primary bg-clip-text text-transparent">
+                <h1 className="text-3xl font-black text-gray-900">
                   {t("Kassa")}
                 </h1>
                 <p className="text-sm font-semibold text-neutral-600 mt-1">
