@@ -13,6 +13,7 @@ export interface CreateSaleInput {
   totalAmount: number;
   paidAmount: number;
   currency: string;
+  paymentMethod?: 'CASH' | 'CARD' | 'CLICK';
   paymentDetails?: { uzs?: number; usd?: number; click?: number };
   driverId?: string;
   isKocha?: boolean;
@@ -126,7 +127,7 @@ export class SalesService {
   // Sotuv yaratish (transaction bilan)
   async createSale(input: CreateSaleInput): Promise<SaleWithRelations> {
     const {
-      items, totalAmount, paidAmount, currency, paymentDetails,
+      items, totalAmount, paidAmount, currency, paymentMethod, paymentDetails,
       customerId, driverId, userId, userName, isKocha,
       manualCustomerName, manualCustomerPhone
     } = input;
@@ -252,32 +253,66 @@ export class SalesService {
         }
       }
 
-      // 5. Kassa tranzaksiyasi
+      // 5. Kassa tranzaksiyasi (to'lov usuli va valyuta bo'yicha)
+      const method = paymentMethod || 'CASH';
+      
       if (paymentDetails) {
+        // UZS tushirish
         if (paymentDetails.uzs && paymentDetails.uzs > 0) {
+          const paymentType = method === 'CLICK' ? 'Click' : (method === 'CARD' ? 'Karta' : 'Naqd');
           await tx.cashboxTransaction.create({
             data: {
               type: 'INCOME',
               amount: paymentDetails.uzs,
               category: 'SALE',
-              description: `Sotuv (Naqd UZS)`,
+              description: `Sotuv: ${paymentType} UZS`,
               userId,
               userName,
             }
           });
         }
+        
+        // USD tushirish
         if (paymentDetails.usd && paymentDetails.usd > 0) {
+          const paymentType = method === 'CLICK' ? 'Click' : (method === 'CARD' ? 'Karta' : 'Naqd');
           await tx.cashboxTransaction.create({
             data: {
               type: 'INCOME',
               amount: paymentDetails.usd,
               category: 'SALE',
-              description: `Sotuv (Dollar USD)`,
+              description: `Sotuv: ${paymentType} USD`,
               userId,
               userName,
             }
           });
         }
+        
+        // Click tushirish (alohida)
+        if (paymentDetails.click && paymentDetails.click > 0) {
+          await tx.cashboxTransaction.create({
+            data: {
+              type: 'INCOME',
+              amount: paymentDetails.click,
+              category: 'SALE',
+              description: `Sotuv: Click UZS`,
+              userId,
+              userName,
+            }
+          });
+        }
+      } else if (paidAmount > 0) {
+        // Faqat asosiy valyuta bo'yicha (paymentDetails yo'q bo'lsa)
+        const paymentType = method === 'CLICK' ? 'Click' : (method === 'CARD' ? 'Karta' : 'Naqd');
+        await tx.cashboxTransaction.create({
+          data: {
+            type: 'INCOME',
+            amount: paidAmount,
+            category: 'SALE',
+            description: `Sotuv: ${paymentType} ${currency}`,
+            userId,
+            userName,
+          }
+        });
       }
 
       return { ...sale, items: saleItems };
