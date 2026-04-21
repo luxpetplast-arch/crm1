@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import { setupSwagger } from './swagger';
 import authRoutes from './routes/auth';
 import productRoutes from './routes/products';
 import variantRoutes from './routes/variants';
@@ -67,6 +68,9 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+
+// Swagger API Documentation
+setupSwagger(app);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
