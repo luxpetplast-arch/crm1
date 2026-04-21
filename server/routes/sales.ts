@@ -3,6 +3,7 @@ import { prisma } from '../utils/prisma';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 import { notifyCustomerSale, notifyLowStock } from '../utils/telegram-notifications';
 import { createInvoiceForSale } from '../utils/invoice-generator';
+import { logger } from '../utils/logger';
 
 const router = Router();
 
@@ -98,72 +99,54 @@ router.post('/', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthReques
   try {
     const { customerId, items, totalAmount, paidAmount, currency, paymentCurrency, paymentStatus, paymentDetails, driverId, factoryShare, customerShare, isKocha, manualCustomerName, manualCustomerPhone } = req.body;
 
-    console.log('🔍 ========== SOTUV YARATISH BOSHLANDI ==========');
-    console.log('📥 POST /sales - Kelgan ma\'lumotlar:', JSON.stringify({
+    logger.info({
       customerId,
       isKocha,
       itemsCount: items?.length,
       totalAmount,
-      paidAmount,
-      currency,
-      paymentDetails,
-      manualCustomerName,
-      manualCustomerPhone
-    }, null, 2));
+      currency
+    }, 'Sotuv yaratish boshlandi');
 
     if (!customerId && !isKocha) {
-      console.error('❌ Mijoz tanlanmagan');
+      logger.warn('Sotuv yaratish: Mijoz tanlanmagan');
       return res.status(400).json({ error: 'Mijoz tanlanmagan' });
     }
 
     // USER tekshirish
     const userId = req.user?.id;
     if (!userId) {
-      console.error('❌ Foydalanuvchi aniqlanmadi');
+      logger.error('Sotuv yaratish: Foydalanuvchi aniqlanmadi');
       return res.status(401).json({ error: 'Foydalanuvchi aniqlanmadi' });
     }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
-      console.error('❌ Mahsulotlar ro\'yxati bo\'sh');
+      logger.warn('Sotuv yaratish: Mahsulotlar ro\'yxati bo\'sh');
       return res.status(400).json({ error: 'Kamida bitta mahsulot tanlash kerak' });
     }
 
-    console.log('📦 Mahsulotlar tekshirilmoqda:', items.map((item, idx) => ({
-      index: idx,
-      productId: item.productId,
-      quantity: item.quantity,
-      pricePerBag: item.pricePerBag,
-      pricePerPiece: item.pricePerPiece,
-      subtotal: item.subtotal,
-      saleType: item.saleType
-    })));
+    logger.debug({ items: items.length }, 'Mahsulotlar tekshirilmoqda');
 
     // 1. ВАЛИДАЦИЯ
     const validationResults = [];
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      console.log(`🔍 Item ${i + 1} tekshirilmoqda:`, item);
       
       if (!item.productId) {
-        console.error(`❌ Item ${i + 1} da mahsulot tanlanmagan`);
+        logger.warn({ itemIndex: i }, 'Item da mahsulot tanlanmagan');
         return res.status(400).json({ error: `Item ${i + 1} da mahsulot tanlanmagan` });
       }
       
       const product = await prisma.product.findUnique({ where: { id: item.productId } });
       if (!product) {
-        console.error(`❌ Mahsulot topilmadi: ${item.productId}`);
+        logger.error({ productId: item.productId }, 'Mahsulot topilmadi');
         return res.status(404).json({ error: `Mahsulot topilmadi: ${item.productId}` });
       }
 
-      console.log(`✅ Mahsulot topildi: ${product.name}`, {
-        currentStock: product.currentStock,
-        currentUnits: product.currentUnits,
-        unitsPerBag: product.unitsPerBag
-      });
+      logger.debug({ product: product.name, stock: product.currentStock }, 'Mahsulot topildi');
 
       const requestedQty = parseFloat(item.quantity) || 0;
       if (requestedQty <= 0) {
-        console.error(`❌ ${product.name} miqdori xato: ${requestedQty}`);
+        logger.warn({ product: product.name, quantity: requestedQty }, 'Miqdor xato');
         return res.status(400).json({ error: `${product.name} miqdori xato` });
       }
 
