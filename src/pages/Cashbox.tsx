@@ -669,7 +669,7 @@ export default function Cashbox() {
                 </div>
                 <span className="ultra-badge primary text-xs">{kpi.title}</span>
               </div>
-              <p className="text-3xl font-black bg-gradient-primary bg-clip-text text-transparent">{kpi.value}</p>
+              <p className="text-3xl font-black text-gray-900">{kpi.value}</p>
             </div>
           ))}
         </div>
