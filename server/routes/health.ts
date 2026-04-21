@@ -9,10 +9,13 @@ interface HealthStatus {
   status: 'healthy' | 'degraded' | 'unhealthy';
   timestamp: string;
   version: string;
+  uptime: number;
   checks: {
     database: { status: string; latency: number };
     redis: { status: string; latency: number };
     queues: Record<string, { status: string; waiting: number; failed: number }>;
+    memory: { status: string; used: number; total: number; percentage: number };
+    disk?: { status: string; free: number; total: number; percentage: number };
   };
 }
 
@@ -21,6 +24,7 @@ router.get('/', async (req, res) => {
     database: { status: 'unknown', latency: 0 },
     redis: { status: 'unknown', latency: 0 },
     queues: {},
+    memory: { status: 'unknown', used: 0, total: 0, percentage: 0 },
   };
 
   let overallStatus: HealthStatus['status'] = 'healthy';
@@ -75,10 +79,21 @@ router.get('/', async (req, res) => {
     }
   }
 
+  // Memory check
+  const memUsage = process.memoryUsage();
+  const memTotal = require('os').totalmem();
+  checks.memory = {
+    status: (memUsage.heapUsed / memTotal) > 0.9 ? 'warning' : 'ok',
+    used: Math.round(memUsage.heapUsed / 1024 / 1024), // MB
+    total: Math.round(memTotal / 1024 / 1024), // MB
+    percentage: Math.round((memUsage.heapUsed / memTotal) * 100),
+  };
+
   const health: HealthStatus = {
     status: overallStatus,
     timestamp: new Date().toISOString(),
     version: process.env.npm_package_version || '1.0.0',
+    uptime: process.uptime(),
     checks,
   };
 
