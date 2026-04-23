@@ -18,7 +18,7 @@ services:
       echo "=== Building server ===" &&
       npm run build:server &&
       echo "=== Build completed ==="
-    startCommand: node server/dist/index.js
+    startCommand: cd server && node dist/index.js
     envVars:
       - key: NODE_ENV
         value: production
