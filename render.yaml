@@ -18,17 +18,7 @@ services:
       echo "=== Building server ===" &&
       npm run build:server &&
       echo "=== Build completed ==="
-    startCommand: |
-      if [ -z "$DATABASE_URL" ]; then 
-        echo "ERROR: DATABASE_URL not set"
-        echo "Please set DATABASE_URL in Render Dashboard"
-        sleep 10
-        exit 1
-      fi &&
-      echo "=== Database check ===" &&
-      npx prisma db push --accept-data-loss &&
-      echo "=== Starting server ===" &&
-      node server/dist/index.js
+    startCommand: "if [ -z \"$DATABASE_URL\" ]; then echo 'ERROR: DATABASE_URL not set'; echo 'Please set DATABASE_URL in Render Dashboard'; sleep 10; exit 1; fi && echo '=== Database check ===' && npx prisma db push --accept-data-loss && echo '=== Starting server ===' && node server/dist/index.js"
     envVars:
       - key: NODE_ENV
         value: production
