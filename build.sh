@@ -6,16 +6,18 @@ echo "🚀 Build boshlandi..."
 echo "📦 Dependencies o'rnatilmoqda..."
 npm install
 
-# Build backend
-echo "🔨 Backend build qilinmoqda..."
-npm run build:server
+# Generate Prisma Client (build dan oldin)
+echo "🗄️  Prisma Client yaratilmoqda..."
+npm run db:generate
 
 # Build frontend
 echo "🎨 Frontend build qilinmoqda..."
 npm run build
 
-# Generate Prisma Client
-echo "🗄️  Prisma Client yaratilmoqda..."
-npm run db:generate
+# Build backend
+echo "🔨 Backend build qilinmoqda..."
+npm run build:server
 
 echo "✅ Build tugadi!"
+echo "📁 Backend output: dist-server/"
+echo "📁 Frontend output: dist/"
