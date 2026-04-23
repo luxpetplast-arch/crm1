@@ -30,6 +30,10 @@ services:
         value: 10000
       - key: USD_TO_UZS_RATE
         value: 12500
+      - key: VITE_SUPABASE_URL
+        value: https://eomvlukbfjwtlxnzvfdw.supabase.co
+      - key: VITE_SUPABASE_ANON_KEY
+        value: sb_publishable_U8T7-aiTDZ-ARARuKAY85g_CYLo6hDb
       # - key: TELEGRAM_BOT_TOKEN
       #   sync: false
       # - key: TELEGRAM_ADMIN_CHAT_ID
