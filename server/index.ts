@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
 import { setupSwagger } from './swagger';
 import authRoutes from './routes/auth';
 import productRoutes from './routes/products';
@@ -53,6 +55,53 @@ const PORT = process.env.PORT || 5003;
 console.log('🚀 Server starting...');
 console.log('🔐 JWT_SECRET exists:', !!process.env.JWT_SECRET);
 
+// 🔒 HELMET - Security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      connectSrc: ["'self'", process.env.CORS_ORIGIN || "http://localhost:5173"],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // Development uchun
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  }
+}));
+
+// 🔒 Rate Limiting - DDoS himoyasi
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 daqiqa
+  max: 100, // Har IP uchun 100 ta so'rov
+  message: {
+    error: 'Too many requests, please try again later.',
+    retryAfter: 15 * 60
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Stricter limit for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 daqiqa
+  max: 10, // Faqat 10 ta login urinish
+  message: {
+    error: 'Too many login attempts, please try again after 15 minutes.',
+    retryAfter: 15 * 60
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply rate limiting to all API routes
+app.use('/api/', limiter);
+app.use('/api/auth/login', authLimiter);
+
 const allowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:25852',
@@ -79,7 +128,8 @@ if (process.env.NODE_ENV === 'development') {
     credentials: true
   }));
 }
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // Limit request body size
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Swagger API Documentation
 setupSwagger(app);
@@ -149,16 +199,14 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// Global error handler
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Unhandled error:', err);
-  res.status(err.status || 500).json({
-    status: 'error',
-    message: process.env.NODE_ENV === 'production' 
-      ? 'Internal server error' 
-      : err.message
-  });
-});
+// 🔒 Security middleware
+import { securityLogger, sanitizeInput } from './middleware/security';
+app.use(securityLogger);
+app.use(sanitizeInput);
+
+// Global error handler - yangilangan
+import { errorHandler } from './middleware/error-handler';
+app.use(errorHandler);
 
 // Auth test endpoint
 import jwt from 'jsonwebtoken';

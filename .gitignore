@@ -1,6 +1,8 @@
 node_modules
 dist
 .env
+.env.*
+!.env.example
 .DS_Store
 *.log
 .vscode
@@ -18,3 +20,69 @@ dist
 *.mp4
 *.webm
 test-results.json
+
+# Backup and database files
+backup/
+backups/
+*.db
+*.db.backup*
+prisma/dev.db
+prisma/*.db
+
+# Test files (development only)
+test-*.js
+test-*.cjs
+test-*.mjs
+test-*.ts
+check-*.js
+check-*.cjs
+check-*.mjs
+fix-*.js
+fix-*.cjs
+fix-*.mjs
+*-test.js
+*-test.cjs
+*-test.mjs
+
+# Documentation (except essential)
+*.md
+!README.md
+
+# Directories
+.kiro/
+.windsurf/
+exsel/
+e2e/
+test-results/
+playwright-report/
+
+# Scripts (except seed/migration)
+scripts/*.cjs
+scripts/*.js
+!scripts/seed*.ts
+!scripts/migrate*.ts
+
+# Other files
+*.txt
+!public/logo.txt
+!public/logo-base64.txt
+80mm-*
+8cm-*
+cheque-*
+final-*
+logo-*
+terminal-*
+uzbek-*
+table-*
+
+# SQL files (except migrations)
+*.sql
+!prisma/migrations/**/*.sql
+
+# Config files (local only)
+netlify.toml
+docker-compose.yml
+Dockerfile
+nginx.conf
+ecosystem.config.js
+capacitor.config.ts

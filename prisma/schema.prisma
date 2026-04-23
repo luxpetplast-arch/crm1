@@ -162,6 +162,10 @@ model Sale {
   @@index([userId])
   @@index([driverId])
   @@index([createdAt])
+  @@index([paymentStatus])
+  @@index([receiptNumber])
+  @@index([createdAt, customerId]) // Sana va mijoz bo'yicha saralash
+  @@index([isKocha, createdAt]) // Ko'cha savdolari uchun
 }
 
 model SaleItem {
@@ -265,6 +269,8 @@ model AuditLog {
   @@index([userId])
   @@index([entity])
   @@index([createdAt])
+  @@index([action, createdAt]) // Harakatlar tarixini tezkor olish
+  @@index([entity, entityId]) // Ma'lumot bo'yicha qidirish
 }
 
 model SalesForecast {
@@ -788,6 +794,10 @@ model Order {
   @@index([customerId])
   @@index([status])
   @@index([requestedDate])
+  @@index([createdAt])
+  @@index([priority])
+  @@index([status, createdAt]) // Compound index - status bo'yicha saralash
+  @@index([customerId, status]) // Mijoz buyurtmalarini tezkor qidirish
 }
 
 model OrderItem {

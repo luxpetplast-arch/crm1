@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { safeParseFloat } from '../lib/safe-math';
 
 interface PriceInputProps {
   value: number;
@@ -26,7 +27,7 @@ export function PriceInput({ value, onChange, className = '', placeholder = '' }
 
   const handleBlur = () => {
     setIsEditing(false);
-    const numValue = parseFloat(localValue) || 0;
+    const numValue = safeParseFloat(localValue, 0);
     setLocalValue(numValue.toString());
     onChange(numValue);
   };
@@ -34,7 +35,7 @@ export function PriceInput({ value, onChange, className = '', placeholder = '' }
   const handleFocus = () => {
     setIsEditing(true);
     // Clear if value is 0
-    if (parseFloat(localValue) === 0) {
+    if (safeParseFloat(localValue, 0) === 0) {
       setLocalValue('');
     }
   };

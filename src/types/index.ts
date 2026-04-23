@@ -98,6 +98,9 @@ export interface Sale {
   quantity: number;
   price: number;
   totalAmount: number;
+  total?: number;
+  paid?: number;
+  debt?: number;
   currency: 'UZS' | 'USD';
   paymentType: 'CASH' | 'CARD' | 'TRANSFER' | 'DEBT' | 'MIXED';
   status: 'COMPLETED' | 'PENDING' | 'CANCELLED';
@@ -107,6 +110,11 @@ export interface Sale {
   customer?: Customer;
   product?: Product;
   items?: SaleItem[];
+  paymentDetails?: {
+    uzs: number;
+    usd: number;
+    click: number;
+  };
 }
 
 export interface SaleItem {
@@ -166,6 +174,8 @@ export interface Customer {
   debtReminderDays?: number;
   paymentTermDays?: number;
   discountPercent?: number;
+  pricePerBag?: number;
+  productPrices?: string;
   active: boolean;
   createdAt: Date;
   updatedAt?: Date;
@@ -369,4 +379,69 @@ export interface CustomerStat {
   totalSpent: number;
   purchases: number;
   debt: number;
+}
+
+// Sale Form Types - for AddSale page
+export interface SaleItemForm {
+  productId: string;
+  productName: string;
+  quantity: string | number;
+  bagDisplayValue?: string;
+  pricePerBag: number;
+  pricePerPiece: number;
+  priceDisplayValue?: string;
+  unitsPerBag: number;
+  subtotal: number;
+  warehouse?: string;
+  subType?: string;
+  saleType: 'bag' | 'piece' | 'komplekt';
+}
+
+export interface SaleFormData {
+  customerId: string;
+  customerName: string;
+  items: SaleItemForm[];
+  paidUZS: string;
+  paidUSD: string;
+  paidCLICK: string;
+  paymentType: 'cash' | 'debt' | 'partial';
+  currency: 'UZS' | 'USD';
+  isKocha: boolean;
+  manualCustomerName: string;
+  manualCustomerPhone: string;
+}
+
+export interface NewItemForm {
+  productId: string;
+  productName: string;
+  quantity: string;
+  pricePerBag: string;
+  priceDisplayValue: string;
+  unitsPerBag: string;
+  saleType: 'bag' | 'piece' | 'komplekt';
+}
+
+export type ProductCategory = 'all' | 'preform' | 'krishka' | 'ruchka' | 'other';
+
+export interface PaymentDetails {
+  uzs: number;
+  usd: number;
+  click: number;
+}
+
+export interface SaleData {
+  customerId: string | null;
+  customerName: string;
+  customerPhone?: string;
+  items: SaleItemForm[];
+  paymentDetails: PaymentDetails;
+  paymentType: string;
+  currency: string;
+  isKocha: boolean;
+  total: number;
+  paid: number;
+  debt: number;
+  exchangeRate: number;
+  createdAt: Date;
+  status: 'completed' | 'partial' | 'pending';
 }

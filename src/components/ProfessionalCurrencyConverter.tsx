@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Currency, currencyManager, convertCurrency, formatCurrency } from '../lib/professionalCurrency';
 import { ArrowUpDown, TrendingUp, TrendingDown, Info } from 'lucide-react';
+import { safeParseFloat } from '../lib/safe-math';
 
 interface CurrencyConverterProps {
   amount?: number;
@@ -47,7 +48,7 @@ export default function ProfessionalCurrencyConverter({
     setError(null);
 
     try {
-      const numAmount = parseFloat(inputAmount) || 0;
+      const numAmount = safeParseFloat(inputAmount, 0);
       
       if (numAmount <= 0) {
         setConvertedAmount(0);

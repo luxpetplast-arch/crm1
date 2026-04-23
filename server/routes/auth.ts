@@ -4,13 +4,84 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../utils/prisma';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || (() => {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('JWT_SECRET environment variable is required in production');
+
+// 🔒 RATE LIMITING: Brute force hujumlarini oldini olish
+interface RateLimitStore {
+  attempts: number;
+  firstAttempt: number;
+  blocked: boolean;
+  blockedUntil?: number;
+}
+
+const rateLimitStore = new Map<string, RateLimitStore>();
+const MAX_ATTEMPTS = 5;
+const BLOCK_DURATION = 15 * 60 * 1000; // 15 daqiqa
+const WINDOW_MS = 15 * 60 * 1000; // 15 daqiqa
+
+const checkRateLimit = (key: string): { allowed: boolean; remaining: number; message?: string } => {
+  const now = Date.now();
+  const record = rateLimitStore.get(key);
+  
+  // Agar blocklangan bo'lsa
+  if (record?.blocked && record.blockedUntil && record.blockedUntil > now) {
+    const minutesLeft = Math.ceil((record.blockedUntil - now) / 60000);
+    return { 
+      allowed: false, 
+      remaining: 0, 
+      message: `Juda ko'p urinish. ${minutesLeft} daqiqadan keyin qayta urinib ko'ring.` 
+    };
   }
-  // Development uchun random secret generatsiya qilish
-  return 'dev-secret-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-})();
+  
+  // Block vaqti o'tib ketgan bo'lsa, tozalash
+  if (record?.blocked && record.blockedUntil && record.blockedUntil <= now) {
+    rateLimitStore.delete(key);
+  }
+  
+  // Yangi yoki eski record
+  if (!record || (record.firstAttempt + WINDOW_MS) < now) {
+    rateLimitStore.set(key, { attempts: 1, firstAttempt: now, blocked: false });
+    return { allowed: true, remaining: MAX_ATTEMPTS - 1 };
+  }
+  
+  // Attempt qo'shish
+  record.attempts++;
+  
+  // Limit oshib ketganmi?
+  if (record.attempts >= MAX_ATTEMPTS) {
+    record.blocked = true;
+    record.blockedUntil = now + BLOCK_DURATION;
+    return { 
+      allowed: false, 
+      remaining: 0, 
+      message: 'Juda ko\'p urinish. 15 daqiqadan keyin qayta urinib ko\'ring.' 
+    };
+  }
+  
+  return { allowed: true, remaining: MAX_ATTEMPTS - record.attempts };
+};
+
+// Rate limit o'chirish (muvaffaqiyatli login dan keyin)
+const resetRateLimit = (key: string) => {
+  rateLimitStore.delete(key);
+};
+const JWT_SECRET = process.env.JWT_SECRET;
+
+// JWT_SECRET tekshiruvi
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
+}
+
+if (JWT_SECRET.length < 32) {
+  throw new Error('JWT_SECRET must be at least 32 characters long');
+}
+
+// Production da zaif secret tekshiruvi
+if (process.env.NODE_ENV === 'production') {
+  const weakSecrets = ['secret', 'dev-secret', 'test', 'password', '123456'];
+  if (weakSecrets.some(weak => JWT_SECRET.toLowerCase().includes(weak))) {
+    throw new Error('JWT_SECRET is too weak for production');
+  }
+}
 
 router.post('/login', async (req, res) => {
   try {
@@ -20,10 +91,24 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Login va parol kiritilishi shart' });
     }
     
+    // 🔒 Rate limit tekshiruvi
+    const rateLimitKey = `${req.ip || 'unknown'}:${login.toLowerCase()}`;
+    const rateLimitCheck = checkRateLimit(rateLimitKey);
+    
+    if (!rateLimitCheck.allowed) {
+      return res.status(429).json({ 
+        error: rateLimitCheck.message,
+        retryAfter: BLOCK_DURATION / 1000
+      });
+    }
+    
     const user = await prisma.user.findUnique({ where: { login } });
 
     if (!user) {
-      return res.status(401).json({ error: 'Login yoki parol xato' });
+      return res.status(401).json({ 
+        error: 'Login yoki parol xato',
+        remainingAttempts: rateLimitCheck.remaining 
+      });
     }
 
     if (!user.active) {
@@ -33,8 +118,14 @@ router.post('/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     
     if (!valid) {
-      return res.status(401).json({ error: 'Login yoki parol xato' });
+      return res.status(401).json({ 
+        error: 'Login yoki parol xato',
+        remainingAttempts: rateLimitCheck.remaining 
+      });
     }
+    
+    // ✅ Muvaffaqiyatli login - rate limitni tozalash
+    resetRateLimit(rateLimitKey);
 
     const token = jwt.sign(
       { id: user.id, role: user.role, name: user.name },
@@ -42,7 +133,11 @@ router.post('/login', async (req, res) => {
       { expiresIn: '30d' }
     );
 
-    res.json({ token, user: { id: user.id, name: user.name, role: user.role } });
+    res.json({ 
+      token, 
+      user: { id: user.id, name: user.name, role: user.role },
+      message: 'Muvaffaqiyatli kirish'
+    });
   } catch (error) {
     console.error('❌ Login error:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ 
@@ -52,7 +147,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Kassir login endpointi
+// Kassir login endpointi - Rate limiting bilan
 router.post('/cashier-login', async (req, res) => {
   try {
     const { login, password } = req.body;
@@ -61,10 +156,24 @@ router.post('/cashier-login', async (req, res) => {
       return res.status(400).json({ error: 'Login va parol kiritilishi shart' });
     }
     
+    // 🔒 Rate limit tekshiruvi
+    const rateLimitKey = `cashier:${req.ip || 'unknown'}:${login.toLowerCase()}`;
+    const rateLimitCheck = checkRateLimit(rateLimitKey);
+    
+    if (!rateLimitCheck.allowed) {
+      return res.status(429).json({ 
+        error: rateLimitCheck.message,
+        retryAfter: BLOCK_DURATION / 1000
+      });
+    }
+    
     const user = await prisma.user.findUnique({ where: { login } });
 
     if (!user) {
-      return res.status(401).json({ error: 'Login yoki parol xato' });
+      return res.status(401).json({ 
+        error: 'Login yoki parol xato',
+        remainingAttempts: rateLimitCheck.remaining 
+      });
     }
     
     if (!user.active) {
@@ -79,8 +188,14 @@ router.post('/cashier-login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     
     if (!valid) {
-      return res.status(401).json({ error: 'Login yoki parol xato' });
+      return res.status(401).json({ 
+        error: 'Login yoki parol xato',
+        remainingAttempts: rateLimitCheck.remaining 
+      });
     }
+    
+    // ✅ Muvaffaqiyatli login - rate limitni tozalash
+    resetRateLimit(rateLimitKey);
 
     const token = jwt.sign(
       { id: user.id, role: user.role, name: user.name },
@@ -88,7 +203,11 @@ router.post('/cashier-login', async (req, res) => {
       { expiresIn: '30d' }
     );
 
-    res.json({ token, user: { id: user.id, name: user.name, role: user.role } });
+    res.json({ 
+      token, 
+      user: { id: user.id, name: user.name, role: user.role },
+      message: 'Muvaffaqiyatli kirish'
+    });
   } catch (error) {
     console.error('❌ Cashier login error:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({ 

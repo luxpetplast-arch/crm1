@@ -4,6 +4,7 @@ import api from '../lib/api';
 import { formatCurrency } from '../lib/utils';
 import ModernLayout from './ModernLayout';
 import { latinToCyrillic } from '../lib/transliterator';
+import { safeParseFloat, safePercentage } from '../lib/safe-math';
 import {
   DollarSign, Users,
   AlertTriangle, Target, Activity, Flame, Brain,
@@ -15,7 +16,7 @@ import {
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, BarChart, Bar, AreaChart, Area
+  ResponsiveContainer, BarChart, Bar, ComposedChart
 } from 'recharts';
 
 // 🔥 1. MONEY FLOW - Burn Rate & Runway
@@ -93,8 +94,10 @@ function UnitEconomicsCard({ data }: { data: any[] }) {
       <CardContent>
         <div className="space-y-4">
           {data?.map((product: any) => {
-            const margin = ((product.price - product.cost) / product.price * 100).toFixed(1);
-            const isProfitable = parseFloat(margin) > 20;
+            const price = safeParseFloat(product.price, 0);
+            const cost = safeParseFloat(product.cost, 0);
+            const margin = safePercentage(price - cost, price, 0);
+            const isProfitable = margin > 20;
             
             return (
               <div 

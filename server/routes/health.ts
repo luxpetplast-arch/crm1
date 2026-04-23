@@ -119,4 +119,64 @@ router.get('/live', (req, res) => {
   res.json({ alive: true, uptime: process.uptime() });
 });
 
+// Security check endpoint
+router.get('/security', (req, res) => {
+  const securityInfo = {
+    timestamp: new Date().toISOString(),
+    headers: {
+      'x-frame-options': res.get('X-Frame-Options') || 'not-set',
+      'x-content-type-options': res.get('X-Content-Type-Options') || 'not-set',
+      'x-xss-protection': res.get('X-XSS-Protection') || 'not-set',
+      'strict-transport-security': res.get('Strict-Transport-Security') || 'not-set',
+      'content-security-policy': res.get('Content-Security-Policy') ? 'set' : 'not-set',
+    },
+    environment: process.env.NODE_ENV || 'development',
+    jwt_secret_set: !!process.env.JWT_SECRET,
+    cors_origin: process.env.CORS_ORIGIN || 'default',
+    rate_limiting: 'enabled',
+    helmet: 'enabled'
+  };
+  
+  res.json(securityInfo);
+});
+
+// Performance metrics
+router.get('/metrics', async (req, res) => {
+  const memUsage = process.memoryUsage();
+  const cpuUsage = process.cpuUsage();
+  
+  const metrics = {
+    timestamp: new Date().toISOString(),
+    memory: {
+      rss: Math.round(memUsage.rss / 1024 / 1024) + ' MB',
+      heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024) + ' MB',
+      heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024) + ' MB',
+      external: Math.round(memUsage.external / 1024 / 1024) + ' MB',
+    },
+    cpu: {
+      user: Math.round(cpuUsage.user / 1000) + ' ms',
+      system: Math.round(cpuUsage.system / 1000) + ' ms',
+    },
+    uptime: {
+      seconds: Math.round(process.uptime()),
+      formatted: formatUptime(process.uptime())
+    },
+    pid: process.pid,
+    version: process.version,
+    platform: process.platform
+  };
+  
+  res.json(metrics);
+});
+
+// Helper function
+function formatUptime(seconds: number): string {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  return `${days}d ${hours}h ${minutes}m ${secs}s`;
+}
+
 export default router;

@@ -17,6 +17,7 @@ import {
   Loader2
 } from 'lucide-react';
 import api from '../lib/api';
+import { safeArray, safeApiResponse } from '../lib/safe-math';
 import { latinToCyrillic } from '../lib/transliterator';
 import ModernLayout from '../components/ModernLayout';
 
@@ -53,8 +54,9 @@ export default function ProductsModern() {
         // API dan haqiqiy mahsulotlarni yuklash
         const response = await api.get('/products');
         
-        // API javobini Product interfeysiga moslashtirish
-        const apiProducts: Product[] = response.data.map((p: any) => ({
+        // API javobini Product interfeysiga moslashtirish (xavfsiz)
+        const apiData = safeArray(response.data, []);
+        const apiProducts: Product[] = apiData.map((p: any) => ({
           id: p.id,
           name: p.name,
           category: p.bagType || p.category || 'Umumiy',
@@ -66,8 +68,10 @@ export default function ProductsModern() {
         
         setProducts(apiProducts);
         
-        // Extract unique categories
-        const uniqueCategories = Array.from(new Set(apiProducts.map(p => p.category)));
+        // Extract unique categories (xavfsiz)
+        const uniqueCategories = apiProducts.length > 0 
+          ? Array.from(new Set(apiProducts.map(p => p.category || 'Umumiy')))
+          : ['all'];
         setCategories(['all', ...uniqueCategories]);
         
       } catch (error) {

@@ -2,6 +2,12 @@ import { Router } from 'express';
 import { prisma } from '../utils/prisma';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 import { OrderWorkflow } from '../services/order-workflow';
+import {
+  OrderCreateSchema,
+  OrderStatusUpdateSchema,
+  OrderPaymentSchema,
+  validateBody
+} from '../utils/validation';
 
 const router = Router();
 
@@ -28,123 +34,158 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Buyurtma yaratish
-router.post('/', authorize('ADMIN', 'CASHIER', 'MANAGER', 'WAREHOUSE_MANAGER'), async (req: AuthRequest, res) => {
+// Buyurtma yaratish - TRANSACTION bilan atomic operatsiya va Zod validation
+router.post('/', 
+  authorize('ADMIN', 'CASHIER', 'MANAGER', 'WAREHOUSE_MANAGER'),
+  validateBody(OrderCreateSchema),
+  async (req: AuthRequest & { validatedBody: any }, res) => {
   try {
+    // Validated body dan ma'lumotlarni olish
+    const { customerId, items, notes, priority, requestedDate, source } = req.validatedBody;
+    
     console.log('Create order request:', {
-      body: req.body,
       userRole: req.user?.role,
-      userId: req.user?.id
+      userId: req.user?.id,
+      itemsCount: items?.length
     });
-
-    const { customerId, items, notes, priority, requestedDate, source } = req.body;
-
-    if (!customerId || !items || !Array.isArray(items)) {
-      return res.status(400).json({ error: 'Invalid order data' });
-    }
 
     console.log('📦 Processing items:', items);
     console.log('📦 Items count:', items.length);
 
-    // Mahsulot ma'lumotlarini olish va jami summani hisoblash
-    let totalAmount = 0;
-    const orderItems = [];
-    const inventoryCheck = []; // Ombor tekshiruvi
-
-    for (const item of items) {
-      console.log('🔍 Processing item:', item);
-      console.log('🔍 Item productId:', item.productId);
-      console.log('🔍 Item productId type:', typeof item.productId);
-      console.log('🔍 Item productId length:', item.productId?.length);
-
-      if (!item.productId || item.productId.trim() === '') {
-        console.error('❌ Empty productId found:', item);
-        return res.status(400).json({ error: `Mahsulot topilmadi: ${item.productId}` });
+    // 🔒 TRANSACTION: Barcha operatsiyalar atomik bajariladi
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Mijoz mavjudligini tekshirish
+      const customer = await tx.customer.findUnique({
+        where: { id: customerId }
+      });
+      
+      if (!customer) {
+        throw new Error(`Mijoz topilmadi: ${customerId}`);
       }
 
-      const product = await prisma.product.findUnique({
-        where: { id: item.productId }
+      // 2. Mahsulotlarni LOCK bilan olish (race condition oldini olish)
+      const productIds = items.map(item => item.productId).filter(Boolean);
+      const products = await tx.product.findMany({
+        where: { id: { in: productIds } }
       });
+      
+      const productMap = new Map(products.map(p => [p.id, p]));
 
-      if (!product) {
-        return res.status(400).json({ error: `Mahsulot topilmadi: ${item.productId}` });
-      }
+      // 3. Validatsiya va hisoblash
+      let totalAmount = 0;
+      const orderItems = [];
+      const inventoryCheck = [];
 
-      const quantityBags = item.quantityBags || 0;
-      const quantityUnits = item.quantityUnits || 0;
-      const pricePerBag = product.pricePerBag;
-      const subtotal = (quantityBags * pricePerBag) + (quantityUnits * (pricePerBag / product.unitsPerBag));
-
-      totalAmount += subtotal;
-
-      // Ombor holatini tekshirish
-      const inStock = product.currentStock;
-      const needed = quantityBags;
-      const shortage = Math.max(0, needed - inStock);
-
-      inventoryCheck.push({
-        productId: product.id,
-        productName: product.name,
-        ordered: needed,
-        inStock: inStock,
-        needProduction: shortage,
-        status: shortage > 0 ? 'NEED_PRODUCTION' : 'IN_STOCK'
-      });
-
-      orderItems.push({
-        productId: item.productId,
-        quantityBags,
-        quantityUnits,
-        pricePerBag,
-        subtotal
-      });
-    }
-
-    // Buyurtma raqamini yaratish - source'ga qarab
-    const prefix = source === 'BOT' ? 'BOT-' : 'ORD-';
-    const orderNumber = `${prefix}${Date.now()}`;
-
-    // Buyurtmani yaratish
-    const order = await prisma.order.create({
-      data: {
-        orderNumber,
-        customerId,
-        status: 'CONFIRMED',
-        priority: priority || 'NORMAL',
-        requestedDate: requestedDate ? new Date(requestedDate) : new Date(Date.now() + 24 * 60 * 60 * 1000),
-        totalAmount,
-        notes: JSON.stringify({
-          userNotes: notes || '',
-          inventoryCheck: inventoryCheck
-        }),
-        items: {
-          create: orderItems.map(item => ({
-            productId: item.productId,
-            quantityBags: item.quantityBags,
-            quantityUnits: item.quantityUnits,
-            pricePerBag: item.pricePerBag,
-            subtotal: item.subtotal
-          }))
+      for (const item of items) {
+        if (!item.productId || item.productId.trim() === '') {
+          throw new Error(`Mahsulot ID kiritilmagan`);
         }
-      },
-      include: {
-        customer: true,
-        items: {
-          include: {
-            product: true
+
+        const product = productMap.get(item.productId);
+        if (!product) {
+          throw new Error(`Mahsulot topilmadi: ${item.productId}`);
+        }
+
+        const quantityBags = Math.max(0, parseInt(item.quantityBags) || 0);
+        const quantityUnits = Math.max(0, parseInt(item.quantityUnits) || 0);
+        const pricePerBag = parseFloat(product.pricePerBag?.toString() || '0');
+        
+        if (pricePerBag <= 0) {
+          throw new Error(`${product.name} narxi noto'g'ri: ${pricePerBag}`);
+        }
+
+        // 💰 Floating point xatolarni oldini olish - 2 kasr bilan
+        const subtotal = Math.round((quantityBags * pricePerBag + quantityUnits * (pricePerBag / product.unitsPerBag)) * 100) / 100;
+        totalAmount = Math.round((totalAmount + subtotal) * 100) / 100;
+
+        // Ombor holatini tekshirish
+        const inStock = product.currentStock;
+        const needed = quantityBags;
+        const shortage = Math.max(0, needed - inStock);
+
+        inventoryCheck.push({
+          productId: product.id,
+          productName: product.name,
+          ordered: needed,
+          inStock: inStock,
+          needProduction: shortage,
+          status: shortage > 0 ? 'NEED_PRODUCTION' : 'IN_STOCK'
+        });
+
+        orderItems.push({
+          productId: item.productId,
+          quantityBags,
+          quantityUnits,
+          pricePerBag,
+          subtotal
+        });
+      }
+
+      // 4. Buyurtma raqamini yaratish
+      const prefix = source === 'BOT' ? 'BOT-' : 'ORD-';
+      const orderNumber = `${prefix}${Date.now()}`;
+
+      // 5. Buyurtma yaratish (transaction ichida)
+      const order = await tx.order.create({
+        data: {
+          orderNumber,
+          customerId,
+          status: 'CONFIRMED',
+          priority: priority || 'NORMAL',
+          requestedDate: requestedDate ? new Date(requestedDate) : new Date(Date.now() + 24 * 60 * 60 * 1000),
+          totalAmount,
+          notes: JSON.stringify({
+            userNotes: notes || '',
+            inventoryCheck: inventoryCheck
+          }),
+          items: {
+            create: orderItems.map(item => ({
+              productId: item.productId,
+              quantityBags: item.quantityBags,
+              quantityUnits: item.quantityUnits,
+              pricePerBag: item.pricePerBag,
+              subtotal: item.subtotal
+            }))
+          }
+        },
+        include: {
+          customer: true,
+          items: {
+            include: {
+              product: true
+            }
           }
         }
-      }
+      });
+
+      return { order, inventoryCheck };
+    }, {
+      // Transaction sozlamalari
+      isolationLevel: 'Serializable',
+      maxWait: 5000,
+      timeout: 10000
     });
 
     // Ombor tekshiruvi natijasini qaytarish
     res.json({
-      order,
-      inventoryCheck
+      order: result.order,
+      inventoryCheck: result.inventoryCheck
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create order error:', error);
-    res.status(500).json({ error: 'Failed to create order' });
+    
+    // Aniq xatolik xabarini qaytarish
+    if (error.message?.includes('Mijoz topilmadi')) {
+      return res.status(400).json({ error: error.message });
+    }
+    if (error.message?.includes('Mahsulot')) {
+      return res.status(400).json({ error: error.message });
+    }
+    
+    res.status(500).json({ 
+      error: 'Failed to create order',
+      details: error.message || 'Unknown error'
+    });
   }
 });
 

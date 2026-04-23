@@ -12,6 +12,7 @@ import {
 import CustomerSelector from '../components/CustomerSelector';
 import ProductSelector from '../components/ProductSelector';
 import api from '../lib/api';
+import { safeArray } from '../lib/safe-math';
 import { latinToCyrillic } from '../lib/transliterator';
 import { formatDateTime } from '../lib/dateUtils';
 import { printReceipt, prepareSaleReceipt } from '../lib/receiptPrinter';
@@ -61,25 +62,25 @@ export default function SalesGrouped() {
     try {
       // Mahsulot turlarini yuklash
       const typesResponse = await api.get('/product-types');
-      setProductTypes(typesResponse.data);
+      setProductTypes(safeArray(typesResponse.data, []));
       
       // Mahsulotlarni yuklash
       const productsResponse = await api.get('/products');
-      setProducts(productsResponse.data);
+      setProducts(safeArray(productsResponse.data, []));
       
       // Savdolarni yuklash
       const salesResponse = await api.get('/sales');
-      setSales(salesResponse.data);
+      setSales(safeArray(salesResponse.data, []));
       
       // Mijozlarni yuklash
       const customersResponse = await api.get('/customers');
-      setCustomers(customersResponse.data);
+      setCustomers(safeArray(customersResponse.data, []));
       
       console.log('📊 Yuklandi:', {
-        types: typesResponse.data.length,
-        products: productsResponse.data.length,
-        sales: salesResponse.data.length,
-        customers: customersResponse.data.length
+        types: safeArray(typesResponse.data, []).length,
+        products: safeArray(productsResponse.data, []).length,
+        sales: safeArray(salesResponse.data, []).length,
+        customers: safeArray(customersResponse.data, []).length
       });
     } catch (error) {
       console.error('❌ Yuklashda xatolik:', error);

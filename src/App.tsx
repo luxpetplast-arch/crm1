@@ -4,13 +4,14 @@ import { useThemeStore } from './store/themeStore';
 import { useEffect, useState, Suspense, lazy } from 'react';
 import './i18n';
 import { LanguageProvider } from './contexts/LanguageContext';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Lazy loading for better performance
 const Login = lazy(() => import('./pages/Login'));
 const CashierLogin = lazy(() => import('./pages/CashierLogin'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Products = lazy(() => import('./pages/ProductsModern'));
-const Sales = lazy(() => import('./pages/Sales'));
+const Sales = lazy(() => import('./pages/SalesClean'));
 const Customers = lazy(() => import('./pages/CustomersModern'));
 const Reports = lazy(() => import('./pages/ReportsModern'));
 const Settings = lazy(() => import('./pages/Settings'));
@@ -21,8 +22,7 @@ import SimplifiedInventory from './pages/SimplifiedInventory';
 import CustomerProfile from './pages/CustomerProfile';
 import Orders from './pages/Orders';
 import Cashbox from './pages/Cashbox';
-import KomplektYigish from './pages/KomplektYigish';
-const AddSale = lazy(() => import('./pages/AddSale'));
+const AddSale = lazy(() => import('./pages/AddSaleClean'));
 const CashierManagement = lazy(() => import('./pages/CashierManagement'));
 const CashierShift = lazy(() => import('./pages/CashierShift'));
 const CashierBot = lazy(() => import('./pages/CashierBot'));
@@ -143,8 +143,7 @@ function App() {
                 <Route path="/cashier/products" element={<Products />} />
                 <Route path="/cashier/products/:id" element={<ProductDetail />} />
                 <Route path="/cashier/inventory" element={<SimplifiedInventory />} />
-                <Route path="/cashier/komplekt" element={<KomplektYigish />} />
-                <Route path="/cashier/orders" element={<Orders />} />
+                                <Route path="/cashier/orders" element={<Orders />} />
                 <Route path="/cashier/customers" element={<Customers />} />
                 <Route path="/cashier/customers/:id" element={<CustomerProfile />} />
                 <Route path="/cashier/cashbox" element={<Cashbox />} />
@@ -198,25 +197,26 @@ function App() {
   }
 
   return (
-    <LanguageProvider>
-      <BrowserRouter>
-        <Suspense fallback={<LoadingSpinner />}>
-          <ProfessionalLayout>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/products" element={<Products />} />
-              <Route path="/products/:id" element={<ProductDetail />} />
-              <Route path="/inventory" element={<SimplifiedInventory />} />
-              <Route path="/sales" element={<Sales />} />
-              <Route path="/sales/add" element={<AddSale />} />
-              <Route path="/orders" element={<Orders />} />
-              <Route path="/customers" element={<Customers />} />
-              <Route path="/customers/:id" element={<CustomerProfile />} />
-              <Route path="/cashbox" element={<Cashbox />} />
-              <Route path="/expenses" element={<div className="p-8 text-center"><h2 className="text-2xl font-bold">Xarajatlar</h2><p className="text-gray-500">Tez kunda...</p></div>} />
-              <Route path="/cashiers" element={<CashierManagement />} />
-              <Route path="/reports" element={<Reports />} />
+    <ErrorBoundary>
+      <LanguageProvider>
+        <BrowserRouter>
+          <Suspense fallback={<LoadingSpinner />}>
+            <ProfessionalLayout>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/products" element={<Products />} />
+                <Route path="/products/:id" element={<ProductDetail />} />
+                <Route path="/inventory" element={<SimplifiedInventory />} />
+                <Route path="/sales" element={<Sales />} />
+                <Route path="/sales/add" element={<AddSale />} />
+                <Route path="/orders" element={<Orders />} />
+                <Route path="/customers" element={<Customers />} />
+                <Route path="/customers/:id" element={<CustomerProfile />} />
+                <Route path="/cashbox" element={<Cashbox />} />
+                <Route path="/expenses" element={<div className="p-8 text-center"><h2 className="text-2xl font-bold">Xarajatlar</h2><p className="text-gray-500">Tez kunda...</p></div>} />
+                <Route path="/cashiers" element={<CashierManagement />} />
+                <Route path="/reports" element={<Reports />} />
               <Route path="/settings" element={<Settings />} />
               
               {/* Analytics routes */}
@@ -242,6 +242,7 @@ function App() {
         </Suspense>
       </BrowserRouter>
     </LanguageProvider>
+    </ErrorBoundary>
   );
 }
 

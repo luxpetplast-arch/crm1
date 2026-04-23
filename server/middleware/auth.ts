@@ -2,13 +2,24 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 // FIXED: JWT secret har doim bir xil bo'lishi kerak
-const JWT_SECRET = process.env.JWT_SECRET || (() => {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('JWT_SECRET environment variable is required in production');
+const JWT_SECRET = process.env.JWT_SECRET;
+
+// JWT_SECRET tekshiruvi
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
+}
+
+if (JWT_SECRET.length < 32) {
+  throw new Error('JWT_SECRET must be at least 32 characters long');
+}
+
+// Production da zaif secret tekshiruvi
+if (process.env.NODE_ENV === 'production') {
+  const weakSecrets = ['secret', 'dev-secret', 'test', 'password', '123456'];
+  if (weakSecrets.some(weak => JWT_SECRET.toLowerCase().includes(weak))) {
+    throw new Error('JWT_SECRET is too weak for production');
   }
-  // Development uchun doimiy secret (server restart qilganda ham o'zgarmaydi)
-  return 'dev-secret-lux-pet-plast-2024-fixed-key-do-not-use-in-production';
-})();
+}
 
 export interface AuthRequest extends Request {
   user?: { id: string; role: string; name?: string; email?: string };

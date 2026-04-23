@@ -50,34 +50,41 @@ router.get('/demand/:productId', async (req, res) => {
 // Main forecast endpoint (for test compatibility)
 router.get('/', async (req, res) => {
   try {
-    const products = await prisma.product.findMany();
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const forecasts = await Promise.all(
-      products.map(async (product) => {
-        const sales = await prisma.saleItem.findMany({
-          where: {
-            productId: product.id,
-            sale: { createdAt: { gte: thirtyDaysAgo } },
-          },
-        });
+    // 🔧 N+1 FIX: Bitta query bilan barcha ma'lumotlarni olish
+    const [products, salesByProduct] = await Promise.all([
+      prisma.product.findMany(),
+      prisma.saleItem.groupBy({
+        by: ['productId'],
+        where: {
+          sale: { createdAt: { gte: thirtyDaysAgo } },
+        },
+        _sum: { quantity: true },
+      }),
+    ]);
 
-        const totalSold = sales.reduce((sum, item) => sum + item.quantity, 0);
-        const avgDailyDemand = totalSold / 30;
-        const daysUntilStockout = product.currentStock > 0 ? Math.floor(product.currentStock / avgDailyDemand) : 0;
+    // Sales map yaratish (tez lookup uchun)
+    const salesMap = new Map(salesByProduct.map(s => [s.productId, s._sum.quantity || 0]));
 
-        return {
-          productId: product.id,
-          productName: product.name,
-          currentStock: product.currentStock,
-          avgDailyDemand: Math.round(avgDailyDemand * 100) / 100,
-          daysUntilStockout,
-          monthlyForecast: Math.ceil(avgDailyDemand * 30),
-          status: product.currentStock === 0 ? 'critical' : daysUntilStockout < 7 ? 'urgent' : 'ok',
-        };
-      })
-    );
+    const forecasts = products.map((product) => {
+      const totalSold = salesMap.get(product.id) || 0;
+      const avgDailyDemand = totalSold / 30;
+      const daysUntilStockout = avgDailyDemand > 0 && product.currentStock > 0 
+        ? Math.floor(product.currentStock / avgDailyDemand) 
+        : 0;
+
+      return {
+        productId: product.id,
+        productName: product.name,
+        currentStock: product.currentStock,
+        avgDailyDemand: Math.round(avgDailyDemand * 100) / 100,
+        daysUntilStockout,
+        monthlyForecast: Math.ceil(avgDailyDemand * 30),
+        status: product.currentStock === 0 ? 'critical' : daysUntilStockout < 7 ? 'urgent' : 'ok',
+      };
+    });
 
     res.json(forecasts.sort((a, b) => a.daysUntilStockout - b.daysUntilStockout));
   } catch (error) {
@@ -88,34 +95,41 @@ router.get('/', async (req, res) => {
 
 router.get('/overview', async (req, res) => {
   try {
-    const products = await prisma.product.findMany();
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const forecasts = await Promise.all(
-      products.map(async (product) => {
-        const sales = await prisma.saleItem.findMany({
-          where: {
-            productId: product.id,
-            sale: { createdAt: { gte: thirtyDaysAgo } },
-          },
-        });
+    // 🔧 N+1 FIX: Bitta query bilan barcha ma'lumotlarni olish
+    const [products, salesByProduct] = await Promise.all([
+      prisma.product.findMany(),
+      prisma.saleItem.groupBy({
+        by: ['productId'],
+        where: {
+          sale: { createdAt: { gte: thirtyDaysAgo } },
+        },
+        _sum: { quantity: true },
+      }),
+    ]);
 
-        const totalSold = sales.reduce((sum, item) => sum + item.quantity, 0);
-        const avgDailyDemand = totalSold / 30;
-        const daysUntilStockout = product.currentStock > 0 ? Math.floor(product.currentStock / avgDailyDemand) : 0;
+    // Sales map yaratish
+    const salesMap = new Map(salesByProduct.map(s => [s.productId, s._sum.quantity || 0]));
 
-        return {
-          productId: product.id,
-          productName: product.name,
-          currentStock: product.currentStock,
-          avgDailyDemand: Math.round(avgDailyDemand * 100) / 100,
-          daysUntilStockout,
-          velocity: totalSold > product.optimalStock ? 'fast' : totalSold > 0 ? 'medium' : 'slow',
-          status: product.currentStock === 0 ? 'critical' : daysUntilStockout < 7 ? 'urgent' : 'ok',
-        };
-      })
-    );
+    const forecasts = products.map((product) => {
+      const totalSold = salesMap.get(product.id) || 0;
+      const avgDailyDemand = totalSold / 30;
+      const daysUntilStockout = avgDailyDemand > 0 && product.currentStock > 0 
+        ? Math.floor(product.currentStock / avgDailyDemand) 
+        : 0;
+
+      return {
+        productId: product.id,
+        productName: product.name,
+        currentStock: product.currentStock,
+        avgDailyDemand: Math.round(avgDailyDemand * 100) / 100,
+        daysUntilStockout,
+        velocity: totalSold > product.optimalStock ? 'fast' : totalSold > 0 ? 'medium' : 'slow',
+        status: product.currentStock === 0 ? 'critical' : daysUntilStockout < 7 ? 'urgent' : 'ok',
+      };
+    });
 
     res.json(forecasts.sort((a, b) => a.daysUntilStockout - b.daysUntilStockout));
   } catch (error) {

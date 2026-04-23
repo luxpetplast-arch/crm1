@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from './Card';
 import Button from './Button';
 import Input from './Input';
 import { formatCurrency } from '../lib/utils';
+import { safeParseFloat, clamp } from '../lib/safe-math';
 
 export default function RevenueCalculator() {
   const [isOpen, setIsOpen] = useState(false);
@@ -13,9 +14,9 @@ export default function RevenueCalculator() {
   const [discount, setDiscount] = useState('0');
 
   const calculateTotal = () => {
-    const bagsNum = parseFloat(bags) || 0;
-    const priceNum = parseFloat(pricePerBag) || 0;
-    const discountNum = parseFloat(discount) || 0;
+    const bagsNum = safeParseFloat(bags, 0);
+    const priceNum = safeParseFloat(pricePerBag, 0);
+    const discountNum = clamp(safeParseFloat(discount, 0), 0, 100);
     
     const subtotal = bagsNum * priceNum;
     const discountAmount = (subtotal * discountNum) / 100;

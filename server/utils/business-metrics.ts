@@ -1,4 +1,5 @@
 import { prisma } from './prisma';
+import { safeDivide, safePercentage, safeParseFloat, safeAverage, safeSum } from './safe-math';
 
 // 1. SAVDO METRIKALARI
 export interface SalesMetrics {
@@ -42,12 +43,12 @@ export async function calculateSalesMetrics(startDate: Date, endDate: Date): Pro
   return {
     salesVolume,
     revenue,
-    averageOrderValue: sales.length > 0 ? revenue / sales.length : 0,
-    salesGrowthRate: prevRevenue > 0 ? ((revenue - prevRevenue) / prevRevenue) * 100 : 0,
-    salesPerCustomer: activeCustomers > 0 ? revenue / activeCustomers : 0,
-    salesPerDay: days > 0 ? revenue / days : 0,
-    conversionRate: customers.length > 0 ? (activeCustomers / customers.length) * 100 : 0,
-    repeatPurchaseRate: activeCustomers > 0 ? (repeatCustomers / activeCustomers) * 100 : 0,
+    averageOrderValue: safeDivide(revenue, sales.length, 0),
+    salesGrowthRate: safePercentage(revenue - prevRevenue, prevRevenue, 0),
+    salesPerCustomer: safeDivide(revenue, activeCustomers, 0),
+    salesPerDay: safeDivide(revenue, days, 0),
+    conversionRate: safePercentage(activeCustomers, customers.length, 0),
+    repeatPurchaseRate: safePercentage(repeatCustomers, activeCustomers, 0),
   };
 }
 
@@ -86,13 +87,13 @@ export async function calculateProductMetrics(startDate: Date, endDate: Date): P
 
   return {
     costOfGoodsSold: totalCost,
-    unitCost: totalQuantitySold > 0 ? totalCost / totalQuantitySold : 0,
-    unitProfit: totalQuantitySold > 0 ? grossProfit / totalQuantitySold : 0,
+    unitCost: safeDivide(totalCost, totalQuantitySold, 0),
+    unitProfit: safeDivide(grossProfit, totalQuantitySold, 0),
     grossProfit,
-    grossMargin: revenue > 0 ? (grossProfit / revenue) * 100 : 0,
-    contributionMargin: revenue > 0 ? (grossProfit / revenue) * 100 : 0,
-    inventoryTurnover: avgStock > 0 ? totalCost / avgStock : 0,
-    stockDays: avgStock > 0 ? (avgStock / totalCost) * days : 0,
+    grossMargin: safePercentage(grossProfit, revenue, 0),
+    contributionMargin: safePercentage(grossProfit, revenue, 0),
+    inventoryTurnover: safeDivide(totalCost, avgStock, 0),
+    stockDays: safeDivide(avgStock, totalCost, 0) * days,
   };
 }
 
@@ -130,17 +131,18 @@ export async function calculateProfitabilityMetrics(startDate: Date, endDate: Da
 
   const totalQuantity = sales.reduce((sum, s) => sum + s.quantity, 0);
   const fixedCosts = totalExpenses;
-  const variableCostPerUnit = totalQuantity > 0 ? totalCost / totalQuantity : 0;
-  const avgSellingPrice = totalQuantity > 0 ? revenue / totalQuantity : 0;
+  const variableCostPerUnit = safeDivide(totalCost, totalQuantity, 0);
+  const avgSellingPrice = safeDivide(revenue, totalQuantity, 0);
+  const contributionPerUnit = avgSellingPrice - variableCostPerUnit;
 
   return {
     netProfit,
-    netProfitMargin: revenue > 0 ? (netProfit / revenue) * 100 : 0,
+    netProfitMargin: safePercentage(netProfit, revenue, 0),
     operatingProfit,
-    operatingMargin: revenue > 0 ? (operatingProfit / revenue) * 100 : 0,
-    roi: (totalCost + totalExpenses) > 0 ? (netProfit / (totalCost + totalExpenses)) * 100 : 0,
-    breakEvenPoint: (avgSellingPrice - variableCostPerUnit) > 0 ? fixedCosts / (avgSellingPrice - variableCostPerUnit) : 0,
-    contributionPerUnit: avgSellingPrice - variableCostPerUnit,
+    operatingMargin: safePercentage(operatingProfit, revenue, 0),
+    roi: safePercentage(netProfit, totalCost + totalExpenses, 0),
+    breakEvenPoint: safeDivide(fixedCosts, contributionPerUnit, 0),
+    contributionPerUnit,
   };
 }
 
@@ -169,11 +171,11 @@ export async function calculateMarketingMetrics(startDate: Date, endDate: Date):
   });
 
   const marketingCost = expenses.reduce((sum, e) => sum + e.amount, 0);
-  const cac = newCustomers.length > 0 ? marketingCost / newCustomers.length : 0;
+  const cac = safeDivide(marketingCost, newCustomers.length, 0);
 
-  const avgCustomerRevenue = customers.length > 0 
-    ? customers.reduce((sum, c) => sum + c.sales.reduce((s, sale) => s + sale.totalAmount, 0), 0) / customers.length 
-    : 0;
+  const totalCustomerRevenue = customers.reduce((sum, c) => 
+    sum + c.sales.reduce((s, sale) => s + sale.totalAmount, 0), 0);
+  const avgCustomerRevenue = safeDivide(totalCustomerRevenue, customers.length, 0);
 
   const avgCustomerLifespan = 3;
   const ltv = avgCustomerRevenue * avgCustomerLifespan;
@@ -187,15 +189,15 @@ export async function calculateMarketingMetrics(startDate: Date, endDate: Date):
     c.sales.some(s => s.createdAt >= startDate && s.createdAt <= endDate)
   ).length;
 
-  const retentionRate = prevCustomers.length > 0 ? (retainedCustomers / prevCustomers.length) * 100 : 0;
+  const retentionRate = safePercentage(retainedCustomers, prevCustomers.length, 0);
 
   return {
     customerAcquisitionCost: cac,
     customerLifetimeValue: ltv,
-    ltvCacRatio: cac > 0 ? ltv / cac : 0,
+    ltvCacRatio: safeDivide(ltv, cac, 0),
     customerRetentionRate: retentionRate,
     churnRate: 100 - retentionRate,
-    marketingROI: marketingCost > 0 ? ((avgCustomerRevenue - marketingCost) / marketingCost) * 100 : 0,
+    marketingROI: safePercentage(avgCustomerRevenue - marketingCost, marketingCost, 0),
   };
 }
 
@@ -223,15 +225,15 @@ export async function calculateDebtMetrics(startDate: Date, endDate: Date): Prom
   const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
 
   const accountsReceivable = totalDebt;
-  const receivableTurnover = accountsReceivable > 0 ? revenue / accountsReceivable : 0;
-  const dso = receivableTurnover > 0 ? days / receivableTurnover : 0;
+  const receivableTurnover = safeDivide(revenue, accountsReceivable, 0);
+  const dso = safeDivide(days, receivableTurnover, 0);
 
   const highDebtCustomers = customers.filter(c => c.debt > 10000).length;
-  const badDebtRatio = customers.length > 0 ? (highDebtCustomers / customers.length) * 100 : 0;
+  const badDebtRatio = safePercentage(highDebtCustomers, customers.length, 0);
 
   return {
     totalDebt,
-    debtRatio: revenue > 0 ? (totalDebt / revenue) * 100 : 0,
+    debtRatio: safePercentage(totalDebt, revenue, 0),
     accountsReceivable,
     receivableTurnover,
     daysSalesOutstanding: dso,
@@ -298,18 +300,17 @@ export async function calculateOperationalMetrics(startDate: Date, endDate: Date
   const employeeCount = 5;
 
   const completedOrders = orders.filter(o => o.status === 'COMPLETED');
-  const avgFulfillmentTime = completedOrders.length > 0
-    ? completedOrders.reduce((sum, o) => {
-        const time = o.updatedAt.getTime() - o.createdAt.getTime();
-        return sum + time;
-      }, 0) / completedOrders.length / (1000 * 60 * 60)
-    : 0;
+  const totalFulfillmentTime = completedOrders.reduce((sum, o) => {
+    const time = o.updatedAt.getTime() - o.createdAt.getTime();
+    return sum + time;
+  }, 0);
+  const avgFulfillmentTime = safeDivide(totalFulfillmentTime, completedOrders.length, 0) / (1000 * 60 * 60);
 
   return {
-    employeeProductivity: employeeCount > 0 ? sales.length / employeeCount : 0,
-    revenuePerEmployee: employeeCount > 0 ? revenue / employeeCount : 0,
+    employeeProductivity: safeDivide(sales.length, employeeCount, 0),
+    revenuePerEmployee: safeDivide(revenue, employeeCount, 0),
     orderFulfillmentTime: avgFulfillmentTime,
-    onTimeDeliveryRate: orders.length > 0 ? (completedOrders.length / orders.length) * 100 : 0,
+    onTimeDeliveryRate: safePercentage(completedOrders.length, orders.length, 0),
   };
 }
 
@@ -342,12 +343,8 @@ export async function calculateGrowthMetrics(startDate: Date, endDate: Date): Pr
   const returningCustomerSales = sales.length - newCustomerSales;
 
   return {
-    customerGrowthRate: prevCustomers.length > 0 
-      ? ((currentCustomers.length - prevCustomers.length) / prevCustomers.length) * 100 
-      : 0,
-    productGrowthRate: prevProducts.length > 0 
-      ? ((currentProducts.length - prevProducts.length) / prevProducts.length) * 100 
-      : 0,
+    customerGrowthRate: safePercentage(currentCustomers.length - prevCustomers.length, prevCustomers.length, 0),
+    productGrowthRate: safePercentage(currentProducts.length - prevProducts.length, prevProducts.length, 0),
     newVsReturningCustomers: {
       new: newCustomerSales,
       returning: returningCustomerSales,

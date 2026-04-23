@@ -44,6 +44,7 @@ import {
   CartesianGrid,
   } from 'recharts';
 import { exportToExcel } from '../lib/excelUtils';
+import { Input } from '../components/Input';
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b'];
 

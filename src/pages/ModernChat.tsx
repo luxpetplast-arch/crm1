@@ -143,7 +143,6 @@ import {
   PoundSterling,
   Yen,
   Bitcoin,
-  TrendingUp,
   Activity,
   Target,
   Award,

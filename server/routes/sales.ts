@@ -4,6 +4,12 @@ import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 import { notifyCustomerSale, notifyLowStock } from '../utils/telegram-notifications';
 import { createInvoiceForSale } from '../utils/invoice-generator';
 import { logger } from '../utils/logger';
+import { 
+  SaleCreateSchema, 
+  SaleUpdateSchema, 
+  validateBody,
+  parseMoney 
+} from '../utils/validation';
 
 const router = Router();
 
@@ -95,9 +101,27 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthRequest, res) => {
+// POST /sales - Sotuv yaratish (Zod validation bilan)
+router.post('/', 
+  authorize('ADMIN', 'CASHIER', 'SELLER'),
+  validateBody(SaleCreateSchema),
+  async (req: AuthRequest & { validatedBody: any }, res) => {
   try {
-    const { customerId, items, totalAmount, paidAmount, currency, paymentCurrency, paymentStatus, paymentDetails, driverId, factoryShare, customerShare, isKocha, manualCustomerName, manualCustomerPhone } = req.body;
+    // Validated body dan ma'lumotlarni olish
+    const { 
+      customerId, 
+      items, 
+      totalAmount, 
+      paidAmount, 
+      currency, 
+      paymentDetails, 
+      driverId, 
+      factoryShare, 
+      customerShare, 
+      isKocha, 
+      manualCustomerName, 
+      manualCustomerPhone 
+    } = req.validatedBody;
 
     logger.info({
       customerId,
@@ -126,76 +150,75 @@ router.post('/', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthReques
 
     logger.debug({ items: items.length }, 'Mahsulotlar tekshirilmoqda');
 
-    // 1. ВАЛИДАЦИЯ
-    const validationResults = [];
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      
-      if (!item.productId) {
-        logger.warn({ itemIndex: i }, 'Item da mahsulot tanlanmagan');
-        return res.status(400).json({ error: `Item ${i + 1} da mahsulot tanlanmagan` });
-      }
-      
-      const product = await prisma.product.findUnique({ where: { id: item.productId } });
-      if (!product) {
-        logger.error({ productId: item.productId }, 'Mahsulot topilmadi');
-        return res.status(404).json({ error: `Mahsulot topilmadi: ${item.productId}` });
-      }
-
-      logger.debug({ product: product.name, stock: product.currentStock }, 'Mahsulot topildi');
-
-      const requestedQty = parseFloat(item.quantity) || 0;
-      if (requestedQty <= 0) {
-        logger.warn({ product: product.name, quantity: requestedQty }, 'Miqdor xato');
-        return res.status(400).json({ error: `${product.name} miqdori xato` });
-      }
-
-      // Dona savdo tekshiruvi
-      const isPieceSale = item.saleType === 'piece';
-      const availableStock = isPieceSale ? product.currentUnits : product.currentStock;
-      const stockField = isPieceSale ? 'currentUnits' : 'currentStock';
-      const unitLabel = isPieceSale ? 'dona' : 'qop';
-
-      console.log(`📊 Ombor tekshiruvi:`, {
-        productName: product.name,
-        saleType: item.saleType,
-        isPieceSale,
-        requestedQty,
-        availableStock,
-        stockField,
-        unitLabel
-      });
-
-      if (availableStock < requestedQty) {
-        console.error(`❌ Omborda yetarli mahsulot yo'q:`, {
-          product: product.name,
-          available: availableStock,
-          requested: requestedQty,
-          unit: unitLabel
-        });
-        return res.status(400).json({ 
-          error: `${product.name} uchun omborda yetarli mahsulot yo'q (${unitLabel} yetarli emas)`,
-          available: availableStock,
-          requested: requestedQty,
-          unit: unitLabel
-        });
-      }
-
-      const price = parseFloat(item.pricePerBag || item.pricePerPiece || 0);
-      const subtotal = requestedQty * price;
-      
-      console.log(`✅ Item ${i + 1} validatsiyadan o'tdi:`, {
-        product: product.name,
-        quantity: requestedQty,
-        price,
-        subtotal,
-        saleType: item.saleType || 'bag'
-      });
-      
-      validationResults.push({ product, item, subtotal, saleType: item.saleType || 'bag' });
+    // ========================================================================
+    // 🔒 RACE CONDITION FIX: Barcha operatsiyalar bitta transaction ichida
+    // ========================================================================
+    
+    // 1. AVVAL VALIDATSIYA (transaction tashqarida)
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Kamida bitta mahsulot tanlash kerak' });
     }
+    
+    // ProductId lar ro'yxatini yaratish
+    const productIds = items.map(item => item.productId).filter(Boolean);
+    if (productIds.length === 0) {
+      return res.status(400).json({ error: 'Mahsulot tanlanmagan' });
+    }
+    
+    // 2. TRANSACTION ICHIDA ATOMIK OPERATSIYA
+    const saleResult = await prisma.$transaction(async (tx) => {
+      // 🔒 LOCK: Barcha mahsulotlarni bir vaqtda olish (stock lock)
+      const products = await tx.product.findMany({
+        where: { id: { in: productIds } },
+      });
+      
+      const productMap = new Map(products.map(p => [p.id, p]));
+      
+      // Validatsiya va stock tekshiruvi (transaction ichida - atomic)
+      const validationResults = [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        
+        if (!item.productId) {
+          throw new Error(`Item ${i + 1} da mahsulot tanlanmagan`);
+        }
+        
+        const product = productMap.get(item.productId);
+        if (!product) {
+          throw new Error(`Mahsulot topilmadi: ${item.productId}`);
+        }
 
-    console.log('✅ Barcha mahsulotlar validatsiyadan o\'tdi');
+        const requestedQty = parseFloat(item.quantity) || 0;
+        if (requestedQty <= 0) {
+          throw new Error(`${product.name} miqdori xato`);
+        }
+
+        // Dona savdo tekshiruvi
+        const isPieceSale = item.saleType === 'piece';
+        const availableStock = isPieceSale ? product.currentUnits : product.currentStock;
+        const unitLabel = isPieceSale ? 'dona' : 'qop';
+
+        if (availableStock < requestedQty) {
+          throw new Error(`${product.name} uchun omborda yetarli mahsulot yo'q (${unitLabel} yetarli emas)`);
+        }
+
+        const price = parseFloat(item.pricePerBag || item.pricePerPiece || 0);
+        const subtotal = requestedQty * price;
+        
+        validationResults.push({ product, item, subtotal, saleType: item.saleType || 'bag', isPieceSale, requestedQty });
+      }
+
+      console.log('✅ Barcha mahsulotlar validatsiyadan o\'tdi (transaction ichida)');
+      
+      return { validationResults, productMap };
+    }, {
+      // Transaction sozlamalari
+      isolationLevel: 'Serializable', // Eng yuqori izolyatsiya darajasi
+      maxWait: 5000, // 5 soniya kutish
+      timeout: 10000, // 10 soniya timeout
+    });
+    
+    const { validationResults } = saleResult;
 
     // 2. СОТУВ ЯРАТИШ
     const totalQty = items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
@@ -373,74 +396,46 @@ router.post('/', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthReques
     let lowStockAlert = false;
 
     try {
-      // 4. HAR BIR MAHSULOT UCHUN OMBOR AVTOMATIK KAMAYTIRISH
-      for (const validation of validationResults) {
-        const { product, item } = validation;
-        const quantity = parseFloat(item.quantity);
-        
-        // Frontenddan kelgan unitsPerBag ishlatish (to'g'ri qiymat uchun)
-        const unitsPerBag = parseFloat(item.unitsPerBag) || product.unitsPerBag || 2000;
-        
-        console.log(`🔧 OMBOR KAMAYTIRISH:`, {
-          product: product.name,
-          quantity,
-          unitsPerBag,
-          saleType: item.saleType,
-          productUnitsPerBag: product.unitsPerBag,
-          itemUnitsPerBag: item.unitsPerBag
-        });
-        
-        // Dona savdo uchun ombor kamaytirish
-        const isPieceSale = item.saleType === 'piece';
-        let bagsToDeduct = quantity;
-        let unitsToDeduct = quantity * unitsPerBag;
-        
-        if (isPieceSale) {
-          // Dona savdo: quantity allaqachon dona, qopga aylantirish
-          bagsToDeduct = quantity / unitsPerBag;
-          unitsToDeduct = quantity;
-        }
-        
-        const newStock = product.currentStock - bagsToDeduct;
-        const newUnits = product.currentUnits - unitsToDeduct;
-        
-        console.log(`📊 ${product.name} hisoblash:`, {
-          currentStock: product.currentStock,
-          bagsToDeduct,
-          newStock,
-          currentUnits: product.currentUnits,
-          unitsToDeduct,
-          newUnits
-        });
-        
-        // Asosiy mahsulot omborini yangilash
-        await prisma.product.update({
-          where: { id: product.id },
-          data: {
-            currentStock: newStock,
-            currentUnits: newUnits
+      // 4. HAR BIR MAHSULOT UCHUN OMBOR AVTOMATIK KAMAYTIRISH (ATOMIK TRANSACTION)
+      await prisma.$transaction(async (tx) => {
+        for (const validation of validationResults) {
+          const { product, item, isPieceSale, requestedQty: quantity } = validation;
+          
+          // Frontenddan kelgan unitsPerBag ishlatish (to'g'ri qiymat uchun)
+          const unitsPerBag = parseFloat(item.unitsPerBag) || product.unitsPerBag || 2000;
+          
+          // Dona savdo uchun ombor kamaytirish
+          let bagsToDeduct = quantity;
+          let unitsToDeduct = quantity * unitsPerBag;
+          
+          if (isPieceSale) {
+            // Dona savdo: quantity allaqachon dona, qopga aylantirish
+            bagsToDeduct = quantity / unitsPerBag;
+            unitsToDeduct = quantity;
           }
-        });
-        
-        // AGAR VARIANT BO'LSA - variant omborini ham yangilash
-        if (item.variantId) {
-          try {
-            await prisma.$queryRaw`
-              UPDATE ProductVariant 
-              SET currentStock = currentStock - ${bagsToDeduct},
-                  currentUnits = currentUnits - ${unitsToDeduct}
-              WHERE id = ${item.variantId}
-            `;
-            console.log(`✅ Variant ${item.variantId} ombori yangilandi: -${bagsToDeduct} qop, -${unitsToDeduct} dona`);
-          } catch (variantError) {
-            console.log(`⚠️ Variant omborini yangilashda xatolik:`, variantError);
+          
+          // 🔒 ATOMIK YANGILASH: Prisma decrement operatorlari (race condition yo'q)
+          await tx.product.update({
+            where: { id: product.id },
+            data: {
+              currentStock: { decrement: bagsToDeduct },
+              currentUnits: { decrement: unitsToDeduct }
+            }
+          });
+          
+          // AGAR VARIANT BO'LSA - variant omborini ham atomik yangilash
+          if (item.variantId) {
+            await tx.productVariant.update({
+              where: { id: item.variantId },
+              data: {
+                currentStock: { decrement: bagsToDeduct },
+                currentUnits: { decrement: unitsToDeduct }
+              }
+            });
+            console.log(`✅ Variant ${item.variantId} ombori atomik yangilandi`);
           }
-        }
 
-        console.log(`✅ ${product.name} stock yangilandi: ${product.currentStock} → ${newStock}`);
-
-        // 5. STOCK MOVEMENT ЯРАТИШ
-        try {
+          // 5. STOCK MOVEMENT YARATISH (transaction ichida)
           let bagsChange = -quantity;
           let unitsChange = -quantity * unitsPerBag;
           
@@ -448,39 +443,35 @@ router.post('/', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthReques
             bagsChange = -(quantity / unitsPerBag);
             unitsChange = -quantity;
           }
-        
-        await prisma.stockMovement.create({
-          data: {
-            productId: product.id,
-            type: 'SALE',
-            quantity: bagsChange,
-            units: unitsChange,
-            previousStock: product.currentStock,
-            previousUnits: product.currentUnits,
-            newStock: newStock,
-            newUnits: newUnits,
-            userId: userId,
-            userName: (req.user as any)?.name || req.user?.email || 'Noma\'lum',
-            reason: `Multi-Sotuv: ${sale.id}`,
-            notes: `Mijoz: ${sale.isKocha ? sale.manualCustomerName || 'Ko\'cha' : sale.customer?.name || 'Noma\'lum'}, Mahsulot: ${product.name}, Tip: ${isPieceSale ? 'dona' : 'qop'}`
-          }
-        });
-      } catch (error) {
-        console.log(`⚠️ ${product.name} StockMovement yaratilmadi:`, error);
-      }
-
-        // 6. LOW STOCK ALERT
-        if (newStock <= product.minStockLimit) {
-          try {
-            await notifyLowStock(product.id);
-            lowStockAlert = true;
-            console.log(`⚠️ ${product.name} uchun low stock alert yuborildi (qop: ${newStock})`);
-          } catch (error) {
-            console.log(`⚠️ ${product.name} low stock alert xatolik:`, error);
-          }
+          
+          const newStock = product.currentStock - bagsToDeduct;
+          const newUnits = product.currentUnits - unitsToDeduct;
+          
+          await tx.stockMovement.create({
+            data: {
+              productId: product.id,
+              type: 'SALE',
+              quantity: bagsChange,
+              units: unitsChange,
+              previousStock: product.currentStock,
+              previousUnits: product.currentUnits,
+              newStock: newStock,
+              newUnits: newUnits,
+              userId: userId,
+              userName: (req.user as any)?.name || req.user?.email || 'Noma\'lum',
+              reason: `Multi-Sotuv: ${sale.id}`,
+              notes: `Mijoz: ${sale.isKocha ? sale.manualCustomerName || 'Ko\'cha' : sale.customer?.name || 'Noma\'lum'}, Mahsulot: ${product.name}, Tip: ${isPieceSale ? 'dona' : 'qop'}`
+            }
+          });
         }
-      }
+      }, {
+        isolationLevel: 'Serializable',
+        maxWait: 5000,
+        timeout: 10000,
+      });
+      
       stockUpdated = true;
+      console.log('✅ Barcha ombor operatsiyalari atomik bajarildi');
 
       // 7. KASSA TRANZAKSIYASI YARATISH - Har bir valyuta uchun alohida
       if (paymentDetails) {
@@ -559,79 +550,96 @@ amount: details.usd,
       }
 
       // 10. MIJOZ QARZ VA BALANS YANGILASH (faqat isKocha bo'lmasa)
+      // 💰 FIX: To'g'ri qarz hisoblash - barcha valyutalarni sotuv valyutasiga aylantirish
       if (!isKocha && customerId) {
-        const debtAmount = parseFloat(totalAmount) - parseFloat(paidAmount);
-        // SOTUV VALYUTASIGA QARAB QARZ QO'SHISH - paymentCurrency emas, currency ishlatamiz
         const saleCurrency = currency || 'USD';
+        const total = parseFloat(totalAmount) || 0;
         
-        console.log(`Balance update - totalAmount: ${totalAmount}, paidAmount: ${paidAmount}, debtAmount: ${debtAmount}, saleCurrency: ${saleCurrency}`);
+        // To'lov tafsilotlarini olish
+        const details = typeof paymentDetails === 'string' ? JSON.parse(paymentDetails) : (paymentDetails || {});
+        const paidUZS = parseFloat(details.uzs) || 0;
+        const paidUSD = parseFloat(details.usd) || 0;
+        const paidCLICK = parseFloat(details.click) || 0;
         
-        if (debtAmount > 0) {
-          // Mijoz kam to'lagan - qarz qo'shish (faqat sotuv valyutasida)
+        // 💰 BARCHA TO'LOVLARNI SOTUV VALYUTASIGA AYLANTIRISH
+        let totalPaidInSaleCurrency = 0;
+        if (saleCurrency === 'UZS') {
+          // So'mda sotuv: USD ni so'mga aylantirish
+          totalPaidInSaleCurrency = paidUZS + paidCLICK + (paidUSD * exchangeRates.USD_TO_UZS);
+        } else {
+          // Dollarda sotuv: UZS ni dollarga aylantirish
+          totalPaidInSaleCurrency = paidUSD + ((paidUZS + paidCLICK) / exchangeRates.USD_TO_UZS);
+        }
+        
+        // QARZNI TO'G'RI HISOBLASH
+        const debtAmount = total - totalPaidInSaleCurrency;
+        
+        console.log(`💰 Qarz hisoblash:`, {
+          total,
+          totalPaidInSaleCurrency,
+          debtAmount,
+          saleCurrency,
+          paidUZS,
+          paidUSD,
+          paidCLICK
+        });
+        
+        if (debtAmount > 0.01) { // 0.01 dan katta bo'lsa qarz hisoblanadi (floating point xatolikni oldini olish)
+          // Mijoz kam to'lagan - qarz qo'shish
           try {
             if (saleCurrency === 'UZS') {
-              // So'mda qarz qo'shish
               await prisma.customer.update({
                 where: { id: customerId },
                 data: {
-                  debtUZS: {
-                    increment: debtAmount
-                  },
+                  debtUZS: { increment: Math.round(debtAmount) }, // So'mni butun songa aylantirish
                   lastPurchase: new Date()
                 }
               });
-              console.log(`Mijoz qarz yangilandi (UZS): +${debtAmount}`);
+              console.log(`✅ Mijoz qarz yangilandi (UZS): +${Math.round(debtAmount)}`);
             } else {
-              // Dollarda qarz qo'shish
               await prisma.customer.update({
                 where: { id: customerId },
                 data: {
-                  debtUSD: {
-                    increment: debtAmount
-                  },
+                  debtUSD: { increment: parseFloat(debtAmount.toFixed(2)) }, // Dollar 2 kasr
                   lastPurchase: new Date()
                 }
               });
-              console.log(`Mijoz qarz yangilandi (USD): +${debtAmount}`);
+              console.log(`✅ Mijoz qarz yangilandi (USD): +${debtAmount.toFixed(2)}`);
             }
           } catch (error) {
-            console.log(`Mijoz qarz yangilanmadi:`, error);
+            console.error(`❌ Mijoz qarz yangilanmadi:`, error);
+          }
+        } else if (debtAmount < -0.01) {
+          // Ortiqcha to'lov - balansga qo'shish
+          const overpayment = Math.abs(debtAmount);
+          try {
+            if (saleCurrency === 'UZS') {
+              await prisma.customer.update({
+                where: { id: customerId },
+                data: {
+                  balanceUZS: { increment: Math.round(overpayment) },
+                  lastPurchase: new Date()
+                }
+              });
+              console.log(`✅ Mijoz balansiga qo'shildi (UZS): +${Math.round(overpayment)}`);
+            } else {
+              await prisma.customer.update({
+                where: { id: customerId },
+                data: {
+                  balanceUSD: { increment: parseFloat(overpayment.toFixed(2)) },
+                  lastPurchase: new Date()
+                }
+              });
+              console.log(`✅ Mijoz balansiga qo'shildi (USD): +${overpayment.toFixed(2)}`);
+            }
+          } catch (error) {
+            console.error(`❌ Mijoz balansi yangilanmadi:`, error);
           }
         } else {
-          // Mijoz to'lagan yoki ortiqcha to'lagan - balansga qo'shish (faqat sotuv valyutasida)
-          const paymentAmount = parseFloat(paidAmount) || 0;
-          if (paymentAmount > 0) {
-            try {
-              if (saleCurrency === 'UZS') {
-                await prisma.customer.update({
-                  where: { id: customerId },
-                  data: {
-                    balanceUZS: {
-                      increment: paymentAmount
-                    },
-                    lastPurchase: new Date()
-                  }
-                });
-                console.log(`Mijoz balansiga qo'shildi (UZS): +${paymentAmount}`);
-              } else {
-                await prisma.customer.update({
-                  where: { id: customerId },
-                  data: {
-                    balanceUSD: {
-                      increment: paymentAmount
-                    },
-                    lastPurchase: new Date()
-                  }
-                });
-                console.log(`Mijoz balansiga qo'shildi (USD): +${paymentAmount}`);
-              }
-            } catch (error) {
-              console.log(`Mijoz balansi yangilanmadi:`, error);
-            }
-          }
+          console.log(`✅ To'lov to'liq - qarz/balans yangilanmadi`);
         }
       } else {
-        console.log('Ko\'chaga sotuv - mijoz qarz/balans yangilanmadi');
+        console.log('🚫 Ko\'chaga sotuv - mijoz qarz/balans yangilanmadi');
       }
 
       // 11. AUDIT LOG
@@ -697,8 +705,11 @@ amount: details.usd,
   }
 });
 
-// Update sale
-router.put('/:id', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthRequest, res) => {
+// Update sale (Zod validation bilan)
+router.put('/:id', 
+  authorize('ADMIN', 'CASHIER', 'SELLER'),
+  validateBody(SaleUpdateSchema),
+  async (req: AuthRequest & { validatedBody: any }, res) => {
   try {
     const { id } = req.params;
     const { 
@@ -706,8 +717,7 @@ router.put('/:id', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthRequ
       items, 
       totalAmount, 
       paidAmount, 
-      currency, 
-      paymentCurrency,
+      currency,
       paymentStatus, 
       paymentDetails,
       isKocha,
@@ -716,7 +726,7 @@ router.put('/:id', authorize('ADMIN', 'CASHIER', 'SELLER'), async (req: AuthRequ
       driverId,
       factoryShare,
       customerShare
-    } = req.body;
+    } = req.validatedBody;
 
     console.log('📥 PUT /sales - Data:', { id, customerId, isKocha, itemsCount: items?.length });
 

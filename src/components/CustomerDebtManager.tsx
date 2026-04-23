@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { api } from '../lib/api';
 import Button from '../components/Button';
 import { DollarSign, AlertCircle } from 'lucide-react';
+import { safeParseFloat, validatePositiveNumber } from '../lib/safe-math';
 
 interface CustomerDebtManagerProps {
   customerId: string;
@@ -25,7 +26,8 @@ const CustomerDebtManager: React.FC<CustomerDebtManagerProps> = ({
   const [loading, setLoading] = useState(false);
 
   const handlePayment = async () => {
-    if (!amount || isNaN(parseFloat(amount))) {
+    const validAmount = validatePositiveNumber(amount, 'amount', 0);
+    if (validAmount <= 0) {
       alert('Iltimos, to\'g\'ri summa kiriting!');
       return;
     }
@@ -33,7 +35,7 @@ const CustomerDebtManager: React.FC<CustomerDebtManagerProps> = ({
     setLoading(true);
     try {
       const response = await api.put(`/customers/${customerId}/debt`, {
-        amount: parseFloat(amount),
+        amount: validAmount,
         currency,
         description: description || 'To\'lov qilindi',
         type: 'PAYMENT'
@@ -56,7 +58,8 @@ const CustomerDebtManager: React.FC<CustomerDebtManagerProps> = ({
   };
 
   const handleDebt = async () => {
-    if (!amount || isNaN(parseFloat(amount))) {
+    const validAmount = validatePositiveNumber(amount, 'amount', 0);
+    if (validAmount <= 0) {
       alert('Iltimos, qarz summasini kiriting!');
       return;
     }
@@ -64,7 +67,7 @@ const CustomerDebtManager: React.FC<CustomerDebtManagerProps> = ({
     setLoading(true);
     try {
       const response = await api.put(`/customers/${customerId}/debt`, {
-        amount: parseFloat(amount),
+        amount: validAmount,
         currency,
         description: description || 'Qarz qo\'shildi',
         type: 'DEBT'
@@ -93,7 +96,7 @@ const CustomerDebtManager: React.FC<CustomerDebtManagerProps> = ({
   };
 
   const currentDebtInSelectedCurrency = currency === 'USD' ? currentDebtUSD : currentDebtUZS;
-  const newTotalDebt = currentDebtInSelectedCurrency + parseFloat(amount || '0');
+  const newTotalDebt = currentDebtInSelectedCurrency + safeParseFloat(amount, 0);
   const limitExceeded = newTotalDebt > (debtLimits[currency as keyof typeof debtLimits] || 0);
 
   return (
@@ -202,7 +205,7 @@ const CustomerDebtManager: React.FC<CustomerDebtManagerProps> = ({
         <div className="grid grid-cols-2 gap-2">
           <Button
             onClick={handlePayment}
-            disabled={loading || !amount || parseFloat(amount) <= 0}
+            disabled={loading || safeParseFloat(amount, 0) <= 0}
             className="bg-green-600 hover:bg-green-700 text-white"
           >
             {loading ? (
@@ -220,7 +223,7 @@ const CustomerDebtManager: React.FC<CustomerDebtManagerProps> = ({
 
           <Button
             onClick={handleDebt}
-            disabled={loading || !amount || parseFloat(amount) <= 0}
+            disabled={loading || safeParseFloat(amount, 0) <= 0}
             className="bg-red-600 hover:bg-red-700 text-white"
           >
             {loading ? (

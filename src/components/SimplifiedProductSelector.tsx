@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Search, Package, Plus, X, CheckCircle2, ChevronRight } from 'lucide-react';
 import { latinToCyrillic } from '../lib/transliterator';
+import { validateQuantity } from '../lib/safe-math';
 
 interface Product {
   id: string;
@@ -121,8 +122,8 @@ export default function SimplifiedProductSelector({
   const handleAddProduct = () => {
     if (!selectedProduct || !quantity) return;
 
-    const qty = parseFloat(quantity);
-    if (isNaN(qty) || qty <= 0) return;
+    const qty = validateQuantity(quantity, 'quantity', 1);
+    if (qty <= 0) return;
 
     // Zaxirani tekshirish
     if (qty > selectedProduct.currentStock) {

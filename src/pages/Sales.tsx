@@ -43,6 +43,7 @@ export default function Sales() {
   const [exchangeRate, setExchangeRate] = useState('12500');
   const [exchangeRates, setExchangeRates] = useState({ USD_TO_UZS: 12500, EUR_TO_UZS: 13500 });
   const [activeTab, setActiveTab] = useState<'sales' | 'history'>('sales');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // URL parametrlarini olish
   const customerId = searchParams.get('customerId');
@@ -515,10 +516,14 @@ export default function Sales() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (isSubmitting) return; // 🔒 Double submitdan himoya
+    
     if (!form.customerId || form.items.length === 0) {
       alert('Iltimos, mijoz va mahsulotlarni to\'ldiring!');
       return;
     }
+    
+    setIsSubmitting(true);
     
     try {
       console.log('Sotuv yaratilmoqda...');
@@ -568,6 +573,9 @@ export default function Sales() {
         console.error('❌ Chek chiqarishda xatolik:', printError);
         // Chek chiqarishda xatolik bo'lsa ham, sotuvni davom ettirish
         alert('Sotuv muvaffaqiyatli yaratildi, lekin chek chiqarishda xatolik yuz berdi!');
+      } finally {
+        setIsSubmitting(false);
+        alert('Sotuv muvaffaqiyatli yaratildi, lekin chek chiqarishda xatolik yuz berdi!');
       }
       
       // Formani tozalash
@@ -594,6 +602,8 @@ export default function Sales() {
     } catch (error) {
       console.error('❌ Sotuvni yaratishda xatolik:', error);
       alert('Sotuvni yaratishda xatolik yuz berdi!');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

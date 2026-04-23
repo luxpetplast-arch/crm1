@@ -1,3 +1,5 @@
+import { safeDivide, safePercentage, safeParseFloat, safeAverage, safeSum } from '../utils/safe-math';
+
 // Advanced AI Analytics Functions
 
 export interface AdvancedMetrics {
@@ -27,9 +29,8 @@ export async function calculateAdvancedMetrics(
   days: number
 ): Promise<AdvancedMetrics> {
   // Customer Lifetime Value (CLV)
-  const avgCustomerRevenue = sales.length > 0 && customers.length > 0
-    ? sales.reduce((sum, s) => sum + s.totalAmount, 0) / customers.length 
-    : 0;
+  const totalRevenue = safeSum(sales.map(s => safeParseFloat(s.totalAmount)));
+  const avgCustomerRevenue = safeDivide(totalRevenue, customers.length, 0);
   const avgCustomerLifespan = 24; // 2 yil (months)
   const customerLifetimeValue = avgCustomerRevenue * avgCustomerLifespan;
 
@@ -39,40 +40,38 @@ export async function calculateAdvancedMetrics(
     const hasSales = sales.some(s => s.customerId === c.id);
     return c.createdAt < startDate && hasSales;
   }).length;
-  const customerRetentionRate = oldCustomers > 0 ? (retainedCustomers / oldCustomers) * 100 : 0;
+  const customerRetentionRate = safePercentage(retainedCustomers, oldCustomers, 0);
   const churnRate = 100 - customerRetentionRate;
 
   // Inventory Turnover Ratio
-  const totalCOGS = sales.reduce((sum, s) => sum + (s.totalAmount * 0.6), 0); // 60% COGS
+  const totalCOGS = safeSum(sales.map(s => safeParseFloat(s.totalAmount) * 0.6)); // 60% COGS
   const avgInventory = 50000; // Placeholder
-  const inventoryTurnoverRatio = avgInventory > 0 ? totalCOGS / avgInventory : 0;
+  const inventoryTurnoverRatio = safeDivide(totalCOGS, avgInventory, 0);
 
   // Cash Conversion Cycle
-  const daysInventoryOutstanding = inventoryTurnoverRatio > 0 ? 365 / inventoryTurnoverRatio : 0;
+  const daysInventoryOutstanding = safeDivide(365, inventoryTurnoverRatio, 0);
   const daysReceivablesOutstanding = 30;
   const daysPayablesOutstanding = 45;
   const cashConversionCycle = daysInventoryOutstanding + daysReceivablesOutstanding - daysPayablesOutstanding;
 
-  // Operating Cash Flow
-  const totalRevenue = sales.reduce((sum, s) => sum + s.totalAmount, 0);
-  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+  // Operating Cash Flow (totalRevenue allaqachon yuqorida hisoblangan)
+  const totalExpenses = safeSum(expenses.map(e => safeParseFloat(e.amount)));
   const operatingCashFlow = totalRevenue - totalExpenses;
 
   // ROI
   const totalInvestment = totalExpenses;
-  const returnOnInvestment = totalInvestment > 0 ? ((totalRevenue - totalInvestment) / totalInvestment) * 100 : 0;
+  const returnOnInvestment = safePercentage(totalRevenue - totalInvestment, totalInvestment, 0);
 
   // Break-Even Point
   const fixedCosts = totalExpenses * 0.4;
-  const variableCostPerUnit = sales.length > 0 ? (totalExpenses * 0.6) / sales.length : 0;
-  const avgPricePerUnit = sales.length > 0 ? totalRevenue / sales.length : 0;
-  const breakEvenPoint = avgPricePerUnit > variableCostPerUnit 
-    ? fixedCosts / (avgPricePerUnit - variableCostPerUnit) 
-    : 0;
+  const variableCostPerUnit = safeDivide(totalExpenses * 0.6, sales.length, 0);
+  const avgPricePerUnit = safeDivide(totalRevenue, sales.length, 0);
+  const contributionMargin = avgPricePerUnit - variableCostPerUnit;
+  const breakEvenPoint = safeDivide(fixedCosts, contributionMargin, 0);
 
   // Profitability Index
   const netProfit = totalRevenue - totalExpenses;
-  const profitabilityIndex = totalInvestment > 0 ? netProfit / totalInvestment : 0;
+  const profitabilityIndex = safeDivide(netProfit, totalInvestment, 0);
 
   // Market Basket Analysis
   const marketBasketAnalysis = analyzeMarketBasket(sales);
@@ -160,10 +159,10 @@ function calculateSeasonality(sales: any[], days: number) {
 function calculateDemandElasticity(sales: any[]) {
   if (sales.length < 2) return 0;
   
-  const avgPrice = sales.reduce((sum, s) => sum + (s.totalAmount / s.quantity), 0) / sales.length;
-  const avgQuantity = sales.reduce((sum, s) => sum + s.quantity, 0) / sales.length;
+  const avgPrice = safeAverage(sales.map(s => safeDivide(s.totalAmount, s.quantity, 0)), 0);
+  const avgQuantity = safeAverage(sales.map(s => s.quantity), 0);
   
-  return avgPrice > 0 ? (avgQuantity / avgPrice) * -1 : 0;
+  return safeDivide(avgQuantity, avgPrice, 0) * -1;
 }
 
 // Price Optimization
@@ -173,16 +172,17 @@ function optimizePricing(sales: any[]) {
   sales.forEach(sale => {
     if (sale.product) {
       const productId = sale.productId;
+      const quantity = safeParseFloat(sale.quantity, 1); // Default to 1 to avoid division by zero
       if (!productPricing[productId]) {
         productPricing[productId] = {
           name: sale.product.name,
-          currentPrice: sale.totalAmount / sale.quantity,
+          currentPrice: safeDivide(sale.totalAmount, quantity, 0),
           sales: 0,
           revenue: 0,
         };
       }
-      productPricing[productId].sales += sale.quantity;
-      productPricing[productId].revenue += sale.totalAmount;
+      productPricing[productId].sales += quantity;
+      productPricing[productId].revenue += safeParseFloat(sale.totalAmount);
     }
   });
 
@@ -248,22 +248,28 @@ export function detectAnomalies(dailyTrends: any[], sales: any[]) {
   
   if (dailyTrends.length < 7) return anomalies;
   
-  const avgRevenue = dailyTrends.reduce((sum, d) => sum + d.revenue, 0) / dailyTrends.length;
-  const stdDev = Math.sqrt(
-    dailyTrends.reduce((sum, d) => sum + Math.pow(d.revenue - avgRevenue, 2), 0) / dailyTrends.length
+  const revenues = dailyTrends.map(d => safeParseFloat(d.revenue));
+  const avgRevenue = safeAverage(revenues, 0);
+  const variance = safeDivide(
+    revenues.reduce((sum, r) => sum + Math.pow(r - avgRevenue, 2), 0),
+    revenues.length,
+    0
   );
+  const stdDev = Math.sqrt(variance);
   
   dailyTrends.forEach((day, index) => {
-    const zScore = (day.revenue - avgRevenue) / stdDev;
+    const revenue = safeParseFloat(day.revenue);
+    const zScore = safeDivide(revenue - avgRevenue, stdDev, 0);
     
     if (Math.abs(zScore) > 2) {
+      const deviation = safePercentage(revenue - avgRevenue, avgRevenue, 0);
       anomalies.push({
         date: day.date,
         type: zScore > 0 ? 'spike' : 'drop',
         severity: Math.abs(zScore) > 3 ? 'high' : 'medium',
-        value: day.revenue,
+        value: revenue,
         expected: avgRevenue,
-        deviation: ((day.revenue - avgRevenue) / avgRevenue * 100).toFixed(1),
+        deviation: deviation.toFixed(1),
         message: zScore > 0 
           ? `${day.date} kuni daromad kutilganidan ${Math.abs(zScore * 100).toFixed(0)}% yuqori`
           : `${day.date} kuni daromad kutilganidan ${Math.abs(zScore * 100).toFixed(0)}% past`,
@@ -280,7 +286,7 @@ export function generateProductRecommendations(productSales: any, sales: any[], 
   const products = Object.values(productSales);
   
   products.forEach((product: any) => {
-    const share = (product.revenue / totalRevenue) * 100;
+    const share = safePercentage(safeParseFloat(product.revenue), totalRevenue, 0);
     
     // High performer
     if (share > 30) {
@@ -450,12 +456,16 @@ export function assessBusinessRisks(metrics: any, advancedMetrics: any, dailyTre
 function calculateVolatility(dailyTrends: any[]): number {
   if (dailyTrends.length < 2) return 0;
   
-  const revenues = dailyTrends.map(d => d.revenue);
-  const avg = revenues.reduce((sum, r) => sum + r, 0) / revenues.length;
-  const variance = revenues.reduce((sum, r) => sum + Math.pow(r - avg, 2), 0) / revenues.length;
+  const revenues = dailyTrends.map(d => safeParseFloat(d.revenue));
+  const avg = safeAverage(revenues, 0);
+  const variance = safeDivide(
+    revenues.reduce((sum, r) => sum + Math.pow(r - avg, 2), 0),
+    revenues.length,
+    0
+  );
   const stdDev = Math.sqrt(variance);
   
-  return avg > 0 ? stdDev / avg : 0;
+  return safeDivide(stdDev, avg, 0);
 }
 
 // Strategik Tavsiyalar
