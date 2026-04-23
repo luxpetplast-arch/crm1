@@ -301,7 +301,7 @@ router.put('/messages/:messageId', async (req: AuthRequest, res) => {
     const updatedMessage = await prisma.customerChat.update({
       where: { id: messageId },
       data: {
-        text: text.trim(),
+        message: text?.trim() || '',
         isEdited: true,
         updatedAt: new Date()
       }

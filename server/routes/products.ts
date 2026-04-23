@@ -350,11 +350,11 @@ router.patch('/:id', authorize('ADMIN', 'WAREHOUSE_MANAGER', 'MANAGER', 'CASHIER
         productId: product.id,
         productName: product.name,
         details: {
-          type: 'PATCH',
+          type: 'PATCH' as any,
           oldValue: oldProduct,
           newValue: product,
           notes: 'Mahsulot ma\'lumotlari yangilandi (PATCH)',
-        },
+        } as any,
         ipAddress: req.ip,
         userAgent: req.get('user-agent'),
       });

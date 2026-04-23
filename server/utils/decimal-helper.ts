@@ -81,7 +81,7 @@ export class MoneyCalculator {
   /**
    * Summalarni yig'ish (array)
    */
-  static sum(amounts: (number | string)[]): number {
+  static sum(amounts: number[]): number {
     return amounts.reduce(
       (total, amount) => this.add(total, amount),
       0
