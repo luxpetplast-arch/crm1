@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "NodeNext",
+    "module": "CommonJS",
     "lib": ["ES2022"],
-    "moduleResolution": "NodeNext",
+    "moduleResolution": "node",
     "esModuleInterop": true,
     "strict": false,
     "noImplicitAny": false,
@@ -15,7 +15,6 @@
     "declaration": false,
     "sourceMap": false,
     "allowJs": true,
-    "rewriteRelativeImportExtensions": true,
     "types": ["node"]
   },
   "include": ["**/*.ts", "swagger.ts"],

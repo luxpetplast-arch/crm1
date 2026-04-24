@@ -1,4 +1,4 @@
-# Production stage with tsx
+# Backend API Server - CommonJS Build
 FROM node:20-alpine
 
 WORKDIR /app
