@@ -304,7 +304,7 @@ router.put('/messages/:messageId', async (req: AuthRequest, res) => {
         message: text?.trim() || '',
         isEdited: true,
         updatedAt: new Date()
-      }
+      } as any
     });
 
     res.json(updatedMessage);
