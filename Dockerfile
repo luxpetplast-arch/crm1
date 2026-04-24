@@ -13,10 +13,13 @@ RUN npm ci
 
 COPY . .
 
+# Build server TypeScript
+RUN cd server && npx tsc
+
 # Generate Prisma client
 RUN npm run db:generate
 
 EXPOSE 5000
 
-# Use tsx to run TypeScript directly
-CMD ["npx", "tsx", "server/index.ts"]
+# Run compiled JavaScript
+CMD ["node", "server/dist/index.js"]
