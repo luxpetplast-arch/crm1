@@ -92,7 +92,7 @@ router.post('/login', async (req, res) => {
     }
     
     // 🔒 Rate limit tekshiruvi
-    const rateLimitKey = `${req.ip || 'unknown'}:${login.toLowerCase()}`;
+    const rateLimitKey = `${req.ip || 'unknown'}:${String(login).toLowerCase()}`;
     const rateLimitCheck = checkRateLimit(rateLimitKey);
     
     if (!rateLimitCheck.allowed) {
@@ -157,7 +157,7 @@ router.post('/cashier-login', async (req, res) => {
     }
     
     // 🔒 Rate limit tekshiruvi
-    const rateLimitKey = `cashier:${req.ip || 'unknown'}:${login.toLowerCase()}`;
+    const rateLimitKey = `cashier:${req.ip || 'unknown'}:${String(login).toLowerCase()}`;
     const rateLimitCheck = checkRateLimit(rateLimitKey);
     
     if (!rateLimitCheck.allowed) {

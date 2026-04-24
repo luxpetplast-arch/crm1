@@ -208,12 +208,12 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // 🔒 Security middleware
-import { securityLogger, sanitizeInput } from './middleware/security';
+import { securityLogger, sanitizeInput } from './middleware/security.js';
 app.use(securityLogger);
 app.use(sanitizeInput);
 
 // Global error handler - yangilangan
-import { errorHandler } from './middleware/error-handler';
+import { errorHandler } from './middleware/error-handler.js';
 app.use(errorHandler);
 
 // Auth test endpoint

@@ -16,8 +16,14 @@ COPY . .
 # Build client
 RUN npm run build:client
 
-# Build server TypeScript files
-RUN npm run build:server
+# Build server TypeScript files with verbose output
+RUN npm run build:server 2>&1 || (echo "=== BUILD FAILED ===" && cat server/tsconfig.json && exit 1)
+
+# Verify server build output exists
+RUN echo "=== Checking server/dist contents ===" && ls -la /app/server/dist/ && \
+    echo "=== Checking middleware ===" && ls -la /app/server/dist/middleware/ && \
+    echo "=== Checking swagger ===" && ls -la /app/server/dist/swagger.js && \
+    echo "=== All checks passed ==="
 
 # Generate Prisma client
 RUN npm run db:generate

@@ -492,13 +492,12 @@ export default function Debtors() {
                         {debtCurrency === 'UZS' ? "💵 Naqd So'm (UZS)" : "💵 Naqd So'm (UZS)"}
                       </label>
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         className="w-full px-3 py-2 bg-background border border-border rounded-lg mt-1"
                         value={paymentForm.paidUZS}
-                        onChange={(e) => setPaymentForm({ ...paymentForm, paidUZS: e.target.value })}
+                        onChange={(e) => setPaymentForm({ ...paymentForm, paidUZS: e.target.value.replace(/[^0-9.]/g, '') })}
                         placeholder="0"
-                        step="1000"
-                        min="0"
                       />
                       {paymentForm.paidUZS && (
                         <p className="text-xs text-muted-foreground mt-1">
@@ -513,13 +512,12 @@ export default function Debtors() {
                     <div>
                       <label className="text-sm font-medium">💵 Dollar (USD)</label>
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         className="w-full px-3 py-2 bg-background border border-border rounded-lg mt-1"
                         value={paymentForm.paidUSD}
-                        onChange={(e) => setPaymentForm({ ...paymentForm, paidUSD: e.target.value })}
+                        onChange={(e) => setPaymentForm({ ...paymentForm, paidUSD: e.target.value.replace(/[^0-9.]/g, '') })}
                         placeholder="0"
-                        step="0.01"
-                        min="0"
                       />
                       {paymentForm.paidUSD && (
                         <p className="text-xs text-muted-foreground mt-1">
@@ -533,13 +531,12 @@ export default function Debtors() {
                   <div>
                     <label className="text-sm font-medium">💳 Click (UZS)</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       className="w-full px-3 py-2 bg-background border border-border rounded-lg mt-1"
                       value={paymentForm.paidCLICK}
-                      onChange={(e) => setPaymentForm({ ...paymentForm, paidCLICK: e.target.value })}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, paidCLICK: e.target.value.replace(/[^0-9.]/g, '') })}
                       placeholder="0"
-                      step="1000"
-                      min="0"
                     />
                     {paymentForm.paidCLICK && (
                       <p className="text-xs text-muted-foreground mt-1">

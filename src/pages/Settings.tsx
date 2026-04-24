@@ -302,28 +302,31 @@ export default function Settings() {
                   <div className="space-y-2">
                     <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">USD → UZS</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-semibold text-sm transition-all"
                       value={settings.USD_TO_UZS_RATE}
-                      onChange={(e) => updateSetting('USD_TO_UZS_RATE', e.target.value)}
+                      onChange={(e) => updateSetting('USD_TO_UZS_RATE', e.target.value.replace(/[^0-9.]/g, ''))}
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">EUR → UZS</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-semibold text-sm transition-all"
                       value={settings.EUR_TO_UZS_RATE}
-                      onChange={(e) => updateSetting('EUR_TO_UZS_RATE', e.target.value)}
+                      onChange={(e) => updateSetting('EUR_TO_UZS_RATE', e.target.value.replace(/[^0-9.]/g, ''))}
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">RUB → UZS</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-semibold text-sm transition-all"
                       value={settings.RUB_TO_UZS_RATE}
-                      onChange={(e) => updateSetting('RUB_TO_UZS_RATE', e.target.value)}
+                      onChange={(e) => updateSetting('RUB_TO_UZS_RATE', e.target.value.replace(/[^0-9.]/g, ''))}
                     />
                   </div>
                 </div>
@@ -346,37 +349,41 @@ export default function Settings() {
                   <div className="space-y-2">
                     <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Foyda Marjasi (%)")}</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none font-bold text-sm transition-all"
                       value={settings.DEFAULT_PROFIT_MARGIN}
-                      onChange={(e) => updateSetting('DEFAULT_PROFIT_MARGIN', e.target.value)}
+                      onChange={(e) => updateSetting('DEFAULT_PROFIT_MARGIN', e.target.value.replace(/[^0-9.]/g, ''))}
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("VIP Chegirma (%)")}</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none font-bold text-sm transition-all"
                       value={settings.VIP_DISCOUNT}
-                      onChange={(e) => updateSetting('VIP_DISCOUNT', e.target.value)}
+                      onChange={(e) => updateSetting('VIP_DISCOUNT', e.target.value.replace(/[^0-9.]/g, ''))}
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Kam qolgan qoldiq")}</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none font-bold text-sm transition-all"
                       value={settings.LOW_STOCK_THRESHOLD}
-                      onChange={(e) => updateSetting('LOW_STOCK_THRESHOLD', e.target.value)}
+                      onChange={(e) => updateSetting('LOW_STOCK_THRESHOLD', e.target.value.replace(/[^0-9.]/g, ''))}
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Qarz muddati (kun)")}</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none font-bold text-sm transition-all"
                       value={settings.DEBT_ALERT_DAYS}
-                      onChange={(e) => updateSetting('DEBT_ALERT_DAYS', e.target.value)}
+                      onChange={(e) => updateSetting('DEBT_ALERT_DAYS', e.target.value.replace(/[^0-9.]/g, ''))}
                     />
                   </div>
                 </div>
@@ -466,10 +473,11 @@ export default function Settings() {
                   <div className="space-y-2">
                     <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">SMTP Port</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none font-bold text-sm transition-all"
                       value={settings.EMAIL_SMTP_PORT}
-                      onChange={(e) => updateSetting('EMAIL_SMTP_PORT', e.target.value)}
+                      onChange={(e) => updateSetting('EMAIL_SMTP_PORT', e.target.value.replace(/[^0-9.]/g, ''))}
                     />
                   </div>
                 </div>
@@ -491,19 +499,21 @@ export default function Settings() {
                   <div className="space-y-2">
                     <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Sessiya Vaqti (daqiqa)")}</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-violet-500 outline-none font-bold text-sm transition-all"
                       value={settings.SESSION_TIMEOUT_MINUTES}
-                      onChange={(e) => updateSetting('SESSION_TIMEOUT_MINUTES', e.target.value)}
+                      onChange={(e) => updateSetting('SESSION_TIMEOUT_MINUTES', e.target.value.replace(/[^0-9.]/g, ''))}
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Parol Minimal Uzunligi")}</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-violet-500 outline-none font-bold text-sm transition-all"
                       value={settings.PASSWORD_MIN_LENGTH}
-                      onChange={(e) => updateSetting('PASSWORD_MIN_LENGTH', e.target.value)}
+                      onChange={(e) => updateSetting('PASSWORD_MIN_LENGTH', e.target.value.replace(/[^0-9.]/g, ''))}
                     />
                   </div>
                 </div>

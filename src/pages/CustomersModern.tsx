@@ -577,9 +577,10 @@ export default function CustomersModern() {
                     {latinToCyrillic("Yashil rang uchun minimum ($)")}
                   </label>
                   <input
-                    type="number"
-                    value={colorSettings.greenThreshold}
-                    onChange={(e) => setColorSettings({ ...colorSettings, greenThreshold: parseInt(e.target.value) || 0 })}
+                    type="text"
+                    inputMode="numeric"
+                    value={String(colorSettings.greenThreshold)}
+                    onChange={(e) => setColorSettings({ ...colorSettings, greenThreshold: parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0 })}
                     className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     placeholder="600"
                   />
@@ -593,9 +594,10 @@ export default function CustomersModern() {
                     {latinToCyrillic("Sariq rang uchun minimum ($)")}
                   </label>
                   <input
-                    type="number"
-                    value={colorSettings.yellowThreshold}
-                    onChange={(e) => setColorSettings({ ...colorSettings, yellowThreshold: parseInt(e.target.value) || 0 })}
+                    type="text"
+                    inputMode="numeric"
+                    value={String(colorSettings.yellowThreshold)}
+                    onChange={(e) => setColorSettings({ ...colorSettings, yellowThreshold: parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0 })}
                     className="w-full px-3 py-2 border border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
                     placeholder="100"
                   />
@@ -609,9 +611,10 @@ export default function CustomersModern() {
                     {latinToCyrillic("Qarz muddati ogohlantirish (kun)")}
                   </label>
                   <input
-                    type="number"
-                    value={colorSettings.debtPeriodThreshold}
-                    onChange={(e) => setColorSettings({ ...colorSettings, debtPeriodThreshold: parseInt(e.target.value) || 0 })}
+                    type="text"
+                    inputMode="numeric"
+                    value={String(colorSettings.debtPeriodThreshold)}
+                    onChange={(e) => setColorSettings({ ...colorSettings, debtPeriodThreshold: parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0 })}
                     className="w-full px-3 py-2 border border-rose-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
                     placeholder="30"
                   />

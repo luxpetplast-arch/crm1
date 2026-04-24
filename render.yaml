@@ -1,12 +1,13 @@
 services:
-  # Unified Web Service (Backend + Frontend)
+  # Unified Web Service (Backend + Frontend) - Docker
   - type: web
     name: luxpetplast
-    env: node
+    env: docker
     region: frankfurt
     plan: free
-    buildCommand: npm install --include=dev && npm run build:client && npm run db:generate && npm run build:server
-    startCommand: NODE_ENV=production cd server && node dist/index.js
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
@@ -22,4 +23,3 @@ services:
         value: https://eomvlukbfjwtlxnzvfdw.supabase.co
       - key: VITE_SUPABASE_ANON_KEY
         value: sb_publishable_U8T7-aiTDZ-ARARuKAY85g_CYLo6hDb
-    healthCheckPath: /api/health

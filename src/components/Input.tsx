@@ -8,13 +8,14 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   decimal?: boolean;
 }
 
-export function Input({ label, icon, className, numeric, decimal, type, onChange, value, ...props }: InputProps) {
+export function Input({ label, icon, className, numeric, decimal, type, onChange, value, name, id, ...props }: InputProps) {
   // numeric yoki decimal bo'lsa, text type bilan ishlaydi
   const inputType = (numeric || decimal) ? 'text' : type;
   const inputMode = (numeric || decimal) ? 'decimal' : undefined;
   
   // 0 ni bo'sh ko'rsatish (faqat integer numeric uchun)
-  const displayValue = numeric && !decimal && value === "0" ? "" : value;
+  const stringValue = value === undefined || value === null ? '' : String(value);
+  const displayValue = numeric && !decimal && stringValue === "0" ? "" : stringValue;
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (onChange) {
@@ -45,6 +46,8 @@ export function Input({ label, icon, className, numeric, decimal, type, onChange
           inputMode={inputMode}
           value={displayValue}
           onChange={handleChange}
+          name={name}
+          id={id}
           placeholder={(numeric || decimal) ? "0" : props.placeholder}
           className={cn(
             'ultra-input',

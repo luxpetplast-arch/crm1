@@ -9,13 +9,13 @@ interface PriceInputProps {
 }
 
 export function PriceInput({ value, onChange, className = '', placeholder = '' }: PriceInputProps) {
-  const [localValue, setLocalValue] = useState(value.toString());
+  const [localValue, setLocalValue] = useState(value?.toString() ?? '');
   const [isEditing, setIsEditing] = useState(false);
 
   // Sync with parent value when not editing
   useEffect(() => {
     if (!isEditing) {
-      setLocalValue(value.toString());
+      setLocalValue(value?.toString() ?? '');
     }
   }, [value, isEditing]);
 
