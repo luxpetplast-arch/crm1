@@ -51,6 +51,8 @@ export default defineConfig({
     exclude: ['crewai-ts', 'node-fasttext', 'fastembed', '@xenova/transformers', 'pg', 'fs', 'node:fs', 'fs/promises', 'path', 'crypto', 'events', 'child_process', 'stream', 'mysql2', 'mysql2/promise', 'formdata-node/file-from-path'],
   },
   build: {
+    outDir: 'dist',
+    emptyOutDir: true,
     rollupOptions: {
       external: ['crewai-ts'],
     },
