@@ -10,7 +10,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "outDir": "../dist-server",
+    "outDir": "./dist",
     "rootDir": ".",
     "declaration": false,
     "sourceMap": false,
@@ -18,5 +18,5 @@
     "types": ["node"]
   },
   "include": ["**/*.ts", "swagger.ts"],
-  "exclude": ["node_modules", "dist", "dist-server", "__tests__"]
+  "exclude": ["node_modules", "dist", "__tests__"]
 }
