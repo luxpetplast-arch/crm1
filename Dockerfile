@@ -23,6 +23,7 @@ RUN npm run build:server 2>&1 || (echo "=== BUILD FAILED ===" && cat server/tsco
 RUN echo "=== Checking server/dist contents ===" && ls -la /app/server/dist/ && \
     echo "=== Checking middleware ===" && ls -la /app/server/dist/middleware/ && \
     echo "=== Checking swagger ===" && ls -la /app/server/dist/swagger.js && \
+    echo "=== Checking index.js imports ===" && head -50 /app/server/dist/index.js | grep -E "^import" && \
     echo "=== All checks passed ==="
 
 # Generate Prisma client
