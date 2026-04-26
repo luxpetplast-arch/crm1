@@ -1,4 +1,4 @@
-# Backend-only build for Render deployment
+# Backend-only build for Render deployment - v2
 FROM node:20-alpine AS builder
 
 WORKDIR /app
