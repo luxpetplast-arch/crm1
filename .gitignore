@@ -81,9 +81,7 @@ table-*
 !prisma/migrations/**/*.sql
 
 # Config files (local only)
-netlify.toml
 docker-compose.yml
-Dockerfile
 nginx.conf
 ecosystem.config.js
 capacitor.config.ts
