@@ -10,7 +10,6 @@ import {
   Layers, 
   DollarSign,
   Scale,
-  RefreshCw,
   FileText
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -21,7 +20,6 @@ export default function RawMaterials() {
   const [materials, setMaterials] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     name: '',
     unit: 'kg',
@@ -36,14 +34,11 @@ export default function RawMaterials() {
   }, []);
 
   const loadMaterials = async () => {
-    setLoading(true);
     try {
       const { data } = await api.get('/raw-materials');
       setMaterials(data);
     } catch (error) {
       console.error('Failed to load raw materials');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -57,7 +52,7 @@ export default function RawMaterials() {
       'Jami qiymat': m.currentStock * m.unitPrice,
       'Yetkazuvchi': m.supplier?.name || 'Noma\'lum'
     }));
-    exportToExcel(dataToExport, 'Xom_ashyolar', 'Xom ashyolar');
+    exportToExcel(dataToExport, { fileName: 'Xom_ashyolar', sheetName: 'Xom ashyolar' });
   };
 
   const loadSuppliers = async () => {
@@ -125,6 +120,7 @@ export default function RawMaterials() {
             
             <div className="flex flex-wrap gap-4 w-full lg:w-auto">
               <button 
+                type="button"
                 onClick={handleExport}
                 className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl font-semibold text-sm transition-all active:scale-95 border border-emerald-100 dark:border-emerald-800"
               >
@@ -132,6 +128,7 @@ export default function RawMaterials() {
                 Excel
               </button>
               <button 
+                type="button"
                 onClick={() => setShowModal(true)} 
                 className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-sm shadow-lg shadow-indigo-500/30 transition-all hover:scale-105 active:scale-95"
               >
@@ -223,7 +220,7 @@ export default function RawMaterials() {
                   <span className={`px-4 py-1.5 rounded-full text-[9px] font-semibold uppercase tracking-widest shadow-sm ${status.bg} ${status.color}`}>
                     {status.label}
                   </span>
-                  <button className="w-10 h-10 bg-gray-50 dark:bg-gray-800 text-gray-400 rounded-xl flex items-center justify-center hover:bg-indigo-600 hover:text-white transition-all">
+                  <button type="button" className="w-10 h-10 bg-gray-50 dark:bg-gray-800 text-gray-400 rounded-xl flex items-center justify-center hover:bg-indigo-600 hover:text-white transition-all" aria-label="Ko'proq ma'lumot">
                     <MoreHorizontal className="w-5 h-5" />
                   </button>
                 </div>
@@ -244,7 +241,7 @@ export default function RawMaterials() {
                 </div>
                 {t("Yangi")} <span className="text-indigo-600">{t("xom ashyo")}</span>
               </h3>
-              <button onClick={() => setShowModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors">
+              <button type="button" onClick={() => setShowModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors" aria-label="Yopish">
                 <MoreHorizontal className="w-5 h-5 rotate-45" />
               </button>
             </div>
@@ -252,8 +249,9 @@ export default function RawMaterials() {
             <form onSubmit={handleSubmit} className="p-10 sm:p-16 space-y-10 overflow-y-auto custom-scrollbar">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-4">
-                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("XOM ASHYO NOMI")}</label>
+                  <label htmlFor="raw-material-name" className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("XOM ASHYO NOMI")}</label>
                   <input
+                    id="raw-material-name"
                     type="text"
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -263,8 +261,9 @@ export default function RawMaterials() {
                   />
                 </div>
                 <div className="space-y-4">
-                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("O'LCHOV BIRLIGI")}</label>
+                  <label htmlFor="raw-material-unit" className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("O'LCHOV BIRLIGI")}</label>
                   <select
+                    id="raw-material-unit"
                     value={form.unit}
                     onChange={(e) => setForm({ ...form, unit: e.target.value })}
                     className="w-full h-16 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-indigo-500 rounded-2xl font-bold text-sm outline-none transition-all appearance-none"
@@ -321,6 +320,7 @@ export default function RawMaterials() {
               <div className="space-y-4">
                 <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("YETKAZUVCHI")}</label>
                 <select
+                  aria-label="Yetkazuvchi tanlash"
                   value={form.supplierId}
                   onChange={(e) => setForm({ ...form, supplierId: e.target.value })}
                   className="w-full h-16 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-indigo-500 rounded-2xl font-bold text-sm outline-none transition-all appearance-none"

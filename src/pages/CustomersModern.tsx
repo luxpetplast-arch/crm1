@@ -17,7 +17,6 @@ import {
   X
 } from 'lucide-react';
 import { latinToCyrillic } from '../lib/transliterator';
-import { errorHandler } from '../lib/professionalErrorHandler';
 import api from '../lib/professionalApi';
 import { safeArray } from '../lib/safe-math';
 
@@ -296,9 +295,11 @@ export default function CustomersModern() {
                 <Filter className="w-5 h-5" />
               </div>
               <select
+                id="category-filter"
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="input-modern pl-12 appearance-none cursor-pointer"
+                aria-label="Kategoriya filtri"
               >
                 {categories.map(category => (
                   <option key={category} value={category}>
@@ -316,6 +317,7 @@ export default function CustomersModern() {
               onClick={() => setShowSettings(true)}
               className="btn-gradient-secondary px-4 py-3 flex items-center gap-2 hover:scale-105 transition-transform"
               title={latinToCyrillic("Rang sozlamalari")}
+              aria-label={latinToCyrillic("Rang sozlamalari")}
             >
               <Settings className="w-5 h-5" />
             </button>
@@ -487,6 +489,7 @@ export default function CustomersModern() {
                   </button>
                   <button
                     className="btn-gradient-danger p-2 flex items-center justify-center"
+                    aria-label="Mijozni o'chirish"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -566,6 +569,8 @@ export default function CustomersModern() {
                 <button 
                   onClick={() => setShowSettings(false)}
                   className="p-1 hover:bg-gray-200 rounded-full"
+                  title="Yopish"
+                  aria-label="Yopish"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -705,8 +710,9 @@ export default function CustomersModern() {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium mb-1">{latinToCyrillic("Kategoriya")}</label>
+                  <label htmlFor="customer-category" className="block text-sm font-medium mb-1">{latinToCyrillic("Kategoriya")}</label>
                   <select
+                    id="customer-category"
                     value={newCustomer.category}
                     onChange={(e) => setNewCustomer({ ...newCustomer, category: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"

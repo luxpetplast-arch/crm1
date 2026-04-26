@@ -259,6 +259,7 @@ export default function CustomerChats() {
                         onClick={sendMessage}
                         disabled={sending || !newMessage.trim()}
                         className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                        aria-label="Xabar yuborish"
                       >
                         <Send className="w-4 h-4" />
                       </Button>

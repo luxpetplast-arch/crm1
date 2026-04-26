@@ -11,6 +11,8 @@ function Products() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const [editingProduct, setEditingProduct] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -19,6 +21,27 @@ function Products() {
   const [activeCategory, setActiveCategory] = useState<'all' | 'preform' | 'krishka' | 'ruchka' | 'other'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [exchangeRates, setExchangeRates] = useState({ USD_TO_UZS: 12800 }); // Default, ideally fetch from API
+
+  // Product detail modal state
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [showProductModal, setShowProductModal] = useState(false);
+
+  // Determine if we're in cashier mode
+  const isCashier = window.location.pathname.startsWith('/cashier');
+  const getProductDetailPath = (productId: string) => {
+    return isCashier ? `/cashier/products/${productId}` : `/products/${productId}`;
+  };
+
+  // Open product detail modal
+  const openProductModal = async (product: any) => {
+    try {
+      const { data } = await api.get(`/products/${product.id}`);
+      setSelectedProduct(data);
+      setShowProductModal(true);
+    } catch (error) {
+      console.error('Error loading product details:', error);
+    }
+  };
 
   useEffect(() => {
     loadProducts();
@@ -38,10 +61,15 @@ function Products() {
 
   const loadProducts = async () => {
     try {
+      setLoading(true);
+      setError(null);
       const response = await api.get('/products');
       setProducts(response.data);
-    } catch (error) {
-      console.error('Маҳсулотларни юклашда хатолик:', error);
+    } catch (err: any) {
+      console.error('Маҳсулотларни юклашда хатолик:', err);
+      setError(err?.response?.data?.error || err?.message || 'Маҳсулотларни юклашда хатолик юз берди');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -309,7 +337,7 @@ function Products() {
       'Status': getStockStatus(p).label
     }));
     
-    exportToExcel(dataToExport, `Mahsulotlar_${activeCategory}`, 'Mahsulotlar Ro\'yxati');
+    exportToExcel(dataToExport, { fileName: `Mahsulotlar_${activeCategory}`, sheetName: 'Mahsulotlar Ro\'yxati' });
   };
 
   return (
@@ -334,6 +362,7 @@ function Products() {
             
             <div className="flex items-center gap-3">
               <button 
+                type="button"
                 onClick={handleExportExcel}
                 className="flex items-center gap-2 px-4 py-2.5 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white border border-white/20 rounded-xl font-medium text-sm transition-all"
               >
@@ -341,6 +370,7 @@ function Products() {
                 Excel
               </button>
               <button 
+                type="button"
                 onClick={() => navigate('/add-product')} 
                 className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl font-semibold text-sm transition-all shadow-lg shadow-emerald-500/30 hover:scale-105 active:scale-95"
               >
@@ -352,8 +382,40 @@ function Products() {
         </div>
       </div>
 
-      {/* Category Tabs - Modern Design */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Loading State */}
+      {loading && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="flex flex-col items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+            <p className="text-slate-600 font-medium">{t("Mahsulotlar yuklanmoqda...")}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !loading && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <AlertTriangle className="w-6 h-6 text-red-500" />
+              <h3 className="text-lg font-bold text-red-700">{t("Xatolik yuz berdi")}</h3>
+            </div>
+            <p className="text-red-600 mb-4">{error}</p>
+            <button
+              type="button"
+              onClick={loadProducts}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-colors"
+            >
+              {t("Qayta urinish")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && (
+        <>
+          {/* Category Tabs - Modern Design */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex flex-wrap gap-1.5 p-1.5 bg-gray-50 rounded-2xl w-fit shadow-md border border-gray-200">
           {[
             { id: 'all', label: t('Hammasi'), color: 'blue' },
@@ -363,6 +425,7 @@ function Products() {
             { id: 'other', label: t('Boshqa'), color: 'slate' }
           ].map((cat) => (
             <button
+              type="button"
               key={cat.id}
               onClick={() => setActiveCategory(cat.id as any)}
               className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 ${
@@ -421,15 +484,17 @@ function Products() {
                 <Card className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-[2.5rem] shadow-sm hover:shadow-2xl transition-all duration-700 overflow-hidden h-full flex flex-col">
                   <CardContent className="p-0 flex flex-col h-full">
                     {/* Size Header */}
-                    <div 
+                    <button
+                      type="button"
                       onClick={() => toggleGroup(size)}
-                      className={`p-8 cursor-pointer bg-gradient-to-r ${
+                      className={`p-8 cursor-pointer bg-gradient-to-r w-full text-left ${
                         activeCategory === 'preform' ? 'from-blue-600 to-indigo-600' :
                         activeCategory === 'krishka' ? 'from-orange-500 to-amber-500' :
                         activeCategory === 'ruchka' ? 'from-emerald-500 to-teal-500' :
                         activeCategory === 'all' ? 'from-emerald-500 to-teal-500' :
                         'from-gray-600 to-slate-600'
                       } text-white transition-all duration-500 group-hover/card:scale-[1.02]`}
+                      aria-label={isExpanded ? "Yopish" : "Ochish"}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-6">
@@ -446,7 +511,7 @@ function Products() {
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </button>
 
                     {/* Products List in Group */}
                     <div className={`flex-1 transition-all duration-700 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
@@ -469,18 +534,20 @@ function Products() {
                                           onChange={(e) => setEditingName(e.target.value)}
                                           className="flex-1 bg-white dark:bg-gray-900 border-2 border-blue-500 rounded-xl px-3 py-1 text-sm font-bold focus:outline-none"
                                           autoFocus
+                                          aria-label="Mahsulot nomi"
+                                          placeholder="Mahsulot nomi"
                                         />
-                                        <button onClick={() => saveProductData(product.id)} className="p-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                                        <button type="button" onClick={() => saveProductData(product.id)} className="p-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors" aria-label="Saqlash">
                                           <Check className="w-4 h-4" />
                                         </button>
-                                        <button onClick={cancelEditing} className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                                        <button type="button" onClick={cancelEditing} className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors" aria-label="Bekor qilish">
                                           <X className="w-4 h-4" />
                                         </button>
                                       </div>
                                     ) : (
                                       <div className="flex items-center gap-2">
                                         <h4 className="font-bold text-gray-900 dark:text-white truncate uppercase tracking-tight">{product.name}</h4>
-                                        <button onClick={() => startEditing(product)} className="opacity-0 group-hover/item:opacity-100 p-1 text-gray-400 hover:text-blue-600 transition-all">
+                                        <button type="button" onClick={() => startEditing(product)} className="opacity-0 group-hover/item:opacity-100 p-1 text-gray-400 hover:text-blue-600 transition-all" aria-label="Tahrirlash">
                                           <Pencil className="w-3.5 h-3.5" />
                                         </button>
                                       </div>
@@ -505,21 +572,26 @@ function Products() {
                                   <div className="flex gap-2">
                                     {/* Komplekt bilan sotish tugmasi */}
                                     <button
+                                      type="button"
                                       onClick={() => navigateToSaleWithKomplekt(product)}
                                       className="w-10 h-10 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center hover:bg-indigo-600 hover:text-white transition-all duration-500 shadow-sm"
-                                      title={t("Komplekt bilan sotish")}
+                                      aria-label="Komplekt bilan sotish"
                                     >
                                       <Layers className="w-5 h-5" />
                                     </button>
                                     <button
-                                      onClick={() => navigate(`/products/${product.id}`)}
+                                      type="button"
+                                      onClick={() => openProductModal(product)}
                                       className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all duration-500 shadow-sm"
+                                      aria-label="Ko'rish"
                                     >
                                       <Eye className="w-5 h-5" />
                                     </button>
                                     <button
+                                      type="button"
                                       onClick={() => deleteProduct(product.id)}
                                       className="w-10 h-10 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl flex items-center justify-center hover:bg-red-600 hover:text-white transition-all duration-500 shadow-sm"
+                                      aria-label="O'chirish"
                                     >
                                       <Trash2 className="w-5 h-5" />
                                     </button>
@@ -573,6 +645,8 @@ function Products() {
                                   value={editingName}
                                   onChange={(e) => setEditingName(e.target.value)}
                                   className="bg-white dark:bg-gray-900 border-2 border-blue-500 rounded-xl px-3 py-1 text-sm font-bold focus:outline-none"
+                                  aria-label="Edit product name"
+                                  placeholder="Product name"
                                 />
                               ) : (
                                 <span className="font-bold text-gray-900 dark:text-white uppercase tracking-tight">{product.name}</span>
@@ -611,6 +685,7 @@ function Products() {
                                     }
                                   }}
                                   className="w-24 pl-5 pr-2 py-1 bg-white dark:bg-gray-900 border-2 border-emerald-500 rounded-lg text-sm font-bold focus:outline-none"
+                                  aria-label="Price per bag"
                                 />
                               </div>
                               <span className="text-[9px] text-gray-400">{(parseFloat(editingPriceBag) * exchangeRates.USD_TO_UZS).toLocaleString()} UZS</span>
@@ -638,6 +713,7 @@ function Products() {
                                     }
                                   }}
                                   className="w-24 pl-5 pr-2 py-1 bg-white dark:bg-gray-900 border-2 border-blue-500 rounded-lg text-sm font-bold focus:outline-none"
+                                  aria-label="Price per piece"
                                 />
                               </div>
                               <span className="text-[9px] text-gray-400">{(parseFloat(editingPricePiece) * exchangeRates.USD_TO_UZS).toFixed(2)} UZS</span>
@@ -654,14 +730,18 @@ function Products() {
                             {isEditing ? (
                               <>
                                 <button
+                                  type="button"
                                   onClick={() => saveProductData(product.id)}
                                   className="w-10 h-10 bg-green-500 text-white rounded-xl flex items-center justify-center hover:bg-green-600 transition-all shadow-sm"
+                                  aria-label="Saqlash"
                                 >
                                   <Check className="w-5 h-5" />
                                 </button>
                                 <button
+                                  type="button"
                                   onClick={cancelEditing}
                                   className="w-10 h-10 bg-gray-500 text-white rounded-xl flex items-center justify-center hover:bg-gray-600 transition-all shadow-sm"
+                                  aria-label="Bekor qilish"
                                 >
                                   <X className="w-5 h-5" />
                                 </button>
@@ -669,27 +749,34 @@ function Products() {
                             ) : (
                               <>
                                 <button
+                                  type="button"
                                   onClick={() => navigateToSaleWithKomplekt(product)}
                                   className="w-10 h-10 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center hover:bg-indigo-600 hover:text-white transition-all duration-500 shadow-sm"
-                                  title={t("Komplekt bilan sotish")}
+                                  aria-label="Komplekt bilan sotish"
                                 >
                                   <Layers className="w-5 h-5" />
                                 </button>
-                                <button
+                                <button 
+                                  type="button"
                                   onClick={() => startEditing(product)}
                                   className="w-10 h-10 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-xl flex items-center justify-center hover:bg-amber-600 hover:text-white transition-all duration-500 shadow-sm"
+                                  aria-label="Tahrirlash"
                                 >
                                   <Pencil className="w-5 h-5" />
                                 </button>
                                 <button
-                                  onClick={() => navigate(`/products/${product.id}`)}
+                                  type="button"
+                                  onClick={() => openProductModal(product)}
                                   className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all duration-500 shadow-sm"
+                                  aria-label="Ko'rish"
                                 >
                                   <Eye className="w-5 h-5" />
                                 </button>
                                 <button
+                                  type="button"
                                   onClick={() => deleteProduct(product.id)}
                                   className="w-10 h-10 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl flex items-center justify-center hover:bg-red-600 hover:text-white transition-all duration-500 shadow-sm"
+                                  aria-label="O'chirish"
                                 >
                                   <Trash2 className="w-5 h-5" />
                                 </button>
@@ -707,7 +794,10 @@ function Products() {
         </div>
       )}
 
-      {products.length === 0 && (
+        </>
+      )}
+
+      {!loading && !error && products.length === 0 && (
         <div className="flex flex-col items-center justify-center py-40 bg-white/90 backdrop-blur-xl rounded-3xl border border-white/60 shadow-2xl shadow-slate-900/5 mx-4">
           <div className="w-36 h-36 bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100 rounded-3xl flex items-center justify-center mb-8 shadow-inner ring-4 ring-blue-50">
             <Package className="w-20 h-20 text-blue-600" />
@@ -717,12 +807,90 @@ function Products() {
             Hali hech qanday mahsulot qo'shilmagan. Birinchi mahsulotni qo'shish uchun pastdagi tugmani bosing.
           </p>
           <button 
+            type="button"
             onClick={() => navigate('/add-product')}
             className="flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white rounded-2xl font-bold text-lg shadow-xl shadow-blue-600/30 transition-all hover:scale-105 hover:-translate-y-1 active:scale-95"
           >
             <Plus className="w-6 h-6" />
             {t("Mahsulot qo'shish")}
           </button>
+        </div>
+      )}
+
+      {/* Product Detail Modal */}
+      {showProductModal && selectedProduct && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowProductModal(false)}>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="p-6">
+              {/* Header */}
+              <div className="flex items-start justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedProduct.name}</h2>
+                  <p className="text-sm text-gray-500 mt-1">ID: {selectedProduct.productId || selectedProduct.id}</p>
+                </div>
+                <button type="button" onClick={() => setShowProductModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" aria-label="Yopish">
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              {/* Product Info Grid */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl">
+                  <p className="text-sm text-gray-500 mb-1">Zaxira (qop)</p>
+                  <p className="text-2xl font-bold text-blue-600">{selectedProduct.currentStock || 0}</p>
+                </div>
+                <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl">
+                  <p className="text-sm text-gray-500 mb-1">Zaxira (dona)</p>
+                  <p className="text-2xl font-bold text-green-600">{selectedProduct.currentUnits || 0}</p>
+                </div>
+                <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl">
+                  <p className="text-sm text-gray-500 mb-1">Narx (qop)</p>
+                  <p className="text-2xl font-bold text-purple-600">${selectedProduct.pricePerBag?.toFixed(2) || '0.00'}</p>
+                </div>
+                <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-xl">
+                  <p className="text-sm text-gray-500 mb-1">Narx (dona)</p>
+                  <p className="text-2xl font-bold text-orange-600">${selectedProduct.pricePerPiece?.toFixed(2) || '0.00'}</p>
+                </div>
+              </div>
+
+              {/* Additional Info */}
+              <div className="space-y-3 mb-6">
+                <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
+                  <span className="text-gray-500">Mahsulot turi</span>
+                  <span className="font-medium">{selectedProduct.bagType || 'Boshqa'}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
+                  <span className="text-gray-500">Ombor</span>
+                  <span className="font-medium capitalize">{selectedProduct.warehouse || 'Boshqa'}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-800">
+                  <span className="text-gray-500">Dona/qop nisbat</span>
+                  <span className="font-medium">{selectedProduct.unitsPerBag || 0} dona</span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowProductModal(false);
+                    navigate(getProductDetailPath(selectedProduct.id));
+                  }}
+                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors"
+                >
+                  To'liq ma'lumot
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowProductModal(false)}
+                  className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-colors"
+                >
+                  Yopish
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

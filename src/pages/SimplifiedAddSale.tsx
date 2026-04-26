@@ -1,23 +1,17 @@
 import { useState, useEffect } from 'react';
 import { 
-  Plus, 
   Trash2, 
   ShoppingCart,
   ArrowLeft,
-  Package,
   User,
   DollarSign,
-  CheckCircle2,
-  X,
   Search
 } from 'lucide-react';
-import CustomerSelector from '../components/CustomerSelector';
 import SimplifiedProductSelector from '../components/SimplifiedProductSelector';
 import api from '../lib/professionalApi';
 import { latinToCyrillic } from '../lib/transliterator';
 import Input from '../components/Input';
 import { generateSimpleReceiptHTML } from '../lib/simpleReceiptPrinter';
-import { formatDateTime } from '../lib/dateUtils';
 import { useNavigate } from 'react-router-dom';
 import { errorHandler } from '../lib/professionalErrorHandler';
 
@@ -68,7 +62,7 @@ export default function SimplifiedAddSale() {
           api.get('/customers')
         ]);
         setProducts(productsRes.data || []);
-        setCustomers((customersRes.data || []).filter(c => c && c.name));
+        setCustomers((customersRes.data || []).filter((c: any) => c && c.name));
       } catch (error) {
         errorHandler.handleError(error, { action: 'loadData' });
       }
@@ -143,6 +137,7 @@ export default function SimplifiedAddSale() {
       
       const receiptData = {
         saleId: sale.id?.slice(0, 8) || 'N/A',
+        receiptNumber: sale.receiptNumber || 'N/A',
         date: new Date().toLocaleDateString('uz-UZ'),
         time: new Date().toLocaleTimeString('uz-UZ'),
         cashier: user.name,
@@ -153,12 +148,18 @@ export default function SimplifiedAddSale() {
           address: ''
         } : selectedCustomer,
         items: cart.map(item => ({
+          id: item.product.id,
           name: item.product.name,
           quantity: item.quantity,
           unit: 'qop',
+          piecesPerBag: item.product.unitsPerBag,
+          pricePerBag: item.pricePerBag,
+          pricePerPiece: item.pricePerBag / (item.product.unitsPerBag || 1),
           pricePerUnit: item.pricePerBag,
-          subtotal: item.subtotal
+          subtotal: item.subtotal,
+          warehouse: item.product.warehouse
         })),
+        subtotal: totalAmount,
         total: totalAmount,
         totalPaid: paidAmount,
         debt: debtAmount > 0 ? debtAmount : 0,
@@ -357,18 +358,22 @@ export default function SimplifiedAddSale() {
                   {isKocha ? (
                     <div className="space-y-4">
                       <input
+                        id="manual-customer-name"
                         type="text"
                         placeholder={latinToCyrillic("Mijoz nomi")}
                         value={manualCustomerName}
                         onChange={(e) => setManualCustomerName(e.target.value)}
                         className="professional-input px-5 py-4 text-lg font-bold"
+                        aria-label={latinToCyrillic("Mijoz nomi")}
                       />
                       <input
+                        id="manual-customer-phone"
                         type="tel"
                         placeholder={latinToCyrillic("Telefon raqami")}
                         value={manualCustomerPhone}
                         onChange={(e) => setManualCustomerPhone(e.target.value)}
                         className="professional-input px-5 py-4 text-lg font-bold"
+                        aria-label={latinToCyrillic("Telefon raqami")}
                       />
                     </div>
                   ) : (
@@ -377,6 +382,7 @@ export default function SimplifiedAddSale() {
                       <div className="relative">
                         <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                         <input
+                          id="customer-search"
                           type="text"
                           placeholder={latinToCyrillic("Mijoz qidirish...")}
                           value={customerSearch}
@@ -490,6 +496,7 @@ export default function SimplifiedAddSale() {
                             <h4 className="font-black text-gray-900 text-base mb-2">{item.product.name}</h4>
                             <div className="flex items-center gap-2">
                               <input
+                                id={`cart-quantity-${index}`}
                                 type="text"
                                 inputMode="numeric"
                                 value={item.quantity || ''}
@@ -499,9 +506,12 @@ export default function SimplifiedAddSale() {
                                   updateCartItem(index, item.product, newQuantity, item.pricePerBag, item.priceUnit);
                                 }}
                                 className="w-16 px-2 py-1 border-2 border-gray-300 rounded-lg text-center font-bold text-sm focus:border-blue-500 focus:outline-none"
+                                aria-label="Miqdor"
                               />
                               <select
+                                id={`cart-unit-${index}`}
                                 value={item.priceUnit}
+                                aria-label="Birlik"
                                 onChange={(e) => {
                                   const newUnit = e.target.value as 'dona' | 'qop';
                                   const oldUnit = item.priceUnit;
@@ -540,6 +550,8 @@ export default function SimplifiedAddSale() {
                                   updateCartItem(index, item.product, item.quantity, newPrice, item.priceUnit);
                                 }}
                                 className="w-20 px-2 py-1 border-2 border-gray-300 rounded-lg text-center font-bold text-sm focus:border-blue-500 focus:outline-none"
+                                aria-label="Narx"
+                                placeholder="0"
                               />
                             </div>
                           </div>
@@ -549,6 +561,7 @@ export default function SimplifiedAddSale() {
                               type="button"
                               onClick={() => removeFromCart(index)}
                               className="text-red-500 hover:text-red-700 mt-2 hover-scale"
+                              aria-label="Savatdan o'chirish"
                             >
                               <Trash2 className="w-5 h-5" />
                             </button>

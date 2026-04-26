@@ -425,6 +425,7 @@ router.delete('/:id', async (req, res) => {
   try {
 
     const customerId = req.params.id;
+    console.log(`🗑️ DELETE /customers/${customerId} - Mijoz o'chirish boshlandi`);
 
     
 
@@ -544,6 +545,7 @@ router.delete('/:id', async (req, res) => {
 
     
 
+    console.log(`✅ DELETE /customers/${customerId} - Mijoz muvaffaqiyatli o'chirildi`);
     res.json({ message: 'Customer deleted successfully' });
 
   } catch (error: any) {

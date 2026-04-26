@@ -78,6 +78,7 @@ export default function CashierAddStock() {
             <button
               onClick={() => navigate('/cashier/inventory')}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="Orqaga"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -102,10 +103,11 @@ export default function CashierAddStock() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Mahsulot tanlash */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label htmlFor="product-select" className="block text-sm font-semibold text-gray-700 mb-2">
                 📦 Mahsulotni tanlang *
               </label>
               <select
+                id="product-select"
                 value={selectedProduct}
                 onChange={(e) => setSelectedProduct(e.target.value)}
                 className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-gray-50"

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import CashboxHistory from '../components/CashboxHistory';
 import api from '../lib/professionalApi';
 import { formatCurrency } from '../lib/utils';
+import { latinToCyrillic } from '../lib/transliterator';
 import { 
   Wallet,
   TrendingUp,
@@ -45,10 +46,14 @@ import {
   } from 'recharts';
 import { exportToExcel } from '../lib/excelUtils';
 import { Input } from '../components/Input';
+import '../styles/ultra-modern-design.css';
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b'];
 
 export default function Cashbox() {
+  // Translation function
+  const t = latinToCyrillic;
+  
   const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'expenses' | 'budget' | 'loans'>('overview');
   const [cashbox, setCashbox] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -556,10 +561,18 @@ export default function Cashbox() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen ultra-bg-gradient">
         <div className="text-center">
-          <Wallet className="w-16 h-16 text-primary mx-auto mb-4 animate-pulse" />
-          <p className="text-lg font-semibold">Юкланмоқда...</p>
+          <div className="relative mb-6">
+            <div className="animate-spin rounded-full h-20 w-20 border-4 border-blue-200 border-t-blue-600 shadow-lg"></div>
+            <Wallet className="w-8 h-8 text-blue-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+          </div>
+          <p className="text-lg font-semibold text-gray-700">Юкланмоқда...</p>
+          <div className="flex justify-center gap-1 mt-3">
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          </div>
         </div>
       </div>
     );
@@ -1114,10 +1127,10 @@ export default function Cashbox() {
             <div className="p-8 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center bg-gray-50/30 dark:bg-gray-800/30">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{t("Oxirgi Tranzaksiyalar")}</h3>
               <div className="flex gap-3">
-                <button onClick={handleExportPDF} className="p-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl text-gray-500 hover:text-emerald-600 transition-colors shadow-sm">
+                <button onClick={handleExportPDF} className="p-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl text-gray-500 hover:text-emerald-600 transition-colors shadow-sm" aria-label="PDF export">
                   <FileText className="w-5 h-5" />
                 </button>
-                <button onClick={handleExportExcel} className="p-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl text-gray-500 hover:text-emerald-600 transition-colors shadow-sm">
+                <button onClick={handleExportExcel} className="p-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl text-gray-500 hover:text-emerald-600 transition-colors shadow-sm" aria-label="Excel export">
                   <FileSpreadsheet className="w-5 h-5" />
                 </button>
               </div>
@@ -1194,7 +1207,7 @@ export default function Cashbox() {
                 </div>
                 {t("Kirim")}
               </h3>
-              <button onClick={() => setShowAddMoney(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors">
+              <button onClick={() => setShowAddMoney(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors" aria-label="Yopish">
                 <MoreHorizontal className="w-5 h-5 rotate-45" />
               </button>
             </div>
@@ -1214,6 +1227,7 @@ export default function Cashbox() {
                 <div className="space-y-3">
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("Valyuta")}</label>
                   <select
+                    aria-label="Valyuta tanlash"
                     value={form.currency}
                     onChange={(e) => setForm({ ...form, currency: e.target.value })}
                     className="w-full h-16 rounded-2xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-6 font-bold text-lg focus:border-emerald-500 outline-none transition-all appearance-none"
@@ -1283,7 +1297,7 @@ export default function Cashbox() {
                 </div>
                 {t("Chiqim")}
               </h3>
-              <button onClick={() => setShowWithdraw(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors">
+              <button onClick={() => setShowWithdraw(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors" aria-label="Yopish">
                 <MoreHorizontal className="w-5 h-5 rotate-45" />
               </button>
             </div>
@@ -1303,6 +1317,7 @@ export default function Cashbox() {
                 <div className="space-y-3">
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("Valyuta")}</label>
                   <select
+                    aria-label="Valyuta tanlash"
                     value={form.currency}
                     onChange={(e) => setForm({ ...form, currency: e.target.value })}
                     className="w-full h-16 rounded-2xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-6 font-bold text-lg focus:border-rose-500 outline-none transition-all appearance-none"
@@ -1372,7 +1387,7 @@ export default function Cashbox() {
                 </div>
                 {t("Transfer")}
               </h3>
-              <button onClick={() => setShowTransfer(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors">
+              <button onClick={() => setShowTransfer(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors" aria-label="Yopish">
                 <MoreHorizontal className="w-5 h-5 rotate-45" />
               </button>
             </div>
@@ -1381,6 +1396,7 @@ export default function Cashbox() {
                 <div className="space-y-3">
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("Qayerdan")}</label>
                   <select
+                    aria-label="Qayerdan o'tkazish"
                     value={transferForm.from}
                     onChange={(e) => setTransferForm({ ...transferForm, from: e.target.value })}
                     className="w-full h-16 rounded-2xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-6 font-bold text-sm focus:border-blue-500 outline-none transition-all appearance-none"
@@ -1393,6 +1409,7 @@ export default function Cashbox() {
                 <div className="space-y-3">
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("Qayerga")}</label>
                   <select
+                    aria-label="Qayerga o'tkazish"
                     value={transferForm.to}
                     onChange={(e) => setTransferForm({ ...transferForm, to: e.target.value })}
                     className="w-full h-16 rounded-2xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-6 font-bold text-sm focus:border-blue-500 outline-none transition-all appearance-none"
@@ -1451,7 +1468,7 @@ export default function Cashbox() {
                 <Filter className="w-5 h-5 text-emerald-600" />
                 {t("FILTRLAR")}
               </h3>
-              <button onClick={() => setShowFilters(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400">
+              <button onClick={() => setShowFilters(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400" aria-label="Yopish">
                 <MoreHorizontal className="w-4 h-4 rotate-45" />
               </button>
             </div>
@@ -1461,6 +1478,8 @@ export default function Cashbox() {
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("Boshlanish")}</label>
                   <input
                     type="date"
+                    aria-label="Boshlanish sanasi"
+                    placeholder="YYYY-MM-DD"
                     value={filters.startDate}
                     onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
                     className="w-full h-12 rounded-xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-4 font-bold text-xs"
@@ -1470,6 +1489,8 @@ export default function Cashbox() {
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("Tugash")}</label>
                   <input
                     type="date"
+                    aria-label="Tugash sanasi"
+                    placeholder="YYYY-MM-DD"
                     value={filters.endDate}
                     onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
                     className="w-full h-12 rounded-xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-4 font-bold text-xs"
@@ -1480,6 +1501,7 @@ export default function Cashbox() {
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("Turi")}</label>
                 <select
+                  aria-label="Turi tanlash"
                   value={filters.type}
                   onChange={(e) => setFilters({ ...filters, type: e.target.value })}
                   className="w-full h-12 rounded-xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-4 font-bold text-xs appearance-none"
@@ -1493,6 +1515,7 @@ export default function Cashbox() {
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("Usul")}</label>
                 <select
+                  aria-label="To'lov usuli tanlash"
                   value={filters.paymentMethod}
                   onChange={(e) => setFilters({ ...filters, paymentMethod: e.target.value })}
                   className="w-full h-12 rounded-xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-4 font-bold text-xs appearance-none"
@@ -1534,7 +1557,7 @@ export default function Cashbox() {
                 </div>
                 {t("VALYUTA")} <span className="text-purple-600">{t("AYIRBOSHLASH")}</span>
               </h3>
-              <button onClick={() => setShowExchange(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400">
+              <button onClick={() => setShowExchange(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400" aria-label="Yopish">
                 <MoreHorizontal className="w-5 h-5 rotate-45" />
               </button>
             </div>
@@ -1585,6 +1608,7 @@ export default function Cashbox() {
                     ))}
                   </div>
                   <select
+                    aria-label="Qaysi hisobdan valyuta almashinuvi"
                     value={exchangeForm.fromType}
                     onChange={(e) => setExchangeForm({...exchangeForm, fromType: e.target.value})}
                     className="w-full h-12 rounded-xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-4 font-bold text-xs appearance-none"
@@ -1614,6 +1638,7 @@ export default function Cashbox() {
                     ))}
                   </div>
                   <select
+                    aria-label="Qaysi hisobga valyuta almashinuvi"
                     value={exchangeForm.toType}
                     onChange={(e) => setExchangeForm({...exchangeForm, toType: e.target.value})}
                     className="w-full h-12 rounded-xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-4 font-bold text-xs appearance-none"
@@ -1685,6 +1710,8 @@ export default function Cashbox() {
                 <input
                   type="text"
                   inputMode="decimal"
+                  aria-label="Ayirboshlash kursi"
+                  placeholder="12500"
                   value={exchangeRateInput}
                   onChange={(e) => {
                     const raw = e.target.value.replace(',', '.');
@@ -1803,7 +1830,7 @@ export default function Cashbox() {
                 </div>
                 {t("YANGI")} <span className="text-rose-600">{t("XARAJAT")}</span>
               </h3>
-              <button onClick={() => setShowExpenseModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400">
+              <button onClick={() => setShowExpenseModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400" aria-label="Yopish">
                 <MoreHorizontal className="w-5 h-5 rotate-45" />
               </button>
             </div>
@@ -1854,6 +1881,7 @@ export default function Cashbox() {
                 <div className="space-y-3">
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("Valyuta")}</label>
                   <select
+                    aria-label="Valyuta tanlash"
                     value={expenseForm.currency}
                     onChange={(e) => setExpenseForm({ ...expenseForm, currency: e.target.value })}
                     className="w-full h-16 rounded-2xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-6 font-bold text-lg focus:border-rose-500 outline-none transition-all appearance-none"
@@ -1868,6 +1896,7 @@ export default function Cashbox() {
                 <div className="space-y-3">
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("To'lov Usuli")}</label>
                   <select
+                    aria-label="To'lov usuli tanlash"
                     value={expenseForm.paymentMethod}
                     onChange={(e) => setExpenseForm({ ...expenseForm, paymentMethod: e.target.value })}
                     className="w-full h-16 rounded-2xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-6 font-bold text-sm focus:border-rose-500 outline-none transition-all appearance-none"
@@ -1881,6 +1910,8 @@ export default function Cashbox() {
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("Sana")}</label>
                   <input
                     type="date"
+                    aria-label="Sana tanlash"
+                    placeholder="YYYY-MM-DD"
                     value={expenseForm.date}
                     onChange={(e) => setExpenseForm({ ...expenseForm, date: e.target.value })}
                     className="w-full h-16 rounded-2xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-6 font-semibold text-sm outline-none"
@@ -1928,7 +1959,7 @@ export default function Cashbox() {
                 </div>
                 {t("KATEGORIYALAR")}
               </h3>
-              <button onClick={() => setShowCategoryModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400">
+              <button onClick={() => setShowCategoryModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400" aria-label="Yopish">
                 <MoreHorizontal className="w-5 h-5 rotate-45" />
               </button>
             </div>
@@ -1952,6 +1983,8 @@ export default function Cashbox() {
                           key={color}
                           type="button"
                           onClick={() => setNewCategoryColor(color)}
+                          title={`Rang: ${color}`}
+                          aria-label={`Rang: ${color}`}
                           className={`w-8 h-8 rounded-full ${color} transition-all ${
                             newCategoryColor === color ? 'ring-4 ring-offset-4 ring-gray-900 dark:ring-white scale-110' : 'hover:scale-110'
                           }`}
@@ -1989,6 +2022,8 @@ export default function Cashbox() {
                         {!isDefault && (
                           <button
                             onClick={() => handleDeleteCategory(category.id)}
+                            title="O'chirish"
+                            aria-label="O'chirish"
                             className="w-10 h-10 flex items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-900/30 text-rose-600 opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-600 hover:text-white"
                           >
                             <TrendingDown className="w-5 h-5 rotate-45" />
@@ -2014,7 +2049,7 @@ export default function Cashbox() {
                 </div>
                 {t("YANGI")} <span className="text-blue-600">{t("BYUDJET")}</span>
               </h3>
-              <button onClick={() => setShowBudgetModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400">
+              <button onClick={() => setShowBudgetModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400" aria-label="Yopish">
                 <MoreHorizontal className="w-5 h-5 rotate-45" />
               </button>
             </div>
@@ -2022,6 +2057,7 @@ export default function Cashbox() {
               <div className="space-y-4">
                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("KATEGORIYA")}</label>
                 <select
+                  aria-label="Kategoriya tanlash"
                   value={budgetForm.category}
                   onChange={(e) => setBudgetForm({ ...budgetForm, category: e.target.value })}
                   className="w-full h-16 rounded-2xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-6 font-bold text-sm focus:border-blue-500 outline-none transition-all appearance-none"
@@ -2054,6 +2090,7 @@ export default function Cashbox() {
                 <div className="space-y-3">
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("VALYUTA")}</label>
                   <select
+                    aria-label="Valyuta tanlash"
                     value={budgetForm.currency}
                     onChange={(e) => setBudgetForm({ ...budgetForm, currency: e.target.value })}
                     className="w-full h-16 rounded-2xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-6 font-bold text-lg focus:border-blue-500 outline-none transition-all appearance-none"
@@ -2068,6 +2105,7 @@ export default function Cashbox() {
                 <div className="space-y-3">
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("OY")}</label>
                   <select
+                    aria-label="Oy tanlash"
                     value={budgetForm.month}
                     onChange={(e) => setBudgetForm({ ...budgetForm, month: parseInt(e.target.value) })}
                     className="w-full h-14 rounded-xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-4 font-bold text-sm focus:border-blue-500 outline-none transition-all appearance-none"
@@ -2080,6 +2118,7 @@ export default function Cashbox() {
                 <div className="space-y-3">
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("YIL")}</label>
                   <select
+                    aria-label="Yil tanlash"
                     value={budgetForm.year}
                     onChange={(e) => setBudgetForm({ ...budgetForm, year: parseInt(e.target.value) })}
                     className="w-full h-14 rounded-xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-4 font-bold text-sm focus:border-blue-500 outline-none transition-all appearance-none"
@@ -2125,7 +2164,7 @@ export default function Cashbox() {
                 </div>
                 {t("YANGI")} <span className="text-purple-600">{t("QARZ")}</span>
               </h3>
-              <button onClick={() => setShowLoanModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400">
+              <button onClick={() => setShowLoanModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400" aria-label="Yopish">
                 <MoreHorizontal className="w-5 h-5 rotate-45" />
               </button>
             </div>
@@ -2162,6 +2201,7 @@ export default function Cashbox() {
                 <div className="space-y-3">
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("VALYUTA")}</label>
                   <select
+                    aria-label="Valyuta tanlash"
                     value={loanForm.currency}
                     onChange={(e) => setLoanForm({ ...loanForm, currency: e.target.value })}
                     className="w-full h-14 rounded-xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-4 font-bold text-sm focus:border-purple-500 outline-none transition-all appearance-none"
@@ -2188,6 +2228,8 @@ export default function Cashbox() {
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("BERILGAN SANA")}</label>
                   <input
                     type="date"
+                    aria-label="Berilgan sana"
+                    placeholder="YYYY-MM-DD"
                     value={loanForm.loanDate}
                     onChange={(e) => setLoanForm({ ...loanForm, loanDate: e.target.value })}
                     className="w-full h-14 rounded-xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-4 font-bold text-sm outline-none"
@@ -2198,6 +2240,8 @@ export default function Cashbox() {
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("QAYTARISH SANASI")}</label>
                   <input
                     type="date"
+                    aria-label="Qaytarish sanasi"
+                    placeholder="YYYY-MM-DD"
                     value={loanForm.dueDate}
                     onChange={(e) => setLoanForm({ ...loanForm, dueDate: e.target.value })}
                     className="w-full h-14 rounded-xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-4 font-bold text-sm outline-none"
@@ -2209,6 +2253,7 @@ export default function Cashbox() {
                 <div className="space-y-3">
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("QAYTARISH TURI")}</label>
                   <select
+                    aria-label="Qaytarish turi tanlash"
                     value={loanForm.repaymentType}
                     onChange={(e) => setLoanForm({ ...loanForm, repaymentType: e.target.value })}
                     className="w-full h-14 rounded-xl border-2 border-gray-100 dark:bg-gray-800 dark:border-gray-800 px-4 font-bold text-sm focus:border-purple-500 outline-none transition-all appearance-none"

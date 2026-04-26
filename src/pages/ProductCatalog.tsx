@@ -495,10 +495,13 @@ export default function ProductCatalog() {
                                   fontSize: '10px'
                                 }}
                                 title="Yorliq chiqarish"
+                                aria-label="Yorliq chiqarish"
                               >
                                 <Printer className="w-3 h-3" />
                               </button>
                               <button 
+                                title="O'chirish"
+                                aria-label="O'chirish"
                                 style={{
                                   padding: '4px 8px',
                                   backgroundColor: '#dc2626',
@@ -529,7 +532,9 @@ export default function ProductCatalog() {
                       placeholder="Variant nomi"
                       style={{ flex: 1, padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '4px', fontSize: '12px' }}
                     />
+                    <label htmlFor="variant-color" style={{ fontSize: '12px', color: '#374151' }}>Rang:</label>
                     <select
+                      id="variant-color"
                       value={newProductColor}
                       onChange={(e) => setNewProductColor(e.target.value)}
                       style={{ padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '4px', fontSize: '12px' }}
@@ -545,6 +550,7 @@ export default function ProductCatalog() {
                     <button
                       onClick={() => addProductVariant(category.name)}
                       disabled={!newProductName.trim() || !newProductColor.trim()}
+                      aria-label="Variant qo'shish"
                       style={{
                         padding: '6px 12px',
                         backgroundColor: (!newProductName.trim() || !newProductColor.trim()) ? '#9ca3af' : '#16a34a',

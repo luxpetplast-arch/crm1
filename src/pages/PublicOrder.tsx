@@ -208,6 +208,7 @@ export default function PublicOrder() {
                           <button
                             onClick={() => removeFromCart(item.productId)}
                             className="text-red-500 hover:text-red-700"
+                            aria-label="Savatdan o'chirish"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -218,6 +219,7 @@ export default function PublicOrder() {
                             <button
                               onClick={() => updateQuantity(item.productId, -1)}
                               className="p-1 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                              aria-label="Miqdorni kamaytirish"
                             >
                               <Minus className="w-4 h-4" />
                             </button>
@@ -227,6 +229,7 @@ export default function PublicOrder() {
                             <button
                               onClick={() => updateQuantity(item.productId, 1)}
                               className="p-1 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                              aria-label="Miqdorni oshirish"
                             >
                               <Plus className="w-4 h-4" />
                             </button>
@@ -251,10 +254,11 @@ export default function PublicOrder() {
 
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium mb-2">
+                      <label htmlFor="customer-name" className="block text-sm font-medium mb-2">
                         Ism *
                       </label>
                       <input
+                        id="customer-name"
                         type="text"
                         value={customerInfo.name}
                         onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
@@ -264,10 +268,11 @@ export default function PublicOrder() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">
+                      <label htmlFor="customer-phone" className="block text-sm font-medium mb-2">
                         Telefon *
                       </label>
                       <input
+                        id="customer-phone"
                         type="tel"
                         value={customerInfo.phone}
                         onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
@@ -278,10 +283,11 @@ export default function PublicOrder() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">
+                      <label htmlFor="customer-email" className="block text-sm font-medium mb-2">
                         Email
                       </label>
                       <input
+                        id="customer-email"
                         type="email"
                         value={customerInfo.email}
                         onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })}
@@ -290,10 +296,11 @@ export default function PublicOrder() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-2">
+                      <label htmlFor="customer-notes" className="block text-sm font-medium mb-2">
                         Izoh
                       </label>
                       <textarea
+                        id="customer-notes"
                         value={customerInfo.notes}
                         onChange={(e) => setCustomerInfo({ ...customerInfo, notes: e.target.value })}
                         rows={3}

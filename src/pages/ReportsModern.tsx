@@ -200,6 +200,7 @@ export default function ReportsModern() {
                 <Search className="w-5 h-5" />
               </div>
               <input
+                id="reports-search"
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -210,10 +211,12 @@ export default function ReportsModern() {
             
             {/* Type Filter */}
             <div className="relative">
+              <label htmlFor="reports-type-filter" className="sr-only">Type Filter</label>
               <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                 <Filter className="w-5 h-5" />
               </div>
               <select
+                id="reports-type-filter"
                 value={selectedType}
                 onChange={(e) => setSelectedType(e.target.value)}
                 className="input-modern pl-12 appearance-none cursor-pointer"
@@ -228,10 +231,12 @@ export default function ReportsModern() {
 
             {/* Status Filter */}
             <div className="relative">
+              <label htmlFor="reports-status-filter" className="sr-only">Status Filter</label>
               <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                 <Filter className="w-5 h-5" />
               </div>
               <select
+                id="reports-status-filter"
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
                 className="input-modern pl-12 appearance-none cursor-pointer"
@@ -249,6 +254,7 @@ export default function ReportsModern() {
           <div className="flex gap-2">
             {/* Refresh Button */}
             <button
+              type="button"
               onClick={loadReports}
               disabled={loading}
               className="btn-gradient-secondary px-4 py-3 flex items-center gap-2 disabled:opacity-50"
@@ -259,6 +265,7 @@ export default function ReportsModern() {
             
             {/* Generate Report Button */}
             <button
+              type="button"
               onClick={() => navigate('/reports/generate')}
               className="btn-gradient-primary px-6 py-3 flex items-center gap-2"
             >
@@ -387,20 +394,26 @@ export default function ReportsModern() {
                       <td className="table-cell">
                         <div className="flex gap-2">
                           <button
+                            type="button"
                             onClick={() => navigate(`/reports/${report.id}`)}
                             className="btn-gradient-secondary p-1"
+                            aria-label="Hisobotni ko'rish"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
+                            type="button"
                             onClick={() => navigate(`/reports/${report.id}/download`)}
                             className="btn-gradient-primary p-1"
+                            aria-label="Hisobotni yuklab olish"
                           >
                             <Download className="w-4 h-4" />
                           </button>
                           <button
+                            type="button"
                             onClick={() => window.print()}
                             className="btn-gradient-secondary p-1"
+                            aria-label="Chop etish"
                           >
                             <Printer className="w-4 h-4" />
                           </button>

@@ -25,6 +25,7 @@ export const SaleCreateSchema = z.object({
   items: z.array(SaleItemSchema).min(1, 'Kamida bitta mahsulot kiritilishi shart'),
   totalAmount: z.union([z.string(), z.number()]).transform(parseMoney),
   paidAmount: z.union([z.string(), z.number()]).transform(parseMoney).optional(),
+  debtAmount: z.union([z.string(), z.number()]).transform(parseMoney).optional(),
   currency: z.enum(['USD', 'UZS']).default('USD'),
   paymentDetails: z.object({
     uzs: z.union([z.string(), z.number()]).transform(parseMoney).optional(),

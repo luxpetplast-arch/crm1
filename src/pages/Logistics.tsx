@@ -124,18 +124,21 @@ export default function Logistics() {
       {/* Tabs */}
       <div className="flex gap-2 border-b overflow-x-auto">
         <button
+          type="button"
           onClick={() => setActiveTab('deliveries')}
           className={`px-3 sm:px-4 py-2 font-medium text-sm sm:text-base whitespace-nowrap ${activeTab === 'deliveries' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`}
         >
           Yetkazib Berishlar
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('vehicles')}
           className={`px-3 sm:px-4 py-2 font-medium text-sm sm:text-base whitespace-nowrap ${activeTab === 'vehicles' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`}
         >
           Mashinalar
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('drivers')}
           className={`px-3 sm:px-4 py-2 font-medium text-sm sm:text-base whitespace-nowrap ${activeTab === 'drivers' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`}
         >
@@ -261,7 +264,8 @@ export default function Logistics() {
                 <Input label="Davlat Raqami" value={form.plateNumber || ''} onChange={(e) => setForm({ ...form, plateNumber: e.target.value })} required />
                 <Input label="Model" value={form.model || ''} onChange={(e) => setForm({ ...form, model: e.target.value })} required />
                 <Input label="Sig'im (kg)" type="number" value={form.capacity || ''} onChange={(e) => setForm({ ...form, capacity: parseFloat(e.target.value) })} required />
-                <select className="w-full px-3 py-2 border rounded" value={form.type || ''} onChange={(e) => setForm({ ...form, type: e.target.value })} required>
+                <label htmlFor="vehicle-type" className="block text-sm font-medium text-gray-700 mb-1">Turi</label>
+                <select id="vehicle-type" className="w-full px-3 py-2 border rounded" value={form.type || ''} onChange={(e) => setForm({ ...form, type: e.target.value })} required>
                   <option value="">Turi</option>
                   <option value="TRUCK">Yuk Mashinasi</option>
                   <option value="VAN">Furgon</option>

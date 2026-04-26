@@ -80,19 +80,38 @@ export const CartItem = ({
   };
 
   const toggleSaleType = () => {
-    const currentPrice = item.pricePerBag || 0;
     const unitsPerBag = parseFloat(item.unitsPerBag?.toString() || '2000') || 2000;
+    const bagQuantity = parseFloat(item.bagDisplayValue || item.quantity?.toString() || '0') || 0;
 
-    let newPrice = currentPrice;
-    if (item.saleType === 'piece' && currentPrice > 0) {
-      newPrice = currentPrice * unitsPerBag;
-    } else if (item.saleType !== 'piece' && currentPrice > 0) {
-      newPrice = currentPrice / unitsPerBag;
+    let newPricePerBag = item.pricePerBag || 0;
+    let newPricePerPiece = item.pricePerPiece || 0;
+
+    if (item.saleType === 'piece') {
+      // Donadan qopga o'tish - dona narxini qop narxiga aylantirish
+      newPricePerBag = (item.pricePerPiece || 0) * unitsPerBag;
+      newPricePerPiece = item.pricePerPiece || 0;
+    } else {
+      // Qopdan donaga o'tish - qop narxini dona narxiga aylantirish
+      newPricePerPiece = (item.pricePerBag || 0) / unitsPerBag;
+      newPricePerBag = item.pricePerBag || 0;
+    }
+
+    // Subtotalni hisoblash
+    let subtotal;
+    if (item.saleType === 'piece') {
+      // Donadan qopga o'tganda
+      subtotal = bagQuantity * newPricePerBag;
+    } else {
+      // Qopdan donaga o'tganda
+      const totalPieces = bagQuantity * unitsPerBag;
+      subtotal = totalPieces * newPricePerPiece;
     }
 
     onUpdate(index, {
       saleType: item.saleType === 'piece' ? 'bag' : 'piece',
-      pricePerBag: newPrice,
+      pricePerBag: newPricePerBag,
+      pricePerPiece: newPricePerPiece,
+      subtotal,
     });
   };
 
@@ -109,6 +128,7 @@ export const CartItem = ({
       <div className="flex justify-between items-start mb-2">
         <div className="flex-1">
           <select
+            aria-label="Mahsulot tanlash"
             value={item.productId}
             onChange={(e) => {
               const newProduct = products.find((p) => p.id === e.target.value);
@@ -187,18 +207,22 @@ export const CartItem = ({
         {/* Quantity and Price Inputs */}
         <div className="grid grid-cols-4 gap-2">
           <div>
-            <label className="text-xs text-gray-500 block mb-1">{latinToCyrillic('Qop')}</label>
+            <label htmlFor={`bag-${index}`} className="text-xs text-gray-500 block mb-1">{latinToCyrillic('Qop')}</label>
             <input
+              id={`bag-${index}`}
               type="text"
+              placeholder="0"
               value={item.bagDisplayValue || item.quantity?.toString() || ''}
               onChange={(e) => handleQuantityChange(e.target.value)}
               className="w-full h-8 px-2 text-sm font-medium border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
             />
           </div>
           <div>
-            <label className="text-xs text-gray-500 block mb-1">{latinToCyrillic('1 qopda')}</label>
+            <label htmlFor={`units-${index}`} className="text-xs text-gray-500 block mb-1">{latinToCyrillic('1 qopda')}</label>
             <input
+              id={`units-${index}`}
               type="text"
+              placeholder="2000"
               value={item.unitsPerBag?.toString() || '2000'}
               onChange={(e) => {
                 const val = e.target.value.replace(/[^0-9.]/g, '');
@@ -220,19 +244,27 @@ export const CartItem = ({
             </div>
           </div>
           <div>
-            <label className="text-xs text-gray-500 block mb-1">
+            <label htmlFor={`price-${index}`} className="text-xs text-gray-500 block mb-1">
               {item.saleType === 'piece'
                 ? `${latinToCyrillic('Narx')} (${getCurrencySymbol(currency)}/dona)`
                 : `${latinToCyrillic('Narx')} (${getCurrencySymbol(currency)}/qop)`}
             </label>
             <input
-              type="text"
+              id={`price-${index}`}
+              type="number"
+              step="0.0001"
+              placeholder="0"
               value={
                 item.saleType === 'piece'
-                  ? item.pricePerPiece?.toFixed(4) || ''
-                  : item.pricePerBag?.toString() || ''
+                  ? item.pricePerPiece || ''
+                  : item.pricePerBag || ''
               }
               onChange={(e) => handlePriceChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  (e.target as HTMLInputElement).blur();
+                }
+              }}
               className="w-full h-8 px-2 text-sm font-medium border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
             />
           </div>

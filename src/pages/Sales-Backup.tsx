@@ -238,46 +238,31 @@ export default function SalesMulti() {
             <ShoppingCart className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
             Multi-Product Sotuvlar
           </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Bir nechta mahsulot bilan sotuv tizimi
-          </p>
         </div>
-        <Button 
-          onClick={() => setShowForm(!showForm)}
-          size="lg"
-          className="w-full sm:w-auto text-base sm:text-lg py-3 sm:py-4"
-        >
-          {showForm ? 'Bekor qilish' : (
-            <>
-              <Plus className="w-5 h-5 mr-2" />
-              Yangi Multi-Sotuv (Ctrl+N)
-            </>
-          )}
-        </Button>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex space-x-2 border-b">
-        <button
-          onClick={() => setActiveTab('sales')}
-          className={`px-4 py-2 font-medium ${
-            activeTab === 'sales'
-              ? 'border-b-2 border-blue-600 text-blue-600'
-              : 'text-gray-600 hover:text-gray-800'
-          }`}
-        >
-          🛒 Multi-Sotuvlar
-        </button>
-        <button
-          onClick={() => setActiveTab('history')}
-          className={`px-4 py-2 font-medium ${
-            activeTab === 'history'
-              ? 'border-b-2 border-blue-600 text-blue-600'
-              : 'text-gray-600 hover:text-gray-800'
-          }`}
-        >
-          📜 Tarix
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab('sales')}
+            className={`px-4 py-2 font-medium ${
+              activeTab === 'sales'
+                ? 'border-b-2 border-blue-600 text-blue-600'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            🛒 Multi-Sotuvlar
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('history')}
+            className={`px-4 py-2 font-medium ${
+              activeTab === 'history'
+                ? 'border-b-2 border-blue-600 text-blue-600'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            📜 Tarix
+          </button>
+        </div>
       </div>
 
       {/* History Tab */}

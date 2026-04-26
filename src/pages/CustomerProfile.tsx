@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Phone, 
   Calendar,
-  DollarSign,
   ShoppingCart,
   AlertTriangle,
   Package,
@@ -12,9 +11,11 @@ import {
   MapPin,
   RefreshCw,
   TrendingUp,
-  TrendingDown,
-  Wallet
+  Wallet,
+  Trash2
 } from 'lucide-react';
+import Modal from '../components/Modal';
+import Button from '../components/Button';
 import api from '../lib/api';
 import { formatCurrency, formatDate } from '../lib/utils';
 import { exportToExcel } from '../lib/excelUtils';
@@ -23,10 +24,13 @@ import { latinToCyrillic } from '../lib/transliterator';
 export default function CustomerProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isCashier = location.pathname.startsWith('/cashier');
   const [customer, setCustomer] = useState<any>(null);
   const [sales, setSales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     loadCustomerData();
@@ -51,6 +55,23 @@ export default function CustomerProfile() {
   const handleRefresh = () => {
     setRefreshing(true);
     loadCustomerData();
+  };
+
+  const handleDeleteCustomer = async () => {
+    try {
+      if (!id) return;
+      console.log('Mijoz o\'chirilmoqda:', id);
+      await api.delete(`/customers/${id}`);
+      console.log('Mijoz muvaffaqiyatli o\'chirildi');
+      setShowDeleteModal(false);
+      alert('✅ Mijoz muvaffaqiyatli o\'chirildi!');
+      navigate(isCashier ? '/cashier/customers' : '/customers');
+    } catch (error: any) {
+      console.error('Delete customer error:', error);
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || 'Mijozni o\'chirishda xatolik yuz berdi';
+      alert('❌ Xatolik: ' + errorMsg);
+      setShowDeleteModal(false);
+    }
   };
 
   if (loading) {
@@ -94,7 +115,7 @@ export default function CustomerProfile() {
       'Qarz': sale.debtAmount,
       'Valyuta': sale.currency,
     }));
-    exportToExcel(historyData, `Mijoz_${customer.name}_Tarixi`);
+    exportToExcel(historyData, { fileName: `Mijoz_${customer.name}_Tarixi` });
   };
 
   return (
@@ -105,6 +126,7 @@ export default function CustomerProfile() {
           <button
             onClick={() => navigate(-1)}
             className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            aria-label="Orqaga"
           >
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
@@ -127,6 +149,15 @@ export default function CustomerProfile() {
           >
             <FileSpreadsheet className="w-4 h-4" />
             Excel
+          </button>
+          <button
+            type="button"
+            onClick={() => { console.log('O\'chirish tugmasi bosildi'); setShowDeleteModal(true); }}
+            className="flex items-center gap-2 px-4 py-2 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-lg text-sm transition-all"
+            title={latinToCyrillic("Mijozni o'chirish")}
+          >
+            <Trash2 className="w-4 h-4" />
+            {latinToCyrillic("O'chirish")}
           </button>
         </div>
       </div>
@@ -247,8 +278,17 @@ export default function CustomerProfile() {
                     <td className="px-4 py-3 text-sm text-gray-900">
                       {formatDate(sale.createdAt)}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate">
-                      {sale.items?.map((i: any) => `${i.name} (${i.quantity})`).join(', ') || '-'}
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      <div className="space-y-1">
+                        {sale.items?.map((i: any, idx: number) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                            <span className="font-medium">{i.name}</span>
+                            <span className="text-gray-400">×</span>
+                            <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-semibold">{i.quantity}</span>
+                          </div>
+                        )) || '-'}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900 text-right font-medium">
                       {formatCurrency(sale.totalAmount, sale.currency)}
@@ -281,6 +321,57 @@ export default function CustomerProfile() {
           </div>
         )}
       </div>
+
+      {/* Mijozni O'chirish Modal */}
+      {showDeleteModal && customer && (
+        <Modal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          title={latinToCyrillic("Mijozni O'chirish")}
+          size="sm"
+        >
+          <div className="space-y-4">
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border-2 border-red-200 dark:border-red-800">
+              <div className="flex items-center gap-3">
+                <Trash2 className="w-6 h-6 text-red-600" />
+                <div>
+                  <h3 className="font-semibold text-red-800 dark:text-red-200">
+                    {latinToCyrillic("Mijozni o'chirishni tasdiqlang")}
+                  </h3>
+                  <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                    {customer.name}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                <strong>{latinToCyrillic("Diqqat:")}</strong> {latinToCyrillic("Mijozni o'chirgandan so'ng, barcha ma'lumotlari (sotuvlar, to'lovlar, qarzlar) ham o'chiriladi. Bu amalni qaytarib bo'lmaydi!")}
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1"
+              >
+                {latinToCyrillic("Bekor qilish")}
+              </Button>
+              <Button
+                type="button"
+                onClick={handleDeleteCustomer}
+                className="flex-1 bg-red-600 hover:bg-red-700"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                {latinToCyrillic("O'chirish")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

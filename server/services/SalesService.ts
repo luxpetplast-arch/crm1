@@ -338,6 +338,35 @@ export class SalesService {
         });
       }
 
+      // 6. Kassir smenasini yangilash (agar ochiq smena bo'lsa)
+      const openShift = await tx.cashierShift.findFirst({
+        where: {
+          userId,
+          status: 'OPEN',
+        },
+      });
+
+      if (openShift) {
+        const method = paymentMethod || 'CASH';
+        const updateData: any = {
+          totalSales: { increment: paidAmount },
+        };
+
+        if (method === 'CASH') {
+          updateData.cashSales = { increment: paidAmount };
+        } else if (method === 'CARD') {
+          updateData.cardSales = { increment: paidAmount };
+        }
+        // CLICK yoki boshqa to'lov turlari totalSales ga qo'shiladi
+
+        await tx.cashierShift.update({
+          where: { id: openShift.id },
+          data: updateData,
+        });
+
+        console.log(`✅ Kassir smenasi yangilandi: ${openShift.id}, +${paidAmount} ${currency}`);
+      }
+
       return { ...sale, items: saleItems };
     });
 

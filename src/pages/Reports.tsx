@@ -1,8 +1,4 @@
 import { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
-import Button from '../components/Button';
-import Input from '../components/Input';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/Table';
 import api from '../lib/api';
 import { latinToCyrillic } from '../lib/transliterator';
 import { 
@@ -168,6 +164,7 @@ export default function Reports() {
               <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-[0.2em]">{latinToCyrillic("Hisobot Turi")}</label>
               <div className="relative">
                 <select
+                  aria-label="Hisobot turi tanlash"
                   className="w-full h-14 px-5 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-bold text-gray-900 dark:text-white appearance-none cursor-pointer transition-all outline-none"
                   value={reportType}
                   onChange={(e) => setReportType(e.target.value)}
@@ -192,6 +189,8 @@ export default function Reports() {
               <div className="relative">
                 <input
                   type="date"
+                  aria-label="Boshlanish sanasi"
+                  placeholder="YYYY-MM-DD"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   className="w-full h-14 px-5 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-bold text-gray-900 dark:text-white outline-none transition-all"
@@ -206,6 +205,8 @@ export default function Reports() {
               <div className="relative">
                 <input
                   type="date"
+                  aria-label="Tugash sanasi"
+                  placeholder="YYYY-MM-DD"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   className="w-full h-14 px-5 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-blue-500 rounded-2xl font-bold text-gray-900 dark:text-white outline-none transition-all"
@@ -219,20 +220,22 @@ export default function Reports() {
               <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-[0.2em]">{latinToCyrillic("Amallar")}</label>
               <div className="flex gap-3">
                 <button 
+                  type="button"
                   onClick={generateReport} 
                   disabled={loading}
                   className="flex-1 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-semibold text-sm tracking-widest transition-all shadow-lg shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  <FileText className="w-5 h-5" />
+                  <FileSpreadsheet className="w-5 h-5" />
                   {loading ? latinToCyrillic('Yuklanmoqda...') : latinToCyrillic('YARATISH')}
                 </button>
                 {data.length > 0 && (
                   <button 
+                    type="button"
                     onClick={exportToCSV}
                     className="h-14 px-5 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-600 rounded-2xl font-semibold text-sm transition-all flex items-center justify-center"
-                    title={latinToCyrillic("Excelga yuklash")}
                   >
-                    <FileSpreadsheet className="w-5 h-5" />
+                    <Download className="w-5 h-5" />
+                    {latinToCyrillic('YUKLAB OLISH')}
                   </button>
                 )}
               </div>

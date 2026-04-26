@@ -23,6 +23,7 @@ export default function Customers() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [exchangeRates, setExchangeRates] = useState({ USD_TO_UZS: 12500, EUR_TO_UZS: 13500 });
   const [form, setForm] = useState({ name: '', phone: '', category: 'NORMAL', telegramId: '' });
@@ -51,13 +52,13 @@ export default function Customers() {
 
   // Qarzdor mijozlarni filtrlash
   const filteredCustomers = customers.filter(customer => {
-    if (filter === 'debtors') return (customer.debtUSD > 0 || customer.debtUZS > 0);
+    if (filter === 'debtors') return ((customer.debtUSD || 0) > 0 || (customer.debtUZS || 0) > 0);
     if (filter === 'vip') return customer.category === 'VIP';
     return true;
   });
 
   // Statistika
-  const debtCustomers = customers.filter(c => (c.debtUSD > 0 || c.debtUZS > 0));
+  const debtCustomers = customers.filter(c => ((c.debtUSD || 0) > 0 || (c.debtUZS || 0) > 0));
   const totalDebtUSD = debtCustomers.reduce((sum, c) => sum + (c.debtUSD || 0), 0);
   const totalDebtUZS = debtCustomers.reduce((sum, c) => sum + (c.debtUZS || 0), 0);
   const vipCustomers = customers.filter(c => c.category === 'VIP');
@@ -140,6 +141,11 @@ export default function Customers() {
 
       // To'lovni yuborish. Backend'da qaysi valyuta qarzini qanday tartibda yopish
       // avtomatik hisoblanishi uchun paymentDetails va umumiy amount yuboriladi.
+      if (!selectedCustomer) {
+        alert('Xatolik: Mijmor tanlanmagan');
+        return;
+      }
+      
       await api.post(`/customers/${selectedCustomer.id}/payment`, {
         description: paymentForm.description,
         paymentDetails: {
@@ -173,6 +179,11 @@ export default function Customers() {
   const handleApplyDiscountTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!selectedCustomer) {
+      alert('⚠️ Iltimos, mijozni tanlang!');
+      return;
+    }
+    
     const discount = parseFloat(discountAmount);
     if (!discount || discount === 0) {
       alert('⚠️ Iltimos, chegirma miqdorini kiriting!');
@@ -203,22 +214,48 @@ export default function Customers() {
   };
 
   const handleDeleteCustomer = (customer: any, e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
+    console.log('Mijoz o\'chirish tugmasi bosildi:', customer.id, customer.name);
     setSelectedCustomer(customer);
     setShowDeleteModal(true);
+    console.log('Delete modal ochildi:', true);
   };
 
   const confirmDeleteCustomer = async () => {
     try {
+      if (!selectedCustomer) {
+        alert('Xatolik: Mijoz tanlanmagan');
+        return;
+      }
+      console.log('Mijoz o\'chirilmoqda:', selectedCustomer.id, selectedCustomer.name);
       await api.delete(`/customers/${selectedCustomer.id}`);
+      console.log('Mijoz muvaffaqiyatli o\'chirildi');
       setShowDeleteModal(false);
       setSelectedCustomer(null);
       loadCustomers();
+      alert('✅ Mijoz muvaffaqiyatli o\'chirildi!');
     } catch (error: any) {
       console.error('Delete customer error:', error);
+      console.error('Error response:', error.response);
+      console.error('Error message:', error.message);
       // Modalni yopish va xatolikni ko'rsatish
       setShowDeleteModal(false);
       setSelectedCustomer(null);
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || error.message || 'Mijozni o\'chirishda xatolik yuz berdi';
+      alert('❌ Xatolik: ' + errorMsg);
+    }
+  };
+
+  // Barcha mijozlarni o'chirish
+  const deleteAllCustomers = async () => {
+    try {
+      await api.delete('/customers/all');
+      alert('✅ Barcha mijozlar muvaffaqiyatli o\'chirildi!');
+      loadCustomers();
+    } catch (error: any) {
+      console.error('Delete all customers error:', error);
+      alert(error.response?.data?.error || 'Mijozlarni o\'chirishda xatolik yuz berdi');
     }
   };
 
@@ -243,7 +280,7 @@ export default function Customers() {
       'Oxirgi xarid': c.lastPurchase ? new Date(c.lastPurchase).toLocaleDateString() : '-'
     }));
     
-    exportToExcel(dataToExport, 'Mijozlar_Ro\'yxati', 'Mijozlar');
+    exportToExcel(dataToExport, { fileName: 'Mijozlar_Ro\'yxati', sheetName: 'Mijozlar' });
   };
 
   return (
@@ -267,6 +304,27 @@ export default function Customers() {
             </div>
             
             <div className="flex items-center gap-3">
+              {customers.length > 0 && (
+                <button 
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    console.log('🗑️ O\'CHIRISH tugmasi bosildi! (onMouseDown)');
+                  }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🗑️ O\'CHIRISH tugmasi bosildi! (onClick)');
+                    console.log('   customers.length:', customers.length);
+                    setShowDeleteAllModal(true);
+                    console.log('   Modal ochilmoqda...');
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium text-sm transition-all shadow-lg shadow-red-600/30 hover:scale-105 active:scale-95 cursor-pointer pointer-events-auto relative z-10"
+                >
+                  <Trash2 className="w-4 h-4 pointer-events-none" />
+                  <span className="pointer-events-none">O'CHIRISH ({customers.length})</span>
+                </button>
+              )}
               <button 
                 onClick={handleExportExcel}
                 className="flex items-center gap-2 px-4 py-2.5 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white border border-white/20 rounded-xl font-medium text-sm transition-all"
@@ -353,8 +411,9 @@ export default function Customers() {
                     className="rounded-lg h-11 text-sm"
                   />
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">KATEGORIYA</label>
+                    <label htmlFor="customer-category" className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">KATEGORIYA</label>
                     <select
+                      id="customer-category"
                       className="w-full h-11 px-4 bg-gray-50 dark:bg-gray-800 border-none rounded-lg font-bold text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500/20"
                       value={form.category}
                       onChange={(e) => setForm({ ...form, category: e.target.value })}
@@ -377,21 +436,27 @@ export default function Customers() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredCustomers.map((customer, index) => {
-            const isDebtor = (customer.debtUSD > 0 || customer.debtUZS > 0);
+            const isDebtor = ((customer.debtUSD || 0) > 0 || (customer.debtUZS || 0) > 0);
             const isVIP = customer.category === 'VIP';
             const isRisk = customer.category === 'RISK';
             
             return (
               <div 
                 key={customer.id}
-                onClick={() => navigate(isCashier ? `/cashier/customers/${customer.id}` : `/customers/${customer.id}`)}
+                onClick={(e) => {
+                  // Only navigate if clicking on the card background, not on buttons
+                  const target = e.target as HTMLElement;
+                  if (!target.closest('button')) {
+                    navigate(isCashier ? `/cashier/customers/${customer.id}` : `/customers/${customer.id}`);
+                  }
+                }}
                 className={`group relative bg-white rounded-3xl p-6 shadow-lg shadow-slate-200/60 hover:shadow-2xl hover:shadow-slate-300/50 transition-all duration-500 hover:-translate-y-2 cursor-pointer border border-slate-100/50 overflow-hidden ${
                   isRisk ? 'ring-2 ring-rose-200' : 
                   isVIP ? 'ring-2 ring-amber-200' : ''
                 }`}
               >
                 {/* Hover gradient background */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${isVIP ? 'from-amber-50/50 via-orange-50/30 to-transparent' : isRisk ? 'from-rose-50/50 via-pink-50/30 to-transparent' : 'from-blue-50/50 via-indigo-50/30 to-transparent'} opacity-0 group-hover:opacity-100 transition-opacity duration-500`}></div>
+                <div className={`absolute inset-0 bg-gradient-to-br ${isVIP ? 'from-amber-50/50 via-orange-50/30 to-transparent' : isRisk ? 'from-rose-50/50 via-pink-50/30 to-transparent' : 'from-blue-50/50 via-indigo-50/30 to-transparent'} opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`}></div>
                 
                 {/* Status Badge & VIP - Premium */}
                 <div className="relative flex items-center justify-between mb-5">
@@ -435,36 +500,47 @@ export default function Customers() {
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div className="p-3 bg-gradient-to-br from-blue-50 to-blue-100/30 rounded-xl border border-blue-100">
                     <p className="text-xs text-blue-600 font-medium mb-1">{latinToCyrillic("Qarz (USD)")}</p>
-                    <p className={`text-lg font-bold ${customer.debtUSD > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    <p className={`text-lg font-bold ${(customer.debtUSD || 0) > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                       ${customer.debtUSD?.toFixed(0) || '0'}
                     </p>
                   </div>
                   <div className="p-3 bg-gradient-to-br from-emerald-50 to-emerald-100/30 rounded-xl border border-emerald-100">
                     <p className="text-xs text-emerald-600 font-medium mb-1">{latinToCyrillic("Qarz (UZS)")}</p>
-                    <p className={`text-lg font-bold ${customer.debtUZS > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    <p className={`text-lg font-bold ${(customer.debtUZS || 0) > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                       {customer.debtUZS?.toLocaleString() || '0'}
                     </p>
                   </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-2">
+                {/* Action Buttons - Fixed */}
+                <div className="flex gap-2 relative z-50" onClick={(e) => e.stopPropagation()}>
                   <button 
-                    onClick={(e) => handlePayDebt(customer, e)}
-                    className="flex-1 h-10 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl font-semibold text-xs uppercase tracking-wide transition-all shadow-md shadow-emerald-500/25 hover:shadow-lg hover:shadow-emerald-500/30 flex items-center justify-center gap-1.5 active:scale-95"
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); handlePayDebt(customer, e); }}
+                    className="relative z-50 flex-1 h-10 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl font-semibold text-xs uppercase tracking-wide transition-all shadow-md shadow-emerald-500/25 hover:shadow-lg hover:shadow-emerald-500/30 flex items-center justify-center gap-1.5 active:scale-95"
+                    style={{ pointerEvents: 'auto' }}
                   >
                     <DollarSign className="w-4 h-4" />
                     {latinToCyrillic("To'lov")}
                   </button>
                   <button 
-                    onClick={(e) => { e.stopPropagation(); navigate(isCashier ? `/cashier/sales?customerId=${customer.id}` : `/sales?customerId=${customer.id}`); }}
-                    className="w-10 h-10 bg-slate-100 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+                    type="button"
+                    title={latinToCyrillic("Sotuvlar")}
+                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); navigate(isCashier ? `/cashier/sales?customerId=${customer.id}` : `/sales?customerId=${customer.id}`); }}
+                    className="relative z-50 w-10 h-10 bg-slate-100 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+                    style={{ pointerEvents: 'auto' }}
+                    aria-label={latinToCyrillic("Sotuvlar")}
                   >
                     <Eye className="w-4 h-4" />
                   </button>
                   <button 
-                    onClick={(e) => handleDeleteCustomer(customer, e)}
-                    className="w-10 h-10 bg-rose-50 hover:bg-rose-500 text-rose-500 hover:text-white rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+                    type="button"
+                    title={latinToCyrillic("Mijozni o'chirish")}
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      handleDeleteCustomer(customer, e); 
+                    }}
+                    className="relative z-50 w-10 h-10 bg-rose-500 hover:bg-rose-600 text-white rounded-xl flex items-center justify-center active:scale-95 border-2 border-rose-600 shadow-lg transition-all"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -494,7 +570,7 @@ export default function Customers() {
                       <span className="font-semibold">USD Qarz:</span>
                     </div>
                     <span className="text-xl font-bold text-red-600">
-                      ${selectedCustomer.debtUSD.toFixed(2)} USD
+                      ${(selectedCustomer.debtUSD || 0).toFixed(2)} USD
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -503,7 +579,7 @@ export default function Customers() {
                       <span className="font-semibold">UZS Qarz:</span>
                     </div>
                     <span className="text-xl font-bold text-red-600">
-                      {selectedCustomer.debtUZS.toLocaleString()} UZS
+                      {(selectedCustomer.debtUZS || 0).toLocaleString()} UZS
                     </span>
                   </div>
                 </div>
@@ -600,8 +676,8 @@ export default function Customers() {
                         const pUSD = parseFloat(paymentForm.paidUSD) || 0;
                         const pUZS = (parseFloat(paymentForm.paidUZS) || 0) + (parseFloat(paymentForm.paidCLICK) || 0);
                         
-                        let remUSD = selectedCustomer.debtUSD;
-                        let remUZS = selectedCustomer.debtUZS;
+                        let remUSD = selectedCustomer.debtUSD || 0;
+                        let remUZS = selectedCustomer.debtUZS || 0;
                         
                         // 1. USD to'lov avval USD qarzni yopadi
                         const coverUSD = Math.min(remUSD, pUSD);
@@ -790,6 +866,7 @@ export default function Customers() {
                 Bekor qilish
               </Button>
               <Button
+                type="button"
                 onClick={confirmDeleteCustomer}
                 className="flex-1 bg-red-600 hover:bg-red-700"
               >
@@ -799,6 +876,66 @@ export default function Customers() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Barcha Mijozlarni O'chirish Modal */}
+      {showDeleteAllModal && (
+        <div 
+          className="fixed top-0 left-0 right-0 bottom-0 w-screen h-screen bg-black/70 backdrop-blur-md flex items-center justify-center z-[99999] p-4" 
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+          onClick={() => {
+            console.log('❌ Modal backdrop bosildi - yopilmoqda');
+            setShowDeleteAllModal(false);
+          }}
+        >
+          <div 
+            className="bg-white dark:bg-gray-900 rounded-2xl max-w-md w-full p-6 shadow-2xl transform transition-all" 
+            style={{ position: 'relative', zIndex: 100000 }}
+            onClick={e => {
+              e.stopPropagation();
+              console.log('✅ Modal content bosildi - ochiq qoladi');
+            }}
+          >
+            <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Barcha Mijozlarni O'chirish</h2>
+            
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border-2 border-red-200 dark:border-red-800 mb-4">
+              <div className="flex items-center gap-3">
+                <Trash2 className="w-6 h-6 text-red-600" />
+                <div>
+                  <h3 className="font-semibold text-red-800 dark:text-red-200">Xavfli amal!</h3>
+                  <p className="text-sm text-red-600 dark:text-red-400 mt-1">{customers.length} ta mijoz o'chiriladi</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg mb-6">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                <strong>Diqqat:</strong> Barcha mijozlar va ularning ma'lumotlari (sotuvlar, to'lovlar, qarzlar) o'chiriladi. Bu amalni qaytarib bo'lmaydi!
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteAllModal(false)}
+                className="flex-1 py-2.5 px-4 border border-gray-300 dark:border-gray-700 rounded-lg font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                Bekor qilish
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteAllModal(false);
+                  deleteAllCustomers();
+                }}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-lg py-2.5 font-medium flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                O'chirish
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1,9 +1,8 @@
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Plus,
   DollarSign,
-  Printer,
   ShoppingCart,
   Receipt,
   Search,
@@ -23,10 +22,13 @@ const printReceipt = (sale: Sale) => {
   const user = userStr ? JSON.parse(userStr) : { name: 'Kassir' };
 
   const receiptItems = (sale.items || []).map((item: any) => ({
+    id: item?.id || item?.product?.id || 'N/A',
     name: item?.product?.name || item?.productName || 'Nomalum',
     quantity: item?.quantity || 0,
     unit: item?.saleType === 'piece' ? 'dona' : 'qop',
     piecesPerBag: item?.product?.unitsPerBag || item?.unitsPerBag || 2000,
+    pricePerBag: item?.pricePerBag || item?.price || 0,
+    pricePerPiece: item?.pricePerPiece || (item?.pricePerBag / (item?.product?.unitsPerBag || 2000)) || 0,
     pricePerUnit: item?.pricePerBag || item?.pricePerUnit || 0,
     subtotal: item?.subtotal || 0,
   }));
@@ -53,8 +55,8 @@ const printReceipt = (sale: Sale) => {
       usd: sale.paymentDetails?.usd || 0,
       click: sale.paymentDetails?.click || 0,
     },
-    totalPaid: sale.paid || 0,
-    debt: sale.debt || 0,
+    totalPaid: sale.paidAmount || sale.paid || 0,
+    debt: sale.debtAmount || sale.debt || 0,
     companyInfo: {
       name: 'LUX PET PLAST',
       address: "Buxoro viloyati, Vobkent tumani",
@@ -72,6 +74,9 @@ const printReceipt = (sale: Sale) => {
 
 export default function SalesClean() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isCashierRoute = location.pathname.startsWith('/cashier');
+  const addSalePath = isCashierRoute ? '/cashier/sales/add' : '/sales/add';
   const {
     filteredSales,
     stats,
@@ -87,9 +92,9 @@ export default function SalesClean() {
 
   const handleEdit = useCallback(
     (sale: Sale) => {
-      navigate('/sales/add', { state: { editSale: sale } });
+      navigate(addSalePath, { state: { editSale: sale } });
     },
-    [navigate]
+    [navigate, addSalePath]
   );
 
   const handlePrint = useCallback((sale: Sale) => {
@@ -115,6 +120,7 @@ export default function SalesClean() {
         <div className="text-center">
           <p className="text-red-600 font-bold">{error}</p>
           <button
+            type="button"
             onClick={() => window.location.reload()}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg"
           >
@@ -128,8 +134,12 @@ export default function SalesClean() {
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 pb-12">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 shadow-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 shadow-xl">
+        {/* Decorative elements with pointer-events-none */}
+        <div className="absolute -top-20 -right-20 w-60 h-60 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pointer-events-auto">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-lg ring-1 ring-white/30">
@@ -141,7 +151,7 @@ export default function SalesClean() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 relative z-50">
               {/* Search */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300" />
@@ -150,7 +160,7 @@ export default function SalesClean() {
                   placeholder={latinToCyrillic('Qidiruv...')}
                   value={filter.search}
                   onChange={(e) => setFilter({ ...filter, search: e.target.value })}
-                  className="pl-10 pr-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-sm text-white placeholder-blue-200 focus:outline-none focus:bg-white/20 w-48"
+                  className="pl-10 pr-4 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-sm text-white placeholder-blue-200 focus:outline-none focus:bg-white/20 w-48 cursor-pointer"
                 />
               </div>
 
@@ -165,14 +175,19 @@ export default function SalesClean() {
                     onChange={(e) => setExchangeRate(parseFloat(e.target.value) || 12500)}
                     className="w-20 text-sm font-semibold text-white bg-white/20 border border-white/30 rounded-lg px-2 py-1 focus:outline-none focus:bg-white/30"
                     min="1"
+                    placeholder="12500"
                   />
                   <span className="text-xs text-blue-200">UZS</span>
                 </div>
               </div>
 
               <button
-                onClick={() => navigate('/cashier/sales/add')}
-                className="bg-emerald-500 hover:bg-emerald-400 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-lg shadow-emerald-500/30 flex items-center gap-2 hover:scale-105 active:scale-95"
+                onClick={() => {
+                  console.log('Yangi Sotuv button clicked!', { isCashierRoute, addSalePath });
+                  navigate(addSalePath);
+                }}
+                className="bg-emerald-500 hover:bg-emerald-400 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-lg shadow-emerald-500/30 flex items-center gap-2 hover:scale-105 active:scale-95 cursor-pointer relative"
+                type="button"
               >
                 <Plus className="w-5 h-5" />
                 {latinToCyrillic('Yangi Sotuv')}
@@ -187,6 +202,7 @@ export default function SalesClean() {
         {/* Tabs */}
         <div className="flex p-1.5 bg-white/80 backdrop-blur-sm rounded-2xl w-fit shadow-lg shadow-blue-900/5 border border-white/50 mb-6">
           <button
+            type="button"
             onClick={() => setActiveTab('sales')}
             className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
               activeTab === 'sales'
@@ -198,6 +214,7 @@ export default function SalesClean() {
             {latinToCyrillic('Amaldagi sotuvlar')}
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('history')}
             className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
               activeTab === 'history'
@@ -240,7 +257,8 @@ export default function SalesClean() {
                   {latinToCyrillic('Birinchi sotuvni yaratish uchun quyidagi tugmani bosing')}
                 </p>
                 <button
-                  onClick={() => navigate('/cashier/sales/add')}
+                  type="button"
+                  onClick={() => navigate(addSalePath)}
                   className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-2xl font-semibold text-base transition-all shadow-lg shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/30 hover:-translate-y-0.5"
                 >
                   <Plus className="w-5 h-5" />

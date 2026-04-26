@@ -133,7 +133,9 @@ export default function Statistics() {
         </div>
         
         <div className="flex gap-2 flex-wrap">
+          <label htmlFor="time-range" className="sr-only">Vaqt oralig'i</label>
           <select
+            id="time-range"
             className="px-4 py-2 bg-background border border-border rounded-lg"
             value={timeRange}
             onChange={(e) => setTimeRange(e.target.value)}
@@ -166,6 +168,7 @@ export default function Statistics() {
           { id: 'financial', label: 'Moliyaviy', icon: DollarSign },
         ].map(tab => (
           <button
+            type="button"
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 px-4 py-2 border-b-2 transition-colors whitespace-nowrap ${

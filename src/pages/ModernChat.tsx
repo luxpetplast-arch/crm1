@@ -530,6 +530,7 @@ export default function ModernChat() {
             <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="Menyu"
             >
               <MoreVertical className="w-5 h-5 text-gray-600" />
             </button>
@@ -552,18 +553,22 @@ export default function ModernChat() {
               {/* Filters */}
               <div className="flex gap-2 mb-3">
                 <select
+                  id="filter-status"
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value as any)}
                   className="flex-1 px-3 py-1 text-sm bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label="Holat bo'yicha filtr"
                 >
                   <option value="all">{latinToCyrillic('Barchasi')}</option>
                   <option value="unread">{latinToCyrillic('O\'qilmagan')}</option>
                   <option value="starred">{latinToCyrillic('Yulduzcha')}</option>
                 </select>
                 <select
+                  id="sort-by"
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as any)}
                   className="flex-1 px-3 py-1 text-sm bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label="Saralash"
                 >
                   <option value="recent">{latinToCyrillic('So\'nggi')}</option>
                   <option value="unread">{latinToCyrillic('O\'qilmagan')}</option>
@@ -663,16 +668,16 @@ export default function ModernChat() {
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                  <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors" aria-label="Qo'ng'iroq">
                     <Phone className="w-5 h-5 text-gray-600" />
                   </button>
-                  <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                  <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors" aria-label="Video qo'ng'iroq">
                     <Video className="w-5 h-5 text-gray-600" />
                   </button>
-                  <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                  <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors" aria-label="Ma'lumot">
                     <Info className="w-5 h-5 text-gray-600" />
                   </button>
-                  <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                  <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors" aria-label="Ko'proq">
                     <MoreVertical className="w-5 h-5 text-gray-600" />
                   </button>
                 </div>
@@ -755,6 +760,7 @@ export default function ModernChat() {
                   <button
                     onClick={() => setReplyingTo(null)}
                     className="text-blue-500 hover:text-blue-700"
+                    aria-label="Bekor qilish"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -850,6 +856,7 @@ export default function ModernChat() {
                   type="button"
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   title={latinToCyrillic('Rejalashtirish')}
+                  aria-label={latinToCyrillic('Rejalashtirish')}
                 >
                   <Calendar className="w-5 h-5 text-gray-600" />
                 </button>
@@ -859,6 +866,7 @@ export default function ModernChat() {
                   onClick={handleVoiceRecord}
                   className={`p-2 rounded-lg transition-colors ${isRecording ? 'bg-red-100 text-red-600' : 'hover:bg-gray-100'}`}
                   title={latinToCyrillic('Ovozli xabar')}
+                  aria-label={latinToCyrillic('Ovozli xabar')}
                 >
                   <Mic className="w-5 h-5" />
                 </button>
@@ -868,6 +876,7 @@ export default function ModernChat() {
                   onClick={handleVideoRecord}
                   className={`p-2 rounded-lg transition-colors ${isVideoMode ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'}`}
                   title={latinToCyrillic('Video xabar')}
+                  aria-label={latinToCyrillic('Video xabar')}
                 >
                   <Video className="w-5 h-5" />
                 </button>
@@ -886,6 +895,7 @@ export default function ModernChat() {
                   onClick={handleNotificationToggle}
                   className={`p-2 rounded-lg transition-colors ${notificationsEnabled ? 'text-green-600' : 'text-gray-400'}`}
                   title={latinToCyrillic('Bildirishnomalar')}
+                  aria-label={latinToCyrillic('Bildirishnomalar')}
                 >
                   <Bell className="w-5 h-5" />
                 </button>
@@ -897,6 +907,7 @@ export default function ModernChat() {
                   onClick={() => fileInputRef.current?.click()}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   title={latinToCyrillic('Fayl biriktirish')}
+                  aria-label={latinToCyrillic('Fayl biriktirish')}
                 >
                   <Paperclip className="w-5 h-5 text-gray-600" />
                 </button>
@@ -906,6 +917,7 @@ export default function ModernChat() {
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   title={latinToCyrillic('Emoji')}
+                  aria-label={latinToCyrillic('Emoji')}
                 >
                   <Smile className="w-5 h-5 text-gray-600" />
                 </button>
@@ -927,6 +939,7 @@ export default function ModernChat() {
                   type="submit"
                   disabled={(!newMessage.trim() && !isRecording) || sending}
                   className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label={sending ? latinToCyrillic('Yuborilmoqda...') : latinToCyrillic('Yuborish')}
                 >
                   {sending ? (
                     <RefreshCw className="w-5 h-5 animate-spin" />

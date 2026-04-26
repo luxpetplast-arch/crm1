@@ -706,9 +706,9 @@ export default function AddSale() {
         paymentType: form.paymentType,
         currency: form.currency,
         isKocha: form.isKocha,
-        total: totalAmount,
-        paid: paidAmount,
-        debt: debtAmount,
+        totalAmount: totalAmount,
+        paidAmount: paidAmount,
+        debtAmount: debtAmount,
         exchangeRate: parseFloat(exchangeRate),
         createdAt: new Date(),
         status: debtAmount > 0 ? 'partial' : 'completed'
@@ -2056,13 +2056,13 @@ export default function AddSale() {
                           <div className="flex justify-between text-base mb-2">
                             <span className="text-gray-500">{latinToCyrillic("Qarz")}:</span>
                             <span className="font-bold text-red-600">
-                              {getCurrencySymbol()}{debtAmount.toFixed(form.currency === 'UZS' ? 0 : 2)}
+                              {getCurrencySymbol()}{getDisplayAmount(debtAmount)}
                             </span>
                           </div>
                           <div className="flex justify-between text-base">
                             <span className="text-gray-500">{latinToCyrillic("To'langan")}:</span>
                             <span className="font-bold text-green-600">
-                              {getCurrencySymbol()}{paidAmount.toFixed(form.currency === 'UZS' ? 0 : 2)}
+                              {getCurrencySymbol()}{getDisplayAmount(paidAmount)}
                             </span>
                           </div>
                         </div>
@@ -2070,7 +2070,7 @@ export default function AddSale() {
                         <div className="bg-blue-600 text-white p-4 rounded-xl">
                           <div className="flex justify-between items-center">
                             <span className="font-medium">{latinToCyrillic("JAMI")}:</span>
-                            <span className="text-2xl font-bold">{getCurrencySymbol()}{getDisplayAmount(form.items.reduce((sum, item) => sum + (item.subtotal || 0), 0))}</span>
+                            <span className="text-2xl font-bold">{getCurrencySymbol()}{getDisplayAmount(totalAmount)}</span>
                           </div>
                         </div>
                       </div>

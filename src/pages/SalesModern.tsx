@@ -12,7 +12,8 @@ import {
   Download,
   ArrowLeft,
   Plus,
-  BarChart3
+  BarChart3,
+  Edit2
 } from 'lucide-react';
 import { latinToCyrillic } from '../lib/transliterator';
 import ModernLayout from '../components/ModernLayout';
@@ -195,6 +196,7 @@ export default function SalesModern() {
                 <Search className="w-5 h-5" />
               </div>
               <input
+                id="sales-search"
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -205,10 +207,12 @@ export default function SalesModern() {
             
             {/* Status Filter */}
             <div className="relative">
+              <label htmlFor="sales-status-filter" className="sr-only">Status Filter</label>
               <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                 <Filter className="w-5 h-5" />
               </div>
               <select
+                id="sales-status-filter"
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
                 className="input-modern pl-12 appearance-none cursor-pointer"
@@ -223,10 +227,12 @@ export default function SalesModern() {
 
             {/* Period Filter */}
             <div className="relative">
+              <label htmlFor="sales-period-filter" className="sr-only">Period Filter</label>
               <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                 <Calendar className="w-5 h-5" />
               </div>
               <select
+                id="sales-period-filter"
                 value={selectedPeriod}
                 onChange={(e) => setSelectedPeriod(e.target.value)}
                 className="input-modern pl-12 appearance-none cursor-pointer"
@@ -246,6 +252,7 @@ export default function SalesModern() {
           
           {/* Add Sale Button */}
           <button
+            type="button"
             onClick={() => navigate('/cashier/sales/add-simple')}
             className="btn-gradient-primary px-6 py-3 flex items-center gap-2"
           >
@@ -376,16 +383,20 @@ export default function SalesModern() {
                       <td className="table-cell">
                         <div className="flex gap-2">
                           <button
+                            type="button"
                             onClick={() => navigate(`/sales/${sale.id}`)}
                             className="btn-gradient-secondary p-1"
+                            aria-label="Sotuvni ko'rish"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
+                            type="button"
                             onClick={() => navigate(`/sales/${sale.id}/edit`)}
                             className="btn-gradient-primary p-1"
+                            aria-label="Sotuvni tahrirlash"
                           >
-                            <Download className="w-4 h-4" />
+                            <Edit2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>

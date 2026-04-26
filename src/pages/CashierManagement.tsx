@@ -240,6 +240,7 @@ export default function CashierManagement() {
               <button
                 onClick={loadCashiers}
                 className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label={latinToCyrillic("Yangilash")}
               >
                 <RefreshCw className="w-5 h-5" />
               </button>
@@ -378,6 +379,7 @@ export default function CashierManagement() {
                             onClick={() => openPasswordModal(cashier)}
                             className="p-1 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded"
                             title={latinToCyrillic("Parolni o'zgartirish")}
+                            aria-label={latinToCyrillic("Parolni o'zgartirish")}
                           >
                             <Key className="w-4 h-4" />
                           </button>
@@ -385,6 +387,7 @@ export default function CashierManagement() {
                             onClick={() => openEditModal(cashier)}
                             className="p-1 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded"
                             title={latinToCyrillic("Tahrirlash")}
+                            aria-label={latinToCyrillic("Tahrirlash")}
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
@@ -392,6 +395,7 @@ export default function CashierManagement() {
                             onClick={() => handleDelete(cashier.id)}
                             className="p-1 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded"
                             title={latinToCyrillic("O'chirish")}
+                            aria-label={latinToCyrillic("O'chirish")}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -415,10 +419,11 @@ export default function CashierManagement() {
               <form onSubmit={handleSubmit}>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="cashier-fullname" className="block text-sm font-medium text-gray-700 mb-1">
                       {latinToCyrillic("To'liq ism")}
                     </label>
                     <input
+                      id="cashier-fullname"
                       type="text"
                       required
                       value={formData.fullName}
@@ -427,10 +432,11 @@ export default function CashierManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="cashier-username" className="block text-sm font-medium text-gray-700 mb-1">
                       {latinToCyrillic("Login")}
                     </label>
                     <input
+                      id="cashier-username"
                       type="text"
                       required
                       value={formData.username}
@@ -439,10 +445,11 @@ export default function CashierManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="cashier-email" className="block text-sm font-medium text-gray-700 mb-1">
                       {latinToCyrillic("Email")}
                     </label>
                     <input
+                      id="cashier-email"
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({...formData, email: e.target.value})}
@@ -450,10 +457,11 @@ export default function CashierManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="cashier-phone" className="block text-sm font-medium text-gray-700 mb-1">
                       {latinToCyrillic("Telefon")}
                     </label>
                     <input
+                      id="cashier-phone"
                       type="tel"
                       value={formData.phone}
                       onChange={(e) => setFormData({...formData, phone: e.target.value})}
@@ -461,10 +469,11 @@ export default function CashierManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="cashier-role" className="block text-sm font-medium text-gray-700 mb-1">
                       {latinToCyrillic("Lavozim")}
                     </label>
                     <select
+                      id="cashier-role"
                       value={formData.role}
                       onChange={(e) => setFormData({...formData, role: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -474,11 +483,12 @@ export default function CashierManagement() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="cashier-password" className="block text-sm font-medium text-gray-700 mb-1">
                       {latinToCyrillic("Parol")}
                     </label>
                     <div className="relative">
                       <input
+                        id="cashier-password"
                         type={showPassword ? "text" : "password"}
                         required={!selectedCashier}
                         value={formData.password}
@@ -489,16 +499,18 @@ export default function CashierManagement() {
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                        aria-label={showPassword ? latinToCyrillic("Parolni yashirish") : latinToCyrillic("Parolni ko'rsatish")}
                       >
                         {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="cashier-confirm-password" className="block text-sm font-medium text-gray-700 mb-1">
                       {latinToCyrillic("Parolni tasdiqlash")}
                     </label>
                     <input
+                      id="cashier-confirm-password"
                       type="password"
                       required={!selectedCashier}
                       value={formData.confirmPassword}
@@ -543,10 +555,11 @@ export default function CashierManagement() {
               </p>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-1">
                     {latinToCyrillic("Yangi parol")}
                   </label>
                   <input
+                    id="new-password"
                     type="password"
                     required
                     value={newPassword}

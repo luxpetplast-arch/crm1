@@ -401,14 +401,11 @@ class ProfessionalApi {
 
 // Create singleton instance
 export const api = new ProfessionalApi({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5003/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 30000,
   retryAttempts: 3,
   retryDelay: 1000,
 });
-
-// Export types
-export type { ApiConfig, ApiError, ApiResponse, RequestConfig };
 
 // Default export
 export default api;

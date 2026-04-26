@@ -9,12 +9,12 @@ async function createAdmin() {
   try {
     // Avval admin bormi tekshirish
     const existingAdmin = await prisma.user.findUnique({
-      where: { email: 'admin@aziztrades.com' }
+      where: { login: 'admin@aziztrades.com' }
     });
     
     if (existingAdmin) {
       console.log('✅ Admin allaqachon mavjud!');
-      console.log('Email:', existingAdmin.email);
+      console.log('Login:', existingAdmin.login);
       console.log('Name:', existingAdmin.name);
       console.log('Role:', existingAdmin.role);
       await prisma.$disconnect();
@@ -27,7 +27,7 @@ async function createAdmin() {
     // Admin yaratish
     const admin = await prisma.user.create({
       data: {
-        email: 'admin@aziztrades.com',
+        login: 'admin@aziztrades.com',
         password: hashedPassword,
         name: 'Admin',
         role: 'ADMIN',
@@ -36,7 +36,7 @@ async function createAdmin() {
     });
     
     console.log('✅ Admin muvaffaqiyatli yaratildi!');
-    console.log('Email:', admin.email);
+    console.log('Login:', admin.login);
     console.log('Password: admin123');
     console.log('Name:', admin.name);
     console.log('Role:', admin.role);

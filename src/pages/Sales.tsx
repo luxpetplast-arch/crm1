@@ -302,7 +302,7 @@ export default function Sales() {
       }
     };
 
-    const receiptHTML = generateDeliveryReceiptHTML(receiptData);
+    const receiptHTML = generateSimpleReceiptHTML(receiptData);
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     if (printWindow) {
       printWindow.document.write(receiptHTML);
@@ -540,7 +540,10 @@ export default function Sales() {
           pricePerBag: item.pricePerBag || item.pricePerPiece,
           totalPrice: (parseFloat(item.quantity) || 0) * parseFloat(item.pricePerBag || item.pricePerPiece || 0)
         })),
-        totalAmount: parseFloat(totalAmount) || 0,
+        totalAmount: typeof totalAmount === 'string' ? parseFloat(totalAmount) || 0 : totalAmount || 0,
+        paidAmount: typeof paidAmount === 'string' ? parseFloat(paidAmount) || 0 : paidAmount || 0,
+        debtAmount: typeof debtAmount === 'string' ? parseFloat(debtAmount) || 0 : debtAmount || 0,
+        currency: form.currency || 'USD',
         paymentMethod: 'CASH',
         paymentDetails: {
           uzs: parseFloat(form.paidUZS) || 0,
@@ -647,6 +650,8 @@ export default function Sales() {
                   <span className="text-sm text-blue-100">1 USD =</span>
                   <input
                     type="number"
+                    aria-label="Ayirboshlash kursi"
+                    placeholder="12500"
                     value={exchangeRate}
                     onChange={(e) => setExchangeRate(e.target.value)}
                     className="w-20 text-sm font-semibold text-white bg-white/20 border border-white/30 rounded-lg px-2 py-1 focus:outline-none focus:bg-white/30"
@@ -657,6 +662,7 @@ export default function Sales() {
               </div>
               
               <button 
+                type="button"
                 onClick={() => navigate('/cashier/sales/add')} 
                 className="bg-emerald-500 hover:bg-emerald-400 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-lg shadow-emerald-500/30 flex items-center gap-2 hover:scale-105 active:scale-95"
               >
@@ -672,6 +678,7 @@ export default function Sales() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex p-1.5 bg-white/80 backdrop-blur-sm rounded-2xl w-fit shadow-lg shadow-blue-900/5 border border-white/50">
           <button
+            type="button"
             onClick={() => setActiveTab('sales')}
             className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
               activeTab === 'sales' 
@@ -767,6 +774,7 @@ export default function Sales() {
                   {/* Filtr tugmalari */}
                   <div className="flex gap-1.5 bg-slate-100 p-1.5 rounded-xl">
                     <button
+                      type="button"
                       onClick={() => setSalesFilter('all')}
                       className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
                         salesFilter === 'all'
@@ -777,6 +785,7 @@ export default function Sales() {
                       {latinToCyrillic("Barchasi")}
                     </button>
                     <button
+                      type="button"
                       onClick={() => setSalesFilter('paid')}
                       className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
                         salesFilter === 'paid'
@@ -822,6 +831,7 @@ export default function Sales() {
                   {latinToCyrillic("Birinchi sotuvni yaratish uchun quyidagi tugmani bosing")}
                 </p>
                 <button
+                  type="button"
                   onClick={() => navigate('/cashier/sales/add')}
                   className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-2xl font-semibold text-base transition-all shadow-lg shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/30 hover:-translate-y-0.5"
                 >
@@ -926,6 +936,7 @@ export default function Sales() {
                     
                     {/* Tahrirlash tugmasi */}
                     <button
+                      type="button"
                       onClick={() => navigate('/add-sale', { state: { editSale: sale } })}
                       className="w-full mb-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2.5 rounded-xl font-semibold text-sm shadow-lg shadow-blue-500/30 transition-all duration-300 flex items-center justify-center gap-2"
                     >
@@ -935,6 +946,7 @@ export default function Sales() {
                     
                     {/* Chek tugmasi */}
                     <button
+                      type="button"
                       onClick={() => {
                         try {
                           const userStr = localStorage.getItem('user');

@@ -1,10 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
-import Button from '../components/Button';
-import Input from '../components/Input';
-import Modal from '../components/Modal';
-import Badge from '../components/Badge';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/Table';
 import api from '../lib/api';
 import { Truck, Phone, Mail, MapPin, Plus, Sparkles, RefreshCw, FileText, Search, User, CreditCard } from 'lucide-react';
 import { latinToCyrillic } from '../lib/transliterator';
@@ -57,7 +51,7 @@ export default function Suppliers() {
       'To\'lov muddati': s.paymentTerms,
       'Status': s.active ? 'Faol' : 'Nofaol'
     }));
-    exportToExcel(dataToExport, 'Taminotchilar', 'Taminotchilar');
+    exportToExcel(dataToExport, { fileName: 'Taminotchilar', sheetName: 'Taminotchilar' });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -144,6 +138,7 @@ export default function Suppliers() {
 
           <div className="flex flex-wrap gap-3 w-full lg:w-auto">
             <button 
+              type="button"
               onClick={handleRefresh}
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl font-semibold text-sm transition-all active:scale-95 text-gray-900 dark:text-white shadow-md border border-gray-100 dark:border-gray-700"
             >
@@ -151,6 +146,7 @@ export default function Suppliers() {
               {latinToCyrillic("Yangilash")}
             </button>
             <button 
+              type="button"
               onClick={handleExport}
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded-xl font-semibold text-sm transition-all active:scale-95 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800"
             >
@@ -158,6 +154,7 @@ export default function Suppliers() {
               Excel
             </button>
             <button 
+              type="button"
               onClick={() => { setEditingSupplier(null); setShowModal(true); }}
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold text-sm transition-all active:scale-95 text-white shadow-lg shadow-blue-500/30"
             >
@@ -201,6 +198,7 @@ export default function Suppliers() {
           <div className="relative w-full md:w-96 group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-blue-500 transition-colors rounded-lg" />
             <input 
+              id="supplier-search"
               type="text"
               placeholder={latinToCyrillic("Qidirish...")}
               value={searchTerm}
@@ -280,12 +278,15 @@ export default function Suppliers() {
                   <td className="px-8 py-6 text-right">
                     <div className="flex justify-end gap-2">
                       <button
+                        type="button"
                         onClick={() => handleEdit(supplier)}
                         className="p-3 bg-gray-100 dark:bg-gray-800 hover:bg-blue-600 hover:text-white rounded-xl transition-all duration-300"
+                        aria-label="Tahrirlash"
                       >
                         <RefreshCw className="w-4 h-4 rounded-lg" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => toggleActive(supplier.id, supplier.active)}
                         className={`p-3 rounded-xl transition-all duration-300 ${
                           supplier.active 
@@ -315,7 +316,7 @@ export default function Suppliers() {
                 </div>
                 {latinToCyrillic(editingSupplier ? "Tahrirlash" : "Yangi ta'minotchi")}
               </h3>
-              <button onClick={() => setShowModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors">
+              <button type="button" onClick={() => setShowModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors" aria-label="Yopish">
                 <Plus className="w-6 h-6 rotate-45 rounded-lg" />
               </button>
             </div>
@@ -323,8 +324,9 @@ export default function Suppliers() {
             <form onSubmit={handleSubmit} className="p-10 space-y-8">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Kompaniya Nomi")}</label>
+                  <label htmlFor="supplier-name" className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Kompaniya Nomi")}</label>
                   <input
+                    id="supplier-name"
                     required
                     className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
                     value={form.name}
@@ -332,8 +334,9 @@ export default function Suppliers() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Mas'ul Shaxs")}</label>
+                  <label htmlFor="contact-person" className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Mas'ul Shaxs")}</label>
                   <input
+                    id="contact-person"
                     required
                     className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
                     value={form.contactPerson}
@@ -341,8 +344,9 @@ export default function Suppliers() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Telefon")}</label>
+                  <label htmlFor="supplier-phone" className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Telefon")}</label>
                   <input
+                    id="supplier-phone"
                     required
                     className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
                     value={form.phone}
@@ -350,8 +354,9 @@ export default function Suppliers() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Email")}</label>
+                  <label htmlFor="supplier-email" className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Email")}</label>
                   <input
+                    id="supplier-email"
                     type="email"
                     className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
                     value={form.email}
@@ -361,8 +366,9 @@ export default function Suppliers() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Manzil")}</label>
+                <label htmlFor="supplier-address" className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Manzil")}</label>
                 <input
+                  id="supplier-address"
                   className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
                   value={form.address}
                   onChange={(e) => setForm({ ...form, address: e.target.value })}
@@ -370,8 +376,9 @@ export default function Suppliers() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("To'lov Muddati")}</label>
+                <label htmlFor="payment-terms" className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("To'lov Muddati")}</label>
                 <select
+                  id="payment-terms"
                   className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all appearance-none cursor-pointer"
                   value={form.paymentTerms}
                   onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })}

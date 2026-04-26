@@ -6,7 +6,7 @@ async function update48mmPrices() {
   try {
     // 48mm Ruchkalar - donasini 0.017, 1000 dona/qop
     const handles48 = [
-      { name: 'Ruchka 48 Ko\'k', pricePerPiece: 0.017, unitsPerBag: 1000 },
+      { name: 'Ruchka 48 Ko\'k', pricePerPiece: 0.017, unitsPerBag: 0 },
       { name: 'Ruchka 48 Sariq', pricePerPiece: 0.017, unitsPerBag: 1000 },
       { name: 'Ruchka 48 Yashil', pricePerPiece: 0.017, unitsPerBag: 1000 },
       { name: 'Ruchka 48 Apelsin (to\'q sariq)', pricePerPiece: 0.017, unitsPerBag: 1000 },
@@ -34,24 +34,24 @@ async function update48mmPrices() {
           }
         });
         
-        console.log(`✅ Updated ${handle.name}: dona=${handle.pricePerPiece}$, qop=${pricePerBag}$, 1 qop=${handle.unitsPerBag} ta`);
+        console.log(`Updated ${handle.name}: dona=${handle.pricePerPiece}$, qop=${pricePerBag}$, 1 qop=${handle.unitsPerBag} ta`);
       } else {
-        console.log(`❌ Product not found: ${handle.name}`);
+        console.log(`Product not found: ${handle.name}`);
       }
     }
     
-    // 48mm Krishkalar - donasini 0.013, 1000 dona/qop
+    // 48mm Krishkalar - donasini 0.013, 2000 dona/qop
     const caps48 = [
-      { name: 'Qopqoq 48 Ko\'k', pricePerPiece: 0.013, unitsPerBag: 1000 },
-      { name: 'Qopqoq 48 Sariq', pricePerPiece: 0.013, unitsPerBag: 1000 },
-      { name: 'Qopqoq 48 Yashil', pricePerPiece: 0.013, unitsPerBag: 1000 },
-      { name: 'Qopqoq 48 Apelsin (to\'q sariq)', pricePerPiece: 0.013, unitsPerBag: 1000 },
-      { name: 'Qopqoq 48 Qizil', pricePerPiece: 0.013, unitsPerBag: 1000 },
-      { name: 'Qopqoq 48 Oq', pricePerPiece: 0.013, unitsPerBag: 1000 },
-      { name: 'Qopqoq 48 Salat rang', pricePerPiece: 0.013, unitsPerBag: 1000 },
-      { name: 'Qopqoq 48 Donya (Brend)', pricePerPiece: 0.013, unitsPerBag: 1000 },
-      { name: 'Qopqoq 48 Bekajon (Brend)', pricePerPiece: 0.013, unitsPerBag: 1000 },
-      { name: 'Qopqoq 48 Sayhun (Brend)', pricePerPiece: 0.013, unitsPerBag: 1000 }
+      { name: 'Qopqoq 48 Ko\'k', pricePerPiece: 0.013, unitsPerBag: 2000 },
+      { name: 'Qopqoq 48 Sariq', pricePerPiece: 0.013, unitsPerBag: 2000 },
+      { name: 'Qopqoq 48 Yashil', pricePerPiece: 0.013, unitsPerBag: 2000 },
+      { name: 'Qopqoq 48 Apelsin (to\'q sariq)', pricePerPiece: 0.013, unitsPerBag: 2000 },
+      { name: 'Qopqoq 48 Qizil', pricePerPiece: 0.013, unitsPerBag: 2000 },
+      { name: 'Qopqoq 48 Oq', pricePerPiece: 0.013, unitsPerBag: 2000 },
+      { name: 'Qopqoq 48 Salat rang', pricePerPiece: 0.013, unitsPerBag: 2000 },
+      { name: 'Qopqoq 48 Donya (Brend)', pricePerPiece: 0.013, unitsPerBag: 2000 },
+      { name: 'Qopqoq 48 Bekajon (Brend)', pricePerPiece: 0.013, unitsPerBag: 2000 },
+      { name: 'Qopqoq 48 Sayhun (Brend)', pricePerPiece: 0.013, unitsPerBag: 2000 }
     ];
     
     for (const cap of caps48) {
@@ -60,7 +60,7 @@ async function update48mmPrices() {
       });
       
       if (product) {
-        const pricePerBag = cap.pricePerPiece * cap.unitsPerBag; // 0.013 * 1000 = 13
+        const pricePerBag = cap.pricePerPiece * cap.unitsPerBag; // 0.013 * 2000 = 26
         
         await prisma.product.update({
           where: { id: product.id },
@@ -71,13 +71,13 @@ async function update48mmPrices() {
           }
         });
         
-        console.log(`✅ Updated ${cap.name}: dona=${cap.pricePerPiece}$, qop=${pricePerBag}$, 1 qop=${cap.unitsPerBag} ta`);
+        console.log(`Updated ${cap.name}: dona=${cap.pricePerPiece}$, qop=${pricePerBag}$, 1 qop=${cap.unitsPerBag} ta`);
       } else {
-        console.log(`❌ Product not found: ${cap.name}`);
+        console.log(`Product not found: ${cap.name}`);
       }
     }
     
-    console.log('\n✅ All 48mm products updated successfully!');
+    console.log('\nAll 48mm products updated successfully!');
     
   } catch (error) {
     console.error('Error updating prices:', error);

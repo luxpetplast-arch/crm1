@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card } from '../components/Card';
-import { Button } from '../components/Button';
-import { Input } from '../components/Input';
-import { Modal } from '../components/Modal';
-import { Badge } from '../components/Badge';
 import api from '../lib/api';
-import { Truck, Phone, Star, MessageSquare, Plus, RefreshCw, FileText, Search, User, MapPin, Send, Sparkles, Car } from 'lucide-react';
+import { Truck, Phone, Star, MessageSquare, Plus, RefreshCw, FileText, Search, User, MapPin, Send, Sparkles } from 'lucide-react';
 import { latinToCyrillic } from '../lib/transliterator';
 import { exportToExcel } from '../lib/excelUtils';
 
@@ -104,7 +99,7 @@ export function Drivers() {
       'Reyting': d.rating,
       'Jami yetkazish': d.totalDeliveries
     }));
-    exportToExcel(dataToExport, 'Haydovchilar', 'Haydovchilar');
+    exportToExcel(dataToExport, { fileName: 'Haydovchilar', sheetName: 'Haydovchilar' });
   };
 
   const fetchOrders = async () => {
@@ -252,6 +247,7 @@ export function Drivers() {
             <button 
               onClick={handleRefresh}
               className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-all"
+              aria-label="Yangilash"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
@@ -370,7 +366,7 @@ export function Drivers() {
                 </div>
                 {latinToCyrillic("Yangi haydovchi")}
               </h3>
-              <button onClick={() => setShowAddModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors">
+              <button onClick={() => setShowAddModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors" aria-label="Yopish">
                 <Plus className="w-6 h-6 rotate-45" />
               </button>
             </div>
@@ -378,8 +374,9 @@ export function Drivers() {
             <form onSubmit={handleAddDriver} className="p-10 space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Ism")}</label>
+                  <label htmlFor="driver-name" className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Ism")}</label>
                   <input
+                    id="driver-name"
                     required
                     className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
                     value={newDriver.name}
@@ -387,8 +384,9 @@ export function Drivers() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Telefon")}</label>
+                  <label htmlFor="driver-phone" className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Telefon")}</label>
                   <input
+                    id="driver-phone"
                     required
                     className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
                     value={newDriver.phone}
@@ -396,8 +394,9 @@ export function Drivers() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Guvohnoma raqami")}</label>
+                  <label htmlFor="driver-license" className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Guvohnoma raqami")}</label>
                   <input
+                    id="driver-license"
                     required
                     className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
                     value={newDriver.licenseNumber}
@@ -405,8 +404,9 @@ export function Drivers() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Mashina raqami")}</label>
+                  <label htmlFor="driver-vehicle" className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Mashina raqami")}</label>
                   <input
+                    id="driver-vehicle"
                     required
                     className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
                     value={newDriver.vehicleNumber}
@@ -419,6 +419,7 @@ export function Drivers() {
                 <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">Email (ixtiyoriy)</label>
                 <input
                   type="email"
+                  placeholder="email@example.com"
                   className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
                   value={newDriver.email}
                   onChange={(e) => setNewDriver({ ...newDriver, email: e.target.value })}
@@ -456,7 +457,7 @@ export function Drivers() {
                 </div>
                 {latinToCyrillic("Buyurtma tayinlash")}
               </h3>
-              <button onClick={() => setShowAssignModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors">
+              <button onClick={() => setShowAssignModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors" aria-label="Yopish">
                 <Plus className="w-6 h-6 rotate-45" />
               </button>
             </div>
@@ -525,7 +526,7 @@ export function Drivers() {
                   </p>
                 </div>
               </div>
-              <button onClick={() => setShowChatModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors">
+              <button onClick={() => setShowChatModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors" aria-label="Yopish">
                 <Plus className="w-6 h-6 rotate-45" />
               </button>
             </div>
@@ -567,6 +568,7 @@ export function Drivers() {
                 <button
                   type="submit"
                   className="w-16 h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-[1.5rem] flex items-center justify-center transition-all active:scale-90 shadow-xl shadow-blue-500/30 group"
+                  aria-label={latinToCyrillic("Xabar yuborish")}
                 >
                   <Send className="w-6 h-6 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                 </button>

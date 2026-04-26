@@ -118,6 +118,7 @@ export default function ProductsModern() {
                 <Search className="w-5 h-5" />
               </div>
               <input
+                id="products-search"
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -128,10 +129,12 @@ export default function ProductsModern() {
             
             {/* Category Filter */}
             <div className="relative">
+              <label htmlFor="products-category-filter" className="sr-only">Category Filter</label>
               <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                 <Filter className="w-5 h-5" />
               </div>
               <select
+                id="products-category-filter"
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="input-modern pl-12 appearance-none cursor-pointer"
@@ -232,6 +235,7 @@ export default function ProductsModern() {
                   </button>
                   <button
                     className="btn-gradient-danger p-2 flex items-center justify-center"
+                    aria-label="Mahsulotni o'chirish"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -275,6 +279,7 @@ export default function ProductsModern() {
                 <button
                   onClick={() => setShowPriceModal(false)}
                   className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center transition-colors"
+                  aria-label="Yopish"
                 >
                   <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                 </button>

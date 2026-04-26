@@ -140,6 +140,7 @@ export default function Users() {
                     variant="destructive"
                     size="sm"
                     onClick={() => handleDelete(user.id)}
+                    aria-label="Foydalanuvchini o'chirish"
                   >
                     <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                   </Button>
@@ -178,8 +179,9 @@ export default function Users() {
             required={!editingUser}
           />
           <div>
-            <label className="text-sm font-medium">Rol</label>
+            <label htmlFor="user-role" className="text-sm font-medium">Rol</label>
             <select
+              id="user-role"
               className="w-full px-3 py-2 bg-background border border-border rounded-lg"
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}

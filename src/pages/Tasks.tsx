@@ -332,18 +332,21 @@ export default function Tasks() {
           />
 
           <div>
-            <label className="text-sm font-medium">Tavsif</label>
+            <label htmlFor="task-description" className="text-sm font-medium">Tavsif</label>
             <textarea
+              id="task-description"
               className="w-full px-3 py-2 bg-background border border-border rounded-lg"
               rows={3}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="Vazifa tavsifini kiriting"
             />
           </div>
 
           <div>
-            <label className="text-sm font-medium">Mas'ul Shaxs</label>
+            <label htmlFor="task-assignee" className="text-sm font-medium">Mas'ul Shaxs</label>
             <select
+              id="task-assignee"
               className="w-full px-3 py-2 bg-background border border-border rounded-lg"
               value={form.assignedTo}
               onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}
@@ -360,8 +363,9 @@ export default function Tasks() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium">Muhimlik Darajasi</label>
+              <label htmlFor="task-priority" className="text-sm font-medium">Muhimlik Darajasi</label>
               <select
+                id="task-priority"
                 className="w-full px-3 py-2 bg-background border border-border rounded-lg"
                 value={form.priority}
                 onChange={(e) => setForm({ ...form, priority: e.target.value })}

@@ -1243,12 +1243,14 @@ export default function AddSale() {
                                             type="button"
                                             onClick={() => removeProduct(komplekt.preform.originalIndex)}
                                             className="w-7 h-7 bg-red-100 hover:bg-red-500 text-red-500 hover:text-white rounded-lg flex items-center justify-center transition-all duration-200"
+                                            aria-label="Remove product"
                                           >
                                             <Trash2 className="w-3.5 h-3.5" />
                                           </button>
                                         </div>
                                         <select
                                           value={komplekt.preform.productId}
+                                          aria-label="Select preform product"
                                           onChange={(e) => {
                                             const newProduct = products.find(p => p.id === e.target.value);
                                             if (newProduct) {
@@ -1333,11 +1335,13 @@ export default function AddSale() {
                                             type="button"
                                             onClick={() => removeProduct(komplekt.krishka.originalIndex)}
                                             className="w-7 h-7 bg-red-100 hover:bg-red-500 text-red-500 hover:text-white rounded-lg flex items-center justify-center transition-all duration-200"
+                                            aria-label="Remove krishka product"
                                           >
                                             <Trash2 className="w-3.5 h-3.5" />
                                           </button>
                                         </div>
                                         <select
+                                          aria-label="Select krishka product"
                                           value={komplekt.krishka.productId}
                                           onChange={(e) => {
                                             const newProduct = products.find(p => p.id === e.target.value);
@@ -1423,12 +1427,14 @@ export default function AddSale() {
                                           <button
                                             type="button"
                                             onClick={() => removeProduct(komplekt.ruchka.originalIndex)}
+                                            aria-label="Remove handle product"
                                             className="w-7 h-7 bg-red-100 hover:bg-red-500 text-red-500 hover:text-white rounded-lg flex items-center justify-center transition-all duration-200"
                                           >
                                             <Trash2 className="w-3.5 h-3.5" />
                                           </button>
                                         </div>
                                         <select
+                                          aria-label="Select handle product"
                                           value={komplekt.ruchka.productId}
                                           onChange={(e) => {
                                             const newProduct = products.find(p => p.id === e.target.value);
@@ -1539,7 +1545,7 @@ export default function AddSale() {
                                         </div>
                                       </div>
                                       <div className="flex items-center gap-2">
-                                        <button type="button" onClick={() => removeProduct(item.originalIndex)} className="text-red-400 hover:text-red-300 p-1 hover:bg-red-500/20 rounded transition-colors">
+                                        <button type="button" onClick={() => removeProduct(item.originalIndex)} className="text-red-400 hover:text-red-300 p-1 hover:bg-red-500/20 rounded transition-colors" aria-label="Mahsulotni o'chirish">
                                           <Trash2 className="w-4 h-4" />
                                         </button>
                                         <div className="relative">
@@ -1547,6 +1553,7 @@ export default function AddSale() {
                                             type="button" 
                                             onClick={() => setExpandedDropdown(expandedDropdown === item.originalIndex ? null : item.originalIndex)}
                                             className="text-gray-400 hover:text-white p-1 hover:bg-white/10 rounded transition-colors"
+                                            aria-label="Ko'proq ko'rsatish"
                                           >
                                             <ChevronDown className="w-4 h-4" />
                                           </button>
@@ -1793,8 +1800,8 @@ export default function AddSale() {
                       
                       <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-4">
                         <div>
-                          <label className="block text-base font-bold text-gray-600 mb-1">{latinToCyrillic("To'lov turi")}</label>
-                          <select value={form.paymentType} onChange={(e) => setForm(prev => ({ ...prev, paymentType: e.target.value }))} className="w-full h-12 px-3 text-base font-bold border rounded bg-white">
+                          <label htmlFor="paymentType" className="block text-base font-bold text-gray-600 mb-1">{latinToCyrillic("To'lov turi")}</label>
+                          <select id="paymentType" value={form.paymentType} onChange={(e) => setForm(prev => ({ ...prev, paymentType: e.target.value }))} className="w-full h-12 px-3 text-base font-bold border rounded bg-white">
                             <option value="cash">{latinToCyrillic("Naqd")}</option>
                             <option value="debt">{latinToCyrillic("Qarz")}</option>
                             <option value="partial">{latinToCyrillic("Qisman")}</option>
@@ -1887,7 +1894,7 @@ export default function AddSale() {
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-purple-600">{selectedCustomer.name} - {latinToCyrillic("Narx")}</h2>
-              <button onClick={() => setShowPriceModal(false)} className="w-10 h-10 flex items-center justify-center rounded bg-gray-100 text-gray-500 hover:text-red-500">
+              <button type="button" onClick={() => setShowPriceModal(false)} className="w-10 h-10 flex items-center justify-center rounded bg-gray-100 text-gray-500 hover:text-red-500" aria-label="Yopish">
                 <X className="w-6 h-6" />
               </button>
             </div>

@@ -79,7 +79,7 @@ app.use(helmet({
 // 🔒 Rate Limiting - DDoS himoyasi
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 daqiqa
-  max: 100, // Har IP uchun 100 ta so'rov
+  max: process.env.NODE_ENV === 'development' ? 1000 : 100, // Development uchun yuqori limit
   message: {
     error: 'Too many requests, please try again later.',
     retryAfter: 15 * 60
@@ -109,8 +109,10 @@ const allowedOrigins = [
   'http://127.0.0.1:25852',
   'http://127.0.0.1:3000',
   'http://localhost:5173',
-  'http://127.0.0.1:5173'
-];
+  'http://127.0.0.1:5173',
+  'https://luxpetplast.netlify.app',
+  process.env.CORS_ORIGIN
+].filter(Boolean);
 
 // Development uchun barcha CORS sozlamalari
 if (process.env.NODE_ENV === 'development') {

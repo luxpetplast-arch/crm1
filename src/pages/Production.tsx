@@ -1,14 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
-import Button from '../components/Button';
-import Badge from '../components/Badge';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/Table';
 import ProductSelector from '../components/ProductSelector';
 import api from '../lib/api';
 import { formatDate } from '../lib/utils';
-import { Factory, Play, CheckCircle, XCircle, Clock, Plus, Package, FileText, MoreHorizontal } from 'lucide-react';
+import { Factory, Play, CheckCircle, XCircle, Clock, Plus, Package, MoreHorizontal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { exportToExcel } from '../lib/excelUtils';
 
 export default function Production() {
   const { t } = useTranslation();
@@ -39,19 +34,6 @@ export default function Production() {
     } catch (error) {
       console.error('Ishlab chiqarish buyurtmalarini yuklashda xatolik');
     }
-  };
-
-  const handleExport = () => {
-    const dataToExport = orders.map(o => ({
-      'Buyurtma #': o.orderNumber,
-      'Mahsulot': o.product?.name || 'N/A',
-      'Target Miqdor': o.targetQuantity,
-      'Amaldagi Miqdor': o.actualQuantity || 0,
-      'Sana': formatDate(o.plannedDate),
-      'Smena': o.shift,
-      'Status': getStatusLabel(o.status)
-    }));
-    exportToExcel(dataToExport, 'Ishlab_chiqarish', 'Ishlab chiqarish');
   };
 
   const loadProducts = async () => {
@@ -103,16 +85,6 @@ export default function Production() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const variants: any = {
-      PLANNED: 'info',
-      IN_PROGRESS: 'warning',
-      COMPLETED: 'success',
-      CANCELLED: 'danger',
-    };
-    return variants[status] || 'default';
-  };
-
   const getStatusLabel = (status: string) => {
     const labels: any = {
       PLANNED: 'Rejalashtirilgan',
@@ -121,21 +93,6 @@ export default function Production() {
       CANCELLED: 'Bekor qilingan',
     };
     return labels[status] || status;
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'PLANNED':
-        return <Clock className="w-4 h-4" />;
-      case 'IN_PROGRESS':
-        return <Play className="w-4 h-4" />;
-      case 'COMPLETED':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'CANCELLED':
-        return <XCircle className="w-4 h-4" />;
-      default:
-        return <Clock className="w-4 h-4" />;
-    }
   };
 
   return (
@@ -154,13 +111,6 @@ export default function Production() {
           </div>
           
           <div className="flex items-center gap-3">
-            <button 
-              onClick={handleExport}
-              className="flex items-center gap-2 px-3 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-lg text-sm font-medium transition-all"
-            >
-              <FileText className="w-4 h-4" />
-              Excel
-            </button>
             <button 
               onClick={() => setShowForm(true)} 
               className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-all"
@@ -200,7 +150,7 @@ export default function Production() {
               <p className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
                 {stat.value}
               </p>
-              {stat.suffix && <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">{stat.suffix}</span>}
+              {stat.suffix && <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{stat.suffix}</span>}
             </div>
           </div>
         ))}
@@ -209,7 +159,7 @@ export default function Production() {
       {/* Orders Table */}
       <div className="px-4">
         <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
-          <div className="p-10 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center bg-gray-50/30 dark:bg-gray-800/30">
+          <div className="p-10 border-b border-gray-50 dark:border-gray-800 flex justify-between items-center bg-gray-50/30 dark:bg-gray-800/30 shrink-0">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">{t("Ishlab chiqarish buyurtmalari")}</h3>
           </div>
           <div className="overflow-x-auto">
@@ -227,7 +177,6 @@ export default function Production() {
               <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
                 {orders.map((order) => {
                   const statusLabel = getStatusLabel(order.status);
-                  const statusBadge = getStatusBadge(order.status);
                   return (
                     <tr key={order.id} className="group hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-all duration-300">
                       <td className="py-6 px-10">
@@ -270,6 +219,7 @@ export default function Production() {
                             <button
                               onClick={() => updateOrderStatus(order.id, 'IN_PROGRESS')}
                               className="w-10 h-10 bg-amber-50 dark:bg-amber-900/30 text-amber-600 rounded-xl flex items-center justify-center hover:bg-amber-600 hover:text-white transition-all active:scale-90"
+                              aria-label="Boshlash"
                             >
                               <Play className="w-4 h-4" />
                             </button>
@@ -278,6 +228,7 @@ export default function Production() {
                             <button
                               onClick={() => updateOrderStatus(order.id, 'COMPLETED')}
                               className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 rounded-xl flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all active:scale-90"
+                              aria-label="Tugatish"
                             >
                               <CheckCircle className="w-4 h-4" />
                             </button>
@@ -304,7 +255,7 @@ export default function Production() {
                 </div>
                 {t("Yangi")} <span className="text-purple-600">{t("buyurtma")}</span>
               </h3>
-              <button onClick={() => setShowForm(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors">
+              <button onClick={() => setShowForm(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-rose-500 transition-colors" aria-label="Yopish">
                 <MoreHorizontal className="w-5 h-5 rotate-45" />
               </button>
             </div>
@@ -399,6 +350,7 @@ export default function Production() {
                   <input
                     type="text"
                     inputMode="decimal"
+                    aria-label={t("production.quantity")}
                     value={form.targetQuantity}
                     onChange={(e) => {
                       const raw = e.target.value.replace(',', '.');
@@ -460,6 +412,7 @@ export default function Production() {
                         <div className="flex-1">
                           <p className="text-[10px] font-bold text-purple-600 uppercase tracking-widest mb-1">{t("production.category")}</p>
                           <select
+                            aria-label="Kategoriya tanlash"
                             value={acc.type}
                             onChange={(e) => {
                               const newType = e.target.value;
@@ -484,6 +437,7 @@ export default function Production() {
                         <div className="flex-[2]">
                           <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">{t("production.product")}</p>
                           <select
+                            aria-label="Mahsulot tanlash"
                             value={acc.id}
                             onChange={(e) => {
                               const newId = e.target.value;
@@ -510,11 +464,12 @@ export default function Production() {
                           <input
                             type="text"
                             inputMode="decimal"
+                            aria-label={t("production.quantity")}
+                            placeholder="0"
                             value={acc.quantity}
                             onChange={(e) => {
                               const raw = e.target.value.replace(',', '.');
                               if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
-                              const newQty = parseFloat(raw) || 0;
                               setForm(prev => ({
                                 ...prev,
                                 accessories: prev.accessories.map((a, i) => i === index ? { ...a, quantity: raw } : a)
@@ -528,11 +483,12 @@ export default function Production() {
                           <input
                             type="text"
                             inputMode="decimal"
+                            aria-label={t("products.price")}
+                            placeholder="0"
                             value={acc.price}
                             onChange={(e) => {
                               const raw = e.target.value.replace(',', '.');
                               if (raw !== '' && isNaN(Number(raw)) && raw !== '.') return;
-                              const newPrice = parseFloat(raw) || 0;
                               setForm(prev => ({
                                 ...prev,
                                 accessories: prev.accessories.map((a, i) => i === index ? { ...a, price: raw } : a)
@@ -542,7 +498,6 @@ export default function Production() {
                           />
                         </div>
                         <button
-                          type="button"
                           onClick={() => {
                             setForm(prev => ({
                               ...prev,
@@ -550,6 +505,7 @@ export default function Production() {
                             }));
                           }}
                           className="w-10 h-10 flex items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-900/30 text-rose-600 hover:bg-rose-600 hover:text-white transition-all"
+                          aria-label="O'chirish"
                         >
                           <XCircle className="w-5 h-5" />
                         </button>
@@ -564,6 +520,8 @@ export default function Production() {
                   <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("production.date")}</label>
                   <input
                     type="date"
+                    aria-label={t("production.date")}
+                    placeholder="YYYY-MM-DD"
                     value={form.plannedDate}
                     onChange={(e) => setForm({ ...form, plannedDate: e.target.value })}
                     className="w-full h-16 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-purple-500 rounded-2xl font-semibold outline-none transition-all"
@@ -573,6 +531,7 @@ export default function Production() {
                 <div className="space-y-4">
                   <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("production.shift")}</label>
                   <select
+                    aria-label={t("production.shift")}
                     value={form.shift}
                     onChange={(e) => setForm({ ...form, shift: e.target.value })}
                     className="w-full h-16 px-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-purple-500 rounded-2xl font-semibold appearance-none outline-none transition-all"
@@ -586,6 +545,7 @@ export default function Production() {
               <div className="space-y-4">
                 <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{t("settings.general")}</label>
                 <textarea
+                  aria-label={t("settings.general")}
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   className="w-full p-8 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-purple-500 rounded-[2.5rem] font-bold text-sm min-h-[120px] transition-all outline-none resize-none"

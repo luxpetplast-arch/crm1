@@ -394,6 +394,7 @@ export default function SimplifiedInventory() {
           
           <div className="flex items-center gap-3">
             <button
+              type="button"
               onClick={loadProducts}
               className="professional-button px-6 py-3 bg-white hover:bg-gray-50 text-gray-700 rounded-2xl font-bold shadow-lg hover:shadow-xl flex items-center gap-3 hover-lift"
             >
@@ -402,7 +403,11 @@ export default function SimplifiedInventory() {
             </button>
             
             <button
-              onClick={() => setShowAddModal(true)}
+              type="button"
+              onClick={() => {
+                const isCashierRoute = window.location.pathname.startsWith('/cashier');
+                navigate(isCashierRoute ? '/cashier/add-product' : '/add-product');
+              }}
               className="professional-button px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-2xl font-bold shadow-xl hover:shadow-2xl flex items-center gap-3 hover-lift"
             >
               <Plus className="w-5 h-5" />
@@ -430,6 +435,7 @@ export default function SimplifiedInventory() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
               {categories.map((cat) => (
                 <button
+                  type="button"
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id as any)}
                   className={`group py-4 px-3 rounded-2xl text-sm font-black transition-all duration-300 hover:scale-105 hover:shadow-lg ${
@@ -463,13 +469,15 @@ export default function SimplifiedInventory() {
               const isExpanded = expandedGroups.includes(groupName);
               const totalStock = groupProducts.reduce((sum, p) => sum + (p.currentStock || 0), 0);
               const totalValue = groupProducts.reduce((sum, p) => sum + ((p.currentStock || 0) * (p.pricePerBag || 0)), 0);
-              
               return (
                 <div key={groupName} className="group border-2 border-gray-200/60 rounded-3xl overflow-hidden bg-white shadow-lg hover:shadow-2xl transition-all duration-500 hover:border-blue-300/60 hover:scale-[1.02]">
                   {/* Guruh headeri */}
-                  <div 
+                  <button
+                    type="button"
                     onClick={() => toggleGroup(groupName)}
-                    className="p-4 bg-gradient-to-br from-gray-50 via-white to-blue-50/30 border-b-2 border-gray-200/60 cursor-pointer hover:from-blue-50/40 hover:via-white hover:to-blue-100/40 transition-all duration-300 relative overflow-hidden"
+                    className="w-full p-4 bg-gradient-to-br from-gray-50 via-white to-blue-50/30 border-b-2 border-gray-200/60 cursor-pointer hover:from-blue-50/40 hover:via-white hover:to-blue-100/40 transition-all duration-300 relative overflow-hidden text-left"
+                    aria-label={isExpanded ? latinToCyrillic("Yopish") : latinToCyrillic("Ochish")}
+                    aria-expanded={isExpanded ? "true" : "false"} // eslint-disable-line jsx-a11y/aria-proptypes
                   >
                     {/* Background gradient orqali */}
                     <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -501,7 +509,7 @@ export default function SimplifiedInventory() {
                         </p>
                       </div>
                     </div>
-                  </div>
+                  </button>
 
                   {/* Mahsulotlar ro'yxati */}
                   {isExpanded && (
@@ -526,6 +534,7 @@ export default function SimplifiedInventory() {
                                         type="text"
                                         value={editingName}
                                         onChange={(e) => setEditingName(e.target.value)}
+                                        aria-label="Mahsulot nomini tahrirlash"
                                         className="w-full px-4 py-3 border-2 border-gray-300 rounded-2xl font-black text-gray-900 mb-3 bg-white/90 backdrop-blur-sm shadow-inner focus:border-blue-500 focus:ring-2 focus:ring-blue-200/50 transition-all"
                                       />
                                     ) : (
@@ -558,14 +567,18 @@ export default function SimplifiedInventory() {
                                     {isEditing ? (
                                       <>
                                         <button
+                                          type="button"
                                           onClick={() => saveProductData(product.id)}
                                           className="w-8 h-8 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg flex items-center justify-center transition-all hover-scale"
+                                          aria-label="Save"
                                         >
                                           <Check className="w-4 h-4" />
                                         </button>
                                         <button
+                                          type="button"
                                           onClick={cancelEditing}
                                           className="w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center justify-center transition-all hover-scale"
+                                          aria-label="Cancel"
                                         >
                                           <X className="w-4 h-4" />
                                         </button>
@@ -573,6 +586,7 @@ export default function SimplifiedInventory() {
                                     ) : (
                                       <>
                                         <button
+                                          type="button"
                                           onClick={() => navigate(`/cashier/products/${product.id}`)}
                                           className="h-9 px-3 bg-gradient-to-r from-emerald-500 via-emerald-600 to-emerald-700 hover:from-emerald-600 hover:via-emerald-700 hover:to-emerald-800 text-white rounded-2xl flex items-center gap-1.5 transition-all duration-300 hover:scale-105 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 font-black text-xs"
                                         >
@@ -580,6 +594,7 @@ export default function SimplifiedInventory() {
                                           <span>{latinToCyrillic("Батафсил")}</span>
                                         </button>
                                         <button
+                                          type="button"
                                           onClick={() => startEditing(product)}
                                           className="w-9 h-9 bg-gradient-to-br from-blue-100 to-blue-200 hover:from-blue-500 hover:to-blue-600 text-blue-600 hover:text-white rounded-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg hover:shadow-blue-500/30"
                                           title={latinToCyrillic("Таҳрир")}
@@ -587,9 +602,11 @@ export default function SimplifiedInventory() {
                                           <Pencil className="w-4 h-4" />
                                         </button>
                                         <button
+                                          type="button"
                                           onClick={() => deleteProduct(product.id)}
                                           className="w-9 h-9 bg-gradient-to-br from-red-100 to-red-200 hover:from-red-500 hover:to-red-600 text-red-600 hover:text-white rounded-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg hover:shadow-red-500/30"
                                           title={latinToCyrillic("Ўчириш")}
+                                          aria-label={latinToCyrillic("Ўчириш")}
                                         >
                                           <Trash2 className="w-4 h-4" />
                                         </button>
@@ -643,7 +660,9 @@ export default function SimplifiedInventory() {
                   </h2>
                 </div>
                 <button
+                  type="button"
                   onClick={closeAddModal}
+                  aria-label={latinToCyrillic("Yopish")}
                   className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center transition-all"
                 >
                   <X className="w-5 h-5 text-gray-600" />
@@ -707,10 +726,11 @@ export default function SimplifiedInventory() {
 
                 {/* Ombor kategoriyasi */}
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                  <label htmlFor="warehouse-select" className="block text-sm font-bold text-gray-700 mb-2">
                     {latinToCyrillic("Ombor kategoriyasi")}
                   </label>
                   <select
+                    id="warehouse-select"
                     value={newProduct.warehouse}
                     onChange={(e) => setNewProduct({...newProduct, warehouse: e.target.value})}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl font-bold text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"

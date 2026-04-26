@@ -134,7 +134,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', authorize('ADMIN', 'WAREHOUSE_MANAGER'), async (req: AuthRequest, res) => {
+router.post('/', authorize('ADMIN', 'WAREHOUSE_MANAGER', 'CASHIER'), async (req: AuthRequest, res) => {
   try {
     console.log('Creating product with data:', req.body);
     const { productTypeId, categoryId, sizeId, ...productData } = req.body;
@@ -1159,7 +1159,7 @@ router.get('/:id/expense', async (req: AuthRequest, res) => {
 });
 
 // DELETE /products/:id - Mahsulotni o'chirish
-router.delete('/:id', authorize('ADMIN', 'WAREHOUSE_MANAGER', 'MANAGER', 'USER'), async (req: AuthRequest, res) => {
+router.delete('/:id', authorize('ADMIN', 'WAREHOUSE_MANAGER', 'MANAGER', 'USER', 'CASHIER'), async (req: AuthRequest, res) => {
   try {
     console.log('Delete product request:', {
       productId: req.params.id,

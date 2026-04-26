@@ -1,60 +1,33 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Plus, 
   Trash2, 
   DollarSign,
-  ShoppingCart,
-  X,
-  RotateCcw,
-  Sparkles,
   ArrowLeft,
   Package,
   User,
-  CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Layers,
   Search,
-  Filter,
   Zap,
-  Eye,
-  Edit2,
-  Save,
   Calculator,
   CreditCard,
   Smartphone,
   Banknote,
-  TrendingUp,
-  Users,
-  Clock,
   Star,
-  AlertCircle,
   CheckCircle,
-  Info,
-  Settings,
-  RefreshCw,
-  Download,
-  Upload,
+  AlertCircle,
   Barcode,
-  Tag,
-  Percent,
-  Target,
-  Activity
+  Settings,
+  RefreshCw
 } from 'lucide-react';
-import CustomerSelector from '../components/CustomerSelector';
 import api from '../lib/professionalApi';
-import { latinToCyrillic } from '../lib/transliterator';
-import { generateSimpleReceiptHTML } from '../lib/simpleReceiptPrinter';
-import { generateImprovedReceiptHTML, convertToImprovedFormat } from '../lib/improvedReceiptPrinter';
-import { formatDateTime } from '../lib/dateUtils';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useProfessionalApi } from '../hooks/useProfessionalApi';
-import { validateSale } from '../lib/professionalValidation';
 import { errorHandler } from '../lib/professionalErrorHandler';
-import { CurrencyUtils, DateUtils } from '../lib/professionalUtils';
-import { ProfessionalButton, ProfessionalCard, ProfessionalInput } from '../components/ProfessionalComponents';
-import { currencyManager, Currency, convertCurrency, formatCurrency } from '../lib/professionalCurrency';
-import { accountingManager, createJournalEntry, AccountingEntryType } from '../lib/professionalAccounting';
+import { validateSale } from '../lib/professionalValidation';
+import { Currency, formatCurrency, convertCurrency } from '../lib/professionalCurrency';
+import { createJournalEntry, AccountingEntryType } from '../lib/professionalAccounting';
 
 export default function AddSaleSuper() {
   const navigate = useNavigate();
@@ -69,9 +42,7 @@ export default function AddSaleSuper() {
   const [customerSearch, setCustomerSearch] = useState('');
   const [expandedProductGroups, setExpandedProductGroups] = useState<string[]>([]);
   const [activeProductCategory, setActiveProductCategory] = useState<'all' | 'preform' | 'krishka' | 'ruchka' | 'other'>('all');
-  const [expandedDropdown, setExpandedDropdown] = useState<string | null>(null);
   const [showTypeSelector, setShowTypeSelector] = useState<string | null>(null);
-  const [showKomplektSelector, setShowKomplektSelector] = useState<{itemIndex: string, krishkaOptions: any[], ruchkaOptions: any[]} | null>(null);
   
   // Yangi state variables for super interface
   const [activeStep, setActiveStep] = useState<'customer' | 'products' | 'payment' | 'review'>('customer');
@@ -79,7 +50,6 @@ export default function AddSaleSuper() {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [showProductSearch, setShowProductSearch] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState('');
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'cash' | 'card' | 'mobile' | 'mixed'>('cash');
   const [showCalculator, setShowCalculator] = useState(false);
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -266,15 +236,15 @@ export default function AddSaleSuper() {
     // Add main product
     const existingItem = form.items.find(item => item.productId === productId);
     let currentItems = [...form.items];
+    const pricePerBag = parseFloat(product.pricePerBag) || 0;
+    const unitsPerBag = product.unitsPerBag || 1000;
+    const pricePerPiece = pricePerBag / unitsPerBag;
     
     if (existingItem) {
       updateItemQuantity(existingItem.originalIndex.toString(), existingItem.quantity + 1);
       return;
     } else {
       // Add the product directly
-      const pricePerBag = parseFloat(product.pricePerBag) || 0;
-      const unitsPerBag = product.unitsPerBag || 1000;
-      const pricePerPiece = pricePerBag / unitsPerBag;
       const newItemData = {
         productId: product.id,
         productName: product.name,
@@ -290,170 +260,98 @@ export default function AddSaleSuper() {
         originalIndex: form.items.length
       };
       currentItems.push(newItemData);
-      setForm(prev => ({ ...prev, items: currentItems }));
-    }
-
-    // O'lchamni aniqlash
-    let productSize = '';
-    const nameMatch = product.name.match(/(\d+)/);
-    
-    if (isPreform) {
-      const weight = nameMatch ? parseInt(nameMatch[1]) : 0;
-      if ([15, 21, 26, 30].includes(weight)) productSize = '28';
-      else if ([52, 70].includes(weight)) productSize = '38';
-      else if ([75, 80, 85, 86, 135].includes(weight)) productSize = '48';
-    } else if (isKrishka || isRuchka) {
-      productSize = nameMatch ? nameMatch[1] : '';
-    }
-
-    // Avtomatik qo'shimchalar
-    if (productSize) {
-      // 1. Preform uchun krishka + ruchka
+      
+      // Komplekt logikasi - preform uchun krishka va ruchka qo'shish
       if (isPreform) {
-        const weight = parseInt(nameMatch?.[1] || '0');
+        const nameMatch = product.name.match(/(\d+)/);
+        const weight = nameMatch ? parseInt(nameMatch[1]) : 0;
+        let krishkaSize = '';
+        let ruchkaSize = '';
+        
+        if ([15, 21, 26, 30].includes(weight)) {
+          krishkaSize = '28';
+          ruchkaSize = '28';
+        } else if ([52, 70].includes(weight)) {
+          krishkaSize = '38';
+          ruchkaSize = '38';
+        } else if ([75, 80, 85, 86, 135].includes(weight)) {
+          krishkaSize = '48';
+          ruchkaSize = '48';
+        }
+        
+        const totalUnits = 1 * unitsPerBag;
         
         // Krishka qo'shish
-        const matchingKrishka = products.find(p => {
-          const pIsKrishka = p.warehouse === 'caps' || 
-                             p.name.toLowerCase().includes('qopqoq') ||
-                             p.name.toLowerCase().includes('krishka');
-          const pNumber = p.name.match(/(\d+)/);
-          return pIsKrishka && pNumber && pNumber[1] === productSize && 
-                 !currentItems.find((i: any) => i.productId === p.id);
-        });
-        
-        if (matchingKrishka) {
-          const krishkaPricePerBag = parseFloat(matchingKrishka.pricePerBag) || 0;
-          const krishkaUnitsPerBag = matchingKrishka.unitsPerBag || 1000;
-          const krishkaPricePerPiece = krishkaPricePerBag / krishkaUnitsPerBag;
+        if (krishkaSize) {
+          const krishka = products.find(p => {
+            const pIsKrishka = p.warehouse === 'caps' || 
+                               p.name.toLowerCase().includes('qopqoq') ||
+                               p.name.toLowerCase().includes('krishka');
+            const pNumber = p.name.match(/(\d+)/);
+            return pIsKrishka && pNumber && pNumber[1] === krishkaSize;
+          });
           
-          const krishkaItem = {
-            productId: matchingKrishka.id,
-            productName: matchingKrishka.name,
-            quantity: 1,
-            pricePerBag: krishkaPricePerBag,
-            pricePerBagDisplay: krishkaPricePerBag.toString(),
-            pricePerPiece: krishkaPricePerPiece,
-            unitsPerBag: krishkaUnitsPerBag,
-            subtotal: krishkaPricePerBag,
-            warehouse: matchingKrishka.warehouse || 'caps',
-            saleType: 'bag' as 'bag' | 'piece',
-            priceMode: 'bag' as 'bag' | 'piece',
-            originalIndex: currentItems.length,
-            isAutoAdded: true
-          };
-          currentItems.push(krishkaItem);
-          console.log('🔗 Avtomatik krishka qo\'shildi:', krishkaItem);
+          if (krishka) {
+            const krishkaUnitsPerBag = krishka.unitsPerBag || 1000;
+            const krishkaPricePerBag = parseFloat(krishka.pricePerBag) || 0;
+            const krishkaPricePerPiece = krishkaPricePerBag / krishkaUnitsPerBag;
+            const krishkaBags = Math.ceil(totalUnits / krishkaUnitsPerBag);
+            
+            const krishkaItem = {
+              productId: krishka.id,
+              productName: krishka.name,
+              quantity: krishkaBags,
+              pricePerBag: krishkaPricePerBag,
+              pricePerBagDisplay: krishkaPricePerBag.toString(),
+              pricePerPiece: krishkaPricePerPiece,
+              unitsPerBag: krishkaUnitsPerBag,
+              subtotal: krishkaPricePerBag * krishkaBags,
+              warehouse: krishka.warehouse || 'caps',
+              saleType: 'bag' as 'bag' | 'piece',
+              priceMode: 'bag' as 'bag' | 'piece',
+              originalIndex: currentItems.length,
+              isAutoAdded: true
+            };
+            currentItems.push(krishkaItem);
+          }
         }
         
         // Ruchka qo'shish (faqat katta o'lchamlar uchun)
-        if (![15, 21, 26, 30].includes(weight)) {
-          const matchingRuchka = products.find(p => {
+        if (ruchkaSize && ![15, 21, 26, 30].includes(weight)) {
+          const ruchka = products.find(p => {
             const pIsRuchka = p.warehouse === 'handles' || p.name.toLowerCase().includes('ruchka');
             const pNumber = p.name.match(/(\d+)/);
-            return pIsRuchka && pNumber && pNumber[1] === productSize &&
-                   !currentItems.find((i: any) => i.productId === p.id);
+            return pIsRuchka && pNumber && pNumber[1] === ruchkaSize;
           });
           
-          if (matchingRuchka) {
-            const ruchkaPricePerBag = parseFloat(matchingRuchka.pricePerBag) || 0;
-            const ruchkaUnitsPerBag = matchingRuchka.unitsPerBag || 1000;
+          if (ruchka) {
+            const ruchkaUnitsPerBag = ruchka.unitsPerBag || 1000;
+            const ruchkaPricePerBag = parseFloat(ruchka.pricePerBag) || 0;
             const ruchkaPricePerPiece = ruchkaPricePerBag / ruchkaUnitsPerBag;
+            const ruchkaBags = Math.ceil(totalUnits / ruchkaUnitsPerBag);
             
             const ruchkaItem = {
-              productId: matchingRuchka.id,
-              productName: matchingRuchka.name,
-              quantity: 1,
+              productId: ruchka.id,
+              productName: ruchka.name,
+              quantity: ruchkaBags,
               pricePerBag: ruchkaPricePerBag,
               pricePerBagDisplay: ruchkaPricePerBag.toString(),
               pricePerPiece: ruchkaPricePerPiece,
               unitsPerBag: ruchkaUnitsPerBag,
-              subtotal: ruchkaPricePerBag,
-              warehouse: matchingRuchka.warehouse || 'handles',
+              subtotal: ruchkaPricePerBag * ruchkaBags,
+              warehouse: ruchka.warehouse || 'handles',
               saleType: 'bag' as 'bag' | 'piece',
               priceMode: 'bag' as 'bag' | 'piece',
               originalIndex: currentItems.length,
               isAutoAdded: true
             };
             currentItems.push(ruchkaItem);
-            console.log('🔗 Avtomatik ruchka qo\'shildi:', ruchkaItem);
           }
         }
       }
       
-      // 2. Krishka uchun ruchka
-      else if (isKrishka) {
-        const matchingRuchka = products.find(p => {
-          const pIsRuchka = p.warehouse === 'handles' || p.name.toLowerCase().includes('ruchka');
-          const pNumber = p.name.match(/(\d+)/);
-          return pIsRuchka && pNumber && pNumber[1] === productSize &&
-                 !currentItems.find((i: any) => i.productId === p.id);
-        });
-        
-        if (matchingRuchka) {
-          const ruchkaPricePerBag = parseFloat(matchingRuchka.pricePerBag) || 0;
-          const ruchkaUnitsPerBag = matchingRuchka.unitsPerBag || 1000;
-          const ruchkaPricePerPiece = ruchkaPricePerBag / ruchkaUnitsPerBag;
-          
-          const ruchkaItem = {
-            productId: matchingRuchka.id,
-            productName: matchingRuchka.name,
-            quantity: 1,
-            pricePerBag: ruchkaPricePerBag,
-            pricePerBagDisplay: ruchkaPricePerBag.toString(),
-            pricePerPiece: ruchkaPricePerPiece,
-            unitsPerBag: ruchkaUnitsPerBag,
-            subtotal: ruchkaPricePerBag,
-            warehouse: matchingRuchka.warehouse || 'handles',
-            saleType: 'bag' as 'bag' | 'piece',
-            priceMode: 'bag' as 'bag' | 'piece',
-            originalIndex: currentItems.length,
-            isAutoAdded: true
-          };
-          currentItems.push(ruchkaItem);
-          console.log('🔗 Avtomatik ruchka qo\'shildi (krishka tanlangan):', ruchkaItem);
-        }
-      }
-      
-      // 3. Ruchka uchun krishka
-      else if (isRuchka) {
-        const matchingKrishka = products.find(p => {
-          const pIsKrishka = p.warehouse === 'caps' || 
-                             p.name.toLowerCase().includes('qopqoq') ||
-                             p.name.toLowerCase().includes('krishka');
-          const pNumber = p.name.match(/(\d+)/);
-          return pIsKrishka && pNumber && pNumber[1] === productSize &&
-                 !currentItems.find((i: any) => i.productId === p.id);
-        });
-        
-        if (matchingKrishka) {
-          const krishkaPricePerBag = parseFloat(matchingKrishka.pricePerBag) || 0;
-          const krishkaUnitsPerBag = matchingKrishka.unitsPerBag || 1000;
-          const krishkaPricePerPiece = krishkaPricePerBag / krishkaUnitsPerBag;
-          
-          const krishkaItem = {
-            productId: matchingKrishka.id,
-            productName: matchingKrishka.name,
-            quantity: 1,
-            pricePerBag: krishkaPricePerBag,
-            pricePerBagDisplay: krishkaPricePerBag.toString(),
-            pricePerPiece: krishkaPricePerPiece,
-            unitsPerBag: krishkaUnitsPerBag,
-            subtotal: krishkaPricePerBag,
-            warehouse: matchingKrishka.warehouse || 'caps',
-            saleType: 'bag' as 'bag' | 'piece',
-            priceMode: 'bag' as 'bag' | 'piece',
-            originalIndex: currentItems.length,
-            isAutoAdded: true
-          };
-          currentItems.push(krishkaItem);
-          console.log('🔗 Avtomatik krishka qo\'shildi (ruchka tanlangan):', krishkaItem);
-        }
-      }
+      setForm(prev => ({ ...prev, items: currentItems }));
     }
-    
-    // Barcha items ni birgalikda yangilash
-    setForm(prev => ({ ...prev, items: currentItems }));
   };
 
   const quickAddCustomer = (customerId: string) => {
@@ -495,10 +393,6 @@ export default function AddSaleSuper() {
     }
   };
 
-  // Product functions
-  const showProductTypeSelector = (itemIndex: string) => {
-    setShowTypeSelector(itemIndex);
-  };
 
   const replaceProductType = (itemIndex: string, newType: string) => {
     const item = form.items.find(item => item.originalIndex === itemIndex);
@@ -899,18 +793,26 @@ export default function AddSaleSuper() {
       <div className="border-t pt-6">
         <h4 className="font-medium text-gray-900 mb-4">Yangi mijoz qo'shish</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <ProfessionalInput
-            label="Ism"
-            value={form.manualCustomerName}
-            onChange={(e) => setForm(prev => ({ ...prev, manualCustomerName: e.target.value }))}
-            placeholder="Mijoz ismi"
-          />
-          <ProfessionalInput
-            label="Telefon"
-            value={form.manualCustomerPhone}
-            onChange={(e) => setForm(prev => ({ ...prev, manualCustomerPhone: e.target.value }))}
-            placeholder="+998 XX XXX XX XX"
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ism</label>
+            <input
+              type="text"
+              value={form.manualCustomerName}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm(prev => ({ ...prev, manualCustomerName: e.target.value }))}
+              placeholder="Mijoz ismi"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
+            <input
+              type="text"
+              value={form.manualCustomerPhone}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm(prev => ({ ...prev, manualCustomerPhone: e.target.value }))}
+              placeholder="+998 XX XXX XX XX"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -1082,6 +984,8 @@ export default function AddSaleSuper() {
                   <button
                     onClick={() => removeItem(item.originalIndex.toString())}
                     className="w-8 h-8 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg flex items-center justify-center"
+                    title="O'chirish"
+                    aria-label="O'chirish"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -1261,8 +1165,10 @@ export default function AddSaleSuper() {
             <input
               type="text"
               inputMode="decimal"
+              placeholder="12500"
+              aria-label="Valyuta kursi"
               value={exchangeRate || ''}
-              onChange={(e) => {
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                 const val = e.target.value.replace(/[^0-9.]/g, '').replace(/\.(?=.*\.)/g, '');
                 setExchangeRate(val);
               }}
@@ -1369,6 +1275,7 @@ export default function AddSaleSuper() {
               <button
                 onClick={() => navigate('/sales')}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label="Orqaga"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
@@ -1384,6 +1291,7 @@ export default function AddSaleSuper() {
               <button
                 onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label="Sozlamalar"
               >
                 <Settings className="w-5 h-5" />
               </button>

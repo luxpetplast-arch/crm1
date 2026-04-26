@@ -11,7 +11,7 @@ async function createCashier() {
     // Kassir foydalanuvchisini yaratish
     const cashier = await prisma.user.create({
       data: {
-        email: 'cashier@zavod.uz',
+        login: 'cashier2',
         password: hashedPassword,
         name: 'Kassir',
         role: 'CASHIER',
@@ -20,14 +20,14 @@ async function createCashier() {
     });
     
     console.log('✅ Kassir akkaunti muvaffaqiyatli yaratildi:');
-    console.log('📧 Email: cashier@zavod.uz');
+    console.log('📧 Login: cashier');
     console.log('🔑 Parol: cashier123');
     console.log('👤 Ism: Kassir');
     console.log('🎭 Rol: CASHIER');
     
   } catch (error) {
     if (error.code === 'P2002') {
-      console.log('❌ Bu email allaqachon ro\'yxatdan o\'tgan');
+      console.log('❌ Bu login allaqachon ro\'yxatdan o\'tgan');
     } else {
       console.error('❌ Xatolik:', error);
     }

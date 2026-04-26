@@ -1,8 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
-import Button from '../components/Button';
-import Input from '../components/Input';
 import DataBackup from '../components/DataBackup';
 import { useAuthStore } from '../store/authStore';
 import api from '../lib/api';
@@ -11,22 +8,17 @@ import {
   Shield, 
   Building, 
   DollarSign, 
-  FileText, 
   Mail, 
   MessageSquare,
   Database,
   Lock,
-  CreditCard,
   Factory,
   Percent,
   Package,
-  Pencil,
-  Sparkles,
   Save,
   RefreshCw,
   ChevronRight,
   User,
-  Globe,
   Settings as SettingsIcon,
   Cloud,
   Plus
@@ -198,6 +190,7 @@ export default function Settings() {
 
           <div className="flex flex-wrap gap-3 w-full lg:w-auto">
             <button 
+              type="button"
               onClick={handleRefresh}
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl font-semibold text-sm transition-all active:scale-95 text-gray-900 dark:text-white shadow-md border border-gray-100 dark:border-gray-700"
             >
@@ -205,6 +198,7 @@ export default function Settings() {
               {latinToCyrillic("Yangilash")}
             </button>
             <button 
+              type="button"
               onClick={handleSave}
               disabled={loading}
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold text-sm transition-all active:scale-95 text-white shadow-lg shadow-blue-500/30 disabled:opacity-50"
@@ -221,6 +215,7 @@ export default function Settings() {
         <div className="w-full lg:w-80 space-y-2">
           {tabs.map((tab) => (
             <button
+              type="button"
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`w-full flex items-center gap-4 px-6 py-5 rounded-[1.5rem] transition-all duration-300 group ${
@@ -257,6 +252,8 @@ export default function Settings() {
                   <div className="space-y-2">
                     <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Kompaniya Nomi")}</label>
                     <input
+                      aria-label="Kompaniya nomi"
+                      placeholder="Kompaniya nomi"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
                       value={settings.COMPANY_NAME}
                       onChange={(e) => updateSetting('COMPANY_NAME', e.target.value)}
@@ -265,6 +262,8 @@ export default function Settings() {
                   <div className="space-y-2">
                     <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Telefon")}</label>
                     <input
+                      aria-label="Telefon raqami"
+                      placeholder="+998 XX XXX XX XX"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
                       value={settings.COMPANY_PHONE}
                       onChange={(e) => updateSetting('COMPANY_PHONE', e.target.value)}
@@ -273,6 +272,8 @@ export default function Settings() {
                   <div className="space-y-2">
                     <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Email")}</label>
                     <input
+                      aria-label="Email manzil"
+                      placeholder="email@example.com"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
                       value={settings.COMPANY_EMAIL}
                       onChange={(e) => updateSetting('COMPANY_EMAIL', e.target.value)}
@@ -281,6 +282,8 @@ export default function Settings() {
                   <div className="space-y-2">
                     <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Manzil")}</label>
                     <input
+                      aria-label="Manzil"
+                      placeholder="Manzil"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
                       value={settings.COMPANY_ADDRESS}
                       onChange={(e) => updateSetting('COMPANY_ADDRESS', e.target.value)}
@@ -304,6 +307,7 @@ export default function Settings() {
                     <input
                       type="text"
                       inputMode="decimal"
+                      aria-label="USD to UZS exchange rate"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-semibold text-sm transition-all"
                       value={settings.USD_TO_UZS_RATE}
                       onChange={(e) => updateSetting('USD_TO_UZS_RATE', e.target.value.replace(/[^0-9.]/g, ''))}
@@ -314,6 +318,7 @@ export default function Settings() {
                     <input
                       type="text"
                       inputMode="decimal"
+                      aria-label="EUR to UZS exchange rate"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-semibold text-sm transition-all"
                       value={settings.EUR_TO_UZS_RATE}
                       onChange={(e) => updateSetting('EUR_TO_UZS_RATE', e.target.value.replace(/[^0-9.]/g, ''))}
@@ -324,6 +329,7 @@ export default function Settings() {
                     <input
                       type="text"
                       inputMode="decimal"
+                      aria-label="RUB to UZS exchange rate"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-semibold text-sm transition-all"
                       value={settings.RUB_TO_UZS_RATE}
                       onChange={(e) => updateSetting('RUB_TO_UZS_RATE', e.target.value.replace(/[^0-9.]/g, ''))}
@@ -351,6 +357,7 @@ export default function Settings() {
                     <input
                       type="text"
                       inputMode="decimal"
+                      aria-label="Default profit margin percentage"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none font-bold text-sm transition-all"
                       value={settings.DEFAULT_PROFIT_MARGIN}
                       onChange={(e) => updateSetting('DEFAULT_PROFIT_MARGIN', e.target.value.replace(/[^0-9.]/g, ''))}
@@ -361,6 +368,7 @@ export default function Settings() {
                     <input
                       type="text"
                       inputMode="decimal"
+                      aria-label="VIP discount percentage"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none font-bold text-sm transition-all"
                       value={settings.VIP_DISCOUNT}
                       onChange={(e) => updateSetting('VIP_DISCOUNT', e.target.value.replace(/[^0-9.]/g, ''))}
@@ -371,6 +379,7 @@ export default function Settings() {
                     <input
                       type="text"
                       inputMode="decimal"
+                      aria-label="Low stock threshold"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none font-bold text-sm transition-all"
                       value={settings.LOW_STOCK_THRESHOLD}
                       onChange={(e) => updateSetting('LOW_STOCK_THRESHOLD', e.target.value.replace(/[^0-9.]/g, ''))}
@@ -381,6 +390,7 @@ export default function Settings() {
                     <input
                       type="text"
                       inputMode="decimal"
+                      aria-label="Debt alert days"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none font-bold text-sm transition-all"
                       value={settings.DEBT_ALERT_DAYS}
                       onChange={(e) => updateSetting('DEBT_ALERT_DAYS', e.target.value.replace(/[^0-9.]/g, ''))}
@@ -392,6 +402,7 @@ export default function Settings() {
               {/* Quick Links */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <button
+                  type="button"
                   onClick={() => navigate('/products')}
                   className="flex items-center gap-6 p-8 bg-white dark:bg-gray-900 rounded-[2rem] shadow-sm border border-gray-100 dark:border-gray-800 hover:scale-[1.02] transition-all group"
                 >
@@ -404,6 +415,7 @@ export default function Settings() {
                   </div>
                 </button>
                 <button
+                  type="button"
                   onClick={() => navigate('/add-product')}
                   className="flex items-center gap-6 p-8 bg-white dark:bg-gray-900 rounded-[2rem] shadow-sm border border-gray-100 dark:border-gray-800 hover:scale-[1.02] transition-all group"
                 >
@@ -434,6 +446,7 @@ export default function Settings() {
                     <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">Bot Token</label>
                     <input
                       type="password"
+                      aria-label="Telegram bot token"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
                       value={settings.TELEGRAM_BOT_TOKEN}
                       onChange={(e) => updateSetting('TELEGRAM_BOT_TOKEN', e.target.value)}
@@ -443,6 +456,7 @@ export default function Settings() {
                   <div className="space-y-2">
                     <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">Admin Chat ID</label>
                     <input
+                      aria-label="Telegram admin chat ID"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm transition-all"
                       value={settings.TELEGRAM_ADMIN_CHAT_ID}
                       onChange={(e) => updateSetting('TELEGRAM_ADMIN_CHAT_ID', e.target.value)}
@@ -464,6 +478,7 @@ export default function Settings() {
                   <div className="space-y-2">
                     <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">SMTP Host</label>
                     <input
+                      aria-label="Email SMTP host"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none font-bold text-sm transition-all"
                       value={settings.EMAIL_SMTP_HOST}
                       onChange={(e) => updateSetting('EMAIL_SMTP_HOST', e.target.value)}
@@ -475,6 +490,7 @@ export default function Settings() {
                     <input
                       type="text"
                       inputMode="decimal"
+                      aria-label="Email SMTP port"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none font-bold text-sm transition-all"
                       value={settings.EMAIL_SMTP_PORT}
                       onChange={(e) => updateSetting('EMAIL_SMTP_PORT', e.target.value.replace(/[^0-9.]/g, ''))}
@@ -501,6 +517,7 @@ export default function Settings() {
                     <input
                       type="text"
                       inputMode="decimal"
+                      aria-label="Session timeout in minutes"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-violet-500 outline-none font-bold text-sm transition-all"
                       value={settings.SESSION_TIMEOUT_MINUTES}
                       onChange={(e) => updateSetting('SESSION_TIMEOUT_MINUTES', e.target.value.replace(/[^0-9.]/g, ''))}
@@ -511,6 +528,7 @@ export default function Settings() {
                     <input
                       type="text"
                       inputMode="decimal"
+                      aria-label="Password minimum length"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-violet-500 outline-none font-bold text-sm transition-all"
                       value={settings.PASSWORD_MIN_LENGTH}
                       onChange={(e) => updateSetting('PASSWORD_MIN_LENGTH', e.target.value.replace(/[^0-9.]/g, ''))}
@@ -562,6 +580,7 @@ export default function Settings() {
                   <div className="space-y-2">
                     <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Backup Chastotasi")}</label>
                     <select
+                      aria-label="Backup chastotasi tanlash"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-sm transition-all appearance-none cursor-pointer"
                       value={settings.BACKUP_FREQUENCY}
                       onChange={(e) => updateSetting('BACKUP_FREQUENCY', e.target.value)}
@@ -572,8 +591,9 @@ export default function Settings() {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Til")}</label>
+                    <label htmlFor="language-select" className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest ml-1">{latinToCyrillic("Til")}</label>
                     <select
+                      id="language-select"
                       className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-sm transition-all appearance-none cursor-pointer"
                       value={settings.LANGUAGE}
                       onChange={(e) => updateSetting('LANGUAGE', e.target.value)}

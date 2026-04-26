@@ -250,10 +250,10 @@ export const useSaleForm = (options: UseSaleFormOptions = {}) => {
         });
 
         if (krishkaProduct) {
-          const krishkaUnits = krishkaProduct.unitsPerBag || 2000;
+          const krishkaUnits = 2000; // Krishka uchun doimiy 2000 dona
           const krishkaPiecePrice = getPiecePrice(krishkaProduct.name) || 
-            (parseFloat(krishkaProduct.pricePerBag?.toString() || '0') / krishkaUnits);
-          const krishkaPrice = krishkaPiecePrice * krishkaUnits;
+            (parseFloat(krishkaProduct.pricePerBag?.toString() || '0') / (krishkaProduct.unitsPerBag || 2000));
+          const krishkaPricePerBag = krishkaPiecePrice * krishkaUnits;
           const krishkaQuantity = Math.ceil(totalPieces / krishkaUnits);
 
           itemsToAdd.push({
@@ -261,10 +261,10 @@ export const useSaleForm = (options: UseSaleFormOptions = {}) => {
             productName: krishkaProduct.name,
             quantity: krishkaQuantity.toString(),
             bagDisplayValue: krishkaQuantity.toString(),
-            pricePerBag: krishkaPrice,
+            pricePerBag: krishkaPricePerBag,
             pricePerPiece: krishkaPiecePrice,
             unitsPerBag: krishkaUnits,
-            subtotal: krishkaQuantity * krishkaPrice,
+            subtotal: krishkaQuantity * krishkaPricePerBag,
             warehouse: krishkaProduct.warehouse || 'krishka',
             saleType: 'bag',
           });
@@ -280,10 +280,10 @@ export const useSaleForm = (options: UseSaleFormOptions = {}) => {
         });
 
         if (ruchkaProduct) {
-          const ruchkaUnits = ruchkaProduct.unitsPerBag || 1000;
+          const ruchkaUnits = 1000; // Ruchka uchun doimiy 1000 dona
           const ruchkaPiecePrice = getPiecePrice(ruchkaProduct.name) ||
-            (parseFloat(ruchkaProduct.pricePerBag?.toString() || '0') / ruchkaUnits);
-          const ruchkaPrice = ruchkaPiecePrice * ruchkaUnits;
+            (parseFloat(ruchkaProduct.pricePerBag?.toString() || '0') / (ruchkaProduct.unitsPerBag || 1000));
+          const ruchkaPricePerBag = ruchkaPiecePrice * ruchkaUnits;
           const ruchkaQuantity = Math.ceil(totalPieces / ruchkaUnits);
 
           itemsToAdd.push({
@@ -291,10 +291,10 @@ export const useSaleForm = (options: UseSaleFormOptions = {}) => {
             productName: ruchkaProduct.name,
             quantity: ruchkaQuantity.toString(),
             bagDisplayValue: ruchkaQuantity.toString(),
-            pricePerBag: ruchkaPrice,
+            pricePerBag: ruchkaPricePerBag,
             pricePerPiece: ruchkaPiecePrice,
             unitsPerBag: ruchkaUnits,
-            subtotal: ruchkaQuantity * ruchkaPrice,
+            subtotal: ruchkaQuantity * ruchkaPricePerBag,
             warehouse: ruchkaProduct.warehouse || 'ruchka',
             saleType: 'bag',
           });
@@ -432,9 +432,9 @@ export const useSaleForm = (options: UseSaleFormOptions = {}) => {
         paymentType: form.paymentType,
         currency: form.currency,
         isKocha: form.isKocha,
-        total: totalAmount,
-        paid: paidAmount,
-        debt: debtAmount,
+        totalAmount: totalAmount,
+        paidAmount: paidAmount,
+        debtAmount: debtAmount,
         exchangeRate: exchangeRateNum,
         createdAt: new Date(),
         status: debtAmount > 0 ? 'partial' : 'completed',

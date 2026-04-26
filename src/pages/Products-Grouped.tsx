@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/Card';
 import Button from '../components/Button';
 import api from '../lib/professionalApi';
-import { Package, Eye, Trash2, Plus, ChevronDown, Search, Expand, Minimize2, RefreshCw, List, LayoutGrid, Pencil, Check, X, AlertCircle } from 'lucide-react';
+import { Package, Eye, Trash2, Plus, ChevronDown, Search, Expand, Minimize2, RefreshCw, List, LayoutGrid, Check, AlertCircle } from 'lucide-react';
 
 export default function ProductsGrouped() {
   const navigate = useNavigate();
@@ -12,15 +12,9 @@ export default function ProductsGrouped() {
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState<'all' | 'preform' | 'krishka' | 'ruchka' | 'other'>('all');
   const [viewMode, setViewMode] = useState<'grouped' | 'list'>('grouped');
-  const [editingProduct, setEditingProduct] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState('');
-  const [editingPriceBag, setEditingPriceBag] = useState('');
-  const [editingPricePiece, setEditingPricePiece] = useState('');
-  const [exchangeRates, setExchangeRates] = useState({ USD_TO_UZS: 12800 });
 
   useEffect(() => {
     loadProducts();
-    loadExchangeRate();
     
     // Listen for storage changes (when product is added)
     const handleStorageChange = (e: StorageEvent) => {
@@ -36,44 +30,6 @@ export default function ProductsGrouped() {
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
-
-  const loadExchangeRate = async () => {
-    try {
-      const response = await api.get('/settings');
-      if (response.data && response.data.exchangeRate) {
-        setExchangeRates({ USD_TO_UZS: response.data.exchangeRate });
-      }
-    } catch (error) {
-      console.error('Kursni yuklashda xatolik:', error);
-    }
-  };
-
-  const startEditing = (product: any) => {
-    setEditingProduct(product.id);
-    setEditingName(product.name);
-    setEditingPriceBag(product.pricePerBag?.toString() || '');
-    setEditingPricePiece(product.pricePerPiece?.toString() || '');
-  };
-
-  const saveProductData = async (productId: string) => {
-    try {
-      await api.patch(`/products/${productId}`, { 
-        name: editingName,
-        pricePerBag: parseFloat(editingPriceBag),
-        pricePerPiece: parseFloat(editingPricePiece)
-      });
-      loadProducts();
-      setEditingProduct(null);
-      alert('✅ Ma\'lumotlar yangilandi!');
-    } catch (error) {
-      console.error('Xatolik:', error);
-      alert('❌ Xatolik yuz berdi');
-    }
-  };
-
-  const cancelEditing = () => {
-    setEditingProduct(null);
-  };
 
   const loadProducts = async () => {
     try {
@@ -399,9 +355,11 @@ export default function ProductsGrouped() {
           return (
             <Card key={size} className="border border-gray-200 shadow-sm rounded-lg overflow-hidden">
               {/* Guruh header - KOMPAKT */}
-              <div 
-                className="p-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white cursor-pointer"
+              <button
+                className="w-full p-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white cursor-pointer"
                 onClick={() => toggleGroup(size)}
+                aria-label={isExpanded ? "Yopish" : "Ochish"}
+                aria-expanded={isExpanded}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -418,7 +376,7 @@ export default function ProductsGrouped() {
                     <span className="text-sm font-semibold bg-white/20 px-3 py-1 rounded-lg">${avgPrice.toFixed(2)}</span>
                   </div>
                 </div>
-              </div>
+              </button>
 
               {/* Mahsulotlar - faqat ochiq bo'lsa ko'rsatiladi */}
               <div className={`overflow-hidden ${isExpanded ? 'block' : 'hidden'}`}>
@@ -445,6 +403,7 @@ export default function ProductsGrouped() {
                               onClick={() => navigate(getProductDetailPath(product.id))}
                               className="p-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                               title="Батафсил"
+                              aria-label="Батафсил"
                             >
                               <Eye className="w-4 h-4" />
                             </button>
