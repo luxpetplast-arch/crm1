@@ -3,7 +3,6 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { setupSwagger } from './swagger.js';
 import authRoutes from './routes/auth.js';
 import productRoutes from './routes/products.js';
@@ -193,9 +192,7 @@ app.get('/api/health', (req, res) => {
 
 // Serve static frontend files in production
 if (process.env.NODE_ENV === 'production') {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-  const distPath = path.join(__dirname, '..', 'dist');
+  const distPath = path.join(process.cwd(), 'dist');
   
   console.log('📁 Serving static files from:', distPath);
   
