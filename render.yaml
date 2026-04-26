@@ -29,6 +29,6 @@ services:
         value: "https://luxpetplast.netlify.app"
 
 databases:
-  - name: luxpetplast-db
-    databaseName: luxpetplast
-    user: luxpetplast_user
+  - name: petdplastrew
+    databaseName: petdplastrew
+    user: petdplastrew_user
