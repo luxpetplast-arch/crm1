@@ -16,11 +16,11 @@ services:
       - key: DATABASE_URL
         value: "postgresql://postgres.cxgerdqlovclceeoroir:1234qazA%40A%23%23E@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
       - key: JWT_SECRET
-        generateValue: true
+        value: "luxpetplast-secret-key-2024"
       - key: USD_TO_UZS_RATE
         value: 12500
       - key: REDIS_URL
-        value: ""  # Redis not available on free plan
+        value: ""
       - key: TELEGRAM_BOT_TOKEN
         value: "8228740483:AAFAGajvvZkCA8eXNMY-dLa4I2gin4wYUKw"
       - key: CORS_ORIGIN
