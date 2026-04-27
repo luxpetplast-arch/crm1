@@ -11,6 +11,7 @@ services:
     region: frankfurt
     plan: free
     healthCheckPath: /api/health
+    buildCommand: echo "Building with Dockerfile"
     envVars:
       - key: NODE_ENV
         value: production
