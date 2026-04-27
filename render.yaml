@@ -14,9 +14,7 @@ services:
       - key: PORT
         value: 10000
       - key: DATABASE_URL
-        fromDatabase:
-          name: petdplastrew
-          property: connectionString
+        value: "postgresql://postgres.cxgerdqlovclceeoroir:1234qazA%40A%23%23E@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
       - key: JWT_SECRET
         generateValue: true
       - key: USD_TO_UZS_RATE
@@ -24,15 +22,10 @@ services:
       - key: REDIS_URL
         value: ""  # Redis not available on free plan
       - key: TELEGRAM_BOT_TOKEN
-        sync: false
+        value: "8228740483:AAFAGajvvZkCA8eXNMY-dLa4I2gin4wYUKw"
       - key: CORS_ORIGIN
         value: "https://luxpetplast.onrender.com"
       - key: VITE_SUPABASE_URL
-        sync: false
+        value: "https://eomvlukbfjwtlxnzvfdw.supabase.co"
       - key: VITE_SUPABASE_ANON_KEY
-        sync: false
-
-databases:
-  - name: petdplastrew
-    databaseName: petdplastrew
-    user: petdplastrew_user
+        value: "sb_publishable_U8T7-aiTDZ-ARARuKAY85g_CYLo6hDb"
