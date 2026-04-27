@@ -262,6 +262,7 @@ export default function SalesHistory() {
                 value={filters.startDate}
                 onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
+                placeholder="Boshlanish sanasi"
               />
             </div>
             <div>
@@ -273,6 +274,7 @@ export default function SalesHistory() {
                 value={filters.endDate}
                 onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
+                placeholder="Tugash sanasi"
               />
             </div>
             <div>
@@ -282,6 +284,7 @@ export default function SalesHistory() {
               <select
                 value={filters.action}
                 onChange={(e) => setFilters({ ...filters, action: e.target.value })}
+                title="Harakat turi"
                 className="w-full px-3 py-2 border rounded-lg"
               >
                 <option value="">Barchasi</option>

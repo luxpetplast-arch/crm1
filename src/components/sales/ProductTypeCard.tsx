@@ -156,6 +156,8 @@ export const ProductTypeCard = ({
                     style={{
                       backgroundColor: getColorHex(variant.color),
                     }}
+                    title={variant.color}
+                    // eslint-disable-line react/forbid-prop-types
                   >
                     {variant.color.slice(0, 2).toUpperCase()}
                   </div>
@@ -177,13 +179,15 @@ export const ProductTypeCard = ({
                 <span className={`font-bold ${colors.text}`}>
                   {getCurrencySymbol(currency)}
                   {getDisplayAmount(variant.pricePerBag, currency)}
-                </span>
+              </span>
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     onAddProduct(products.find((p) => p.id === variant.id)!);
                   }}
+                  aria-label="Add product"
+                  title="Add product"
                   className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${colors.light} ${colors.text} ${colors.border} border-2 hover:bg-white hover:shadow-md`}
                 >
                   <Plus className="w-5 h-5" />

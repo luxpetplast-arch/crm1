@@ -1,7 +1,7 @@
 services:
-  # Backend API Service (Express + Prisma)
+  # Full-stack Service (Frontend + Backend API + Prisma)
   - type: web
-    name: luxpetplast-api
+    name: luxpetplast-erp
     env: docker
     region: frankfurt
     plan: free
@@ -26,7 +26,11 @@ services:
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: CORS_ORIGIN
-        value: "https://luxpetplast.netlify.app"
+        value: "https://luxpetplast.onrender.com"
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
 
 databases:
   - name: petdplastrew

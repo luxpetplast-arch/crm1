@@ -1,4 +1,4 @@
-# Backend-only build for Render deployment - v3 (direct tsx)
+# Full-stack build for Render deployment (Frontend + Backend)
 FROM node:20-alpine
 
 WORKDIR /app
@@ -16,9 +16,12 @@ COPY . .
 # Generate Prisma client
 RUN npm run db:generate
 
+# Build frontend
+RUN npm run build
+
 # Use PORT from environment (Render sets this)
 ENV PORT=10000
 EXPOSE 10000
 
-# Run TypeScript directly with tsx (no build step)
+# Run backend API (Express will serve frontend static files)
 CMD ["npx", "tsx", "server/index.ts"]

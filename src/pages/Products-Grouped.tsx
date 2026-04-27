@@ -356,10 +356,10 @@ export default function ProductsGrouped() {
             <Card key={size} className="border border-gray-200 shadow-sm rounded-lg overflow-hidden">
               {/* Guruh header - KOMPAKT */}
               <button
+                type="button"
                 className="w-full p-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white cursor-pointer"
                 onClick={() => toggleGroup(size)}
                 aria-label={isExpanded ? "Yopish" : "Ochish"}
-                aria-expanded={isExpanded}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">

@@ -47,13 +47,15 @@ export default function Sales() {
     paidUZS: string;
     paidUSD: string;
     paidCLICK: string;
+    paymentType: string;
   }>({
     customerId: '',
     customerName: '',
     items: [],
     paidUZS: '',
     paidUSD: '',
-    paidCLICK: ''
+    paidCLICK: '',
+    paymentType: 'cash'
   });
 
   // Yangi mahsulot qo'shish uchun
@@ -265,7 +267,8 @@ export default function Sales() {
         items: [],
         paidUZS: '',
         paidUSD: '',
-        paidCLICK: ''
+        paidCLICK: '',
+        paymentType: 'cash'
       });
       setShowForm(false);
       
@@ -310,11 +313,7 @@ export default function Sales() {
               </Button>
             </div>
             
-            <SalesHistory 
-              sales={sales} 
-              customers={customers}
-              onPrintReceipt={printSimpleReceipt}
-            />
+            <SalesHistory />
           </div>
         ) : (
           <div className="max-h-[85vh] overflow-y-auto">
@@ -544,7 +543,9 @@ export default function Sales() {
                       <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border-2 border-gray-200 shadow-lg space-y-4">
                         <CustomerSelector
                           customers={customers}
-                          selectedCustomerId={form.customerId}
+                          selectedId={form.customerId}
+                          searchValue={customerSearch}
+                          onSearchChange={setCustomerSearch}
                           onSelect={(customerId, customerName) => {
                             setForm(prev => ({ ...prev, customerId, customerName }));
                           }}
@@ -553,8 +554,9 @@ export default function Sales() {
                         {/* To'lov ma'lumotlari */}
                         <div className="space-y-3">
                           <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">To'lov turi</label>
+                            <label htmlFor="paymentType" className="block text-sm font-semibold text-gray-700 mb-2">To'lov turi</label>
                             <select
+                              id="paymentType"
                               value={form.paymentType || 'cash'}
                               onChange={(e) => setForm(prev => ({ ...prev, paymentType: e.target.value }))}
                               className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
@@ -647,7 +649,8 @@ export default function Sales() {
                                     items: [],
                                     paidUZS: '',
                                     paidUSD: '',
-                                    paidCLICK: ''
+                                    paidCLICK: '',
+                                    paymentType: 'cash'
                                   });
                                 }}
                                 className="border-gray-300 text-gray-600 hover:bg-gray-50"

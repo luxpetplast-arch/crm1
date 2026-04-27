@@ -477,7 +477,6 @@ export default function SimplifiedInventory() {
                     onClick={() => toggleGroup(groupName)}
                     className="w-full p-4 bg-gradient-to-br from-gray-50 via-white to-blue-50/30 border-b-2 border-gray-200/60 cursor-pointer hover:from-blue-50/40 hover:via-white hover:to-blue-100/40 transition-all duration-300 relative overflow-hidden text-left"
                     aria-label={isExpanded ? latinToCyrillic("Yopish") : latinToCyrillic("Ochish")}
-                    aria-expanded={isExpanded ? "true" : "false"} // eslint-disable-line jsx-a11y/aria-proptypes
                   >
                     {/* Background gradient orqali */}
                     <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
