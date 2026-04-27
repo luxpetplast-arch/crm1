@@ -16,12 +16,12 @@ COPY . .
 # Generate Prisma client
 RUN npm run db:generate
 
-# Build frontend
+# Build frontend only (server runs with tsx)
 RUN npm run build
 
 # Use PORT from environment (Render sets this)
 ENV PORT=10000
 EXPOSE 10000
 
-# Run backend API (Express will serve frontend static files)
+# Run backend API with tsx (Express will serve frontend static files)
 CMD ["npx", "tsx", "server/index.ts"]
