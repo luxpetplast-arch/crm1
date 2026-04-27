@@ -21,6 +21,11 @@ RUN npm run build
 
 # Use PORT from environment (Render sets this)
 ENV PORT=10000
+ENV DATABASE_URL="postgresql://postgres.cxgerdqlovclceeoroir:1234qazA%40A%23%23E@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+ENV JWT_SECRET="luxpetplast-secret-key-2024"
+ENV USD_TO_UZS_RATE=12500
+ENV TELEGRAM_BOT_TOKEN="8228740483:AAFAGajvvZkCA8eXNMY-dLa4I2gin4wYUKw"
+ENV CORS_ORIGIN="https://luxpetplast.onrender.com"
 EXPOSE 10000
 
 # Run backend API with tsx (Express will serve frontend static files)
