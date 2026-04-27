@@ -1,4 +1,4 @@
-# Full-stack build for Render deployment (Frontend + Backend)
+# Full-stack build for Render deployment (Frontend + Backend) - v4
 FROM node:20-alpine
 
 WORKDIR /app
