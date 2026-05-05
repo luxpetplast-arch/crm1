@@ -520,26 +520,22 @@ export default function CustomerDetailPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/10 rounded-xl p-4 border border-blue-500/30 backdrop-blur-sm">
-            <p className="text-sm text-blue-300 font-medium">Jami Savdolar</p>
-            <p className="text-3xl font-bold text-blue-400 mt-2">{sales.length}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-gradient-to-br from-green-600/30 to-green-700/20 rounded-xl p-5 border border-green-500/40 backdrop-blur-sm">
+            <p className="text-sm text-green-200 font-medium mb-1">Bugüngi Tovar</p>
+            <p className="text-3xl font-bold text-white mt-2">$0.00</p>
           </div>
-          <div className="bg-gradient-to-br from-green-500/20 to-green-600/10 rounded-xl p-4 border border-green-500/30 backdrop-blur-sm">
-            <p className="text-sm text-green-300 font-medium">Jami Summa</p>
-            <p className="text-3xl font-bold text-green-400 mt-2">${(customer.totalPurchase || 0).toFixed(2)}</p>
+          <div className="bg-gradient-to-br from-red-600/30 to-red-700/20 rounded-xl p-5 border border-red-500/40 backdrop-blur-sm">
+            <p className="text-sm text-red-200 font-medium mb-1">Eski Qarz</p>
+            <p className="text-3xl font-bold text-white mt-2">${((customer.debtUSD || 0) + (customer.debtUZS || 0) / exchangeRate).toFixed(2)}</p>
           </div>
-          <div className="bg-gradient-to-br from-red-500/20 to-red-600/10 rounded-xl p-4 border border-red-500/30 backdrop-blur-sm">
-            <p className="text-sm text-red-300 font-medium">Qarz ($)</p>
-            <p className="text-3xl font-bold text-red-400 mt-2">${(customer.debtUSD || 0).toFixed(2)}</p>
+          <div className="bg-gradient-to-br from-orange-600/30 to-orange-700/20 rounded-xl p-5 border border-orange-500/40 backdrop-blur-sm">
+            <p className="text-sm text-orange-200 font-medium mb-1">Jami Qarz</p>
+            <p className="text-3xl font-bold text-white mt-2">${((customer.debtUSD || 0) + (customer.debtUZS || 0) / exchangeRate).toFixed(2)}</p>
           </div>
-          <div className="bg-gradient-to-br from-orange-500/20 to-orange-600/10 rounded-xl p-4 border border-orange-500/30 backdrop-blur-sm">
-            <p className="text-sm text-orange-300 font-medium">Qarz (so'm)</p>
-            <p className="text-2xl font-bold text-orange-400 mt-2">{Math.floor(customer.debtUZS || 0).toLocaleString('uz-UZ')}</p>
-          </div>
-          <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/10 rounded-xl p-4 border border-purple-500/30 backdrop-blur-sm">
-            <p className="text-sm text-purple-300 font-medium">Manzil</p>
-            <p className="text-sm font-semibold text-purple-300 mt-2">{customer.address || '-'}</p>
+          <div className="bg-gradient-to-br from-purple-600/30 to-purple-700/20 rounded-xl p-5 border border-purple-500/40 backdrop-blur-sm">
+            <p className="text-sm text-purple-200 font-medium mb-1">Sana</p>
+            <p className="text-lg font-semibold text-white mt-2">{new Date().toLocaleDateString('uz-UZ')}</p>
           </div>
         </div>
 
