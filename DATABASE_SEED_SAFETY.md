@@ -1,4 +1,5 @@
-# Database Seed Safety - Xavfsiz Qilindi
+
+Database Seed Safety - Xavfsiz Qilindi
 
 ## ✅ Xavfli Kodlar O'chirildi
 

@@ -1,78 +1,22 @@
 const mongoose = require('mongoose');
 
 const productSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  category: {
-    type: String,
-    required: true
-  },
-  buyPrice: {
-    type: Number,
-    required: true
-  },
-  sellPrice: {
-    type: Number,
-    required: true
-  },
-  discountPrice: {
-    type: Number,
-    default: null
-  },
-  stock: {
-    type: Number,
-    default: 0
-  },
-  imei: {
-    type: String,
-    default: ''
-  },
-  imeiList: [{
-    imei: {
-      type: String,
-      required: true
-    },
-    used: {
-      type: Boolean,
-      default: false
-    }
+  name: { type: String, required: true },
+  sku: { type: String, unique: true, sparse: true },
+  category: { type: String, default: '' },
+  stock: { type: Number, default: 0 },
+  costPrice: { type: Number, default: 0 },
+  sellPrice: { type: Number, default: 0 },
+  currency: { type: String, enum: ['USD', 'UZS'], default: 'USD' },
+  sellCurrency: { type: String, enum: ['USD', 'UZS'], default: 'USD' },
+  imei: { type: String, default: '' }, // IMEI raqamlari (comma-separated)
+  imeiList: [{ 
+    imei: { type: String, required: true },
+    used: { type: Boolean, default: false }
   }],
-  barcode: {
-    type: String,
-    unique: true,
-    sparse: true
-  },
-  branch: {
-    type: mongoose.Schema.Types.Mixed,
-    required: true
-  },
-  isMainWarehouse: {
-    type: Boolean,
-    default: false
-  },
-  active: {
-    type: Boolean,
-    default: true
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
-  }
+  branch: { type: String, default: null }, // String bo'lishi mumkin (main-warehouse-000 yoki ObjectId)
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
 });
-
-// Add indexes for performance
-productSchema.index({ name: 1 });
-productSchema.index({ branch: 1 });
-productSchema.index({ category: 1 });
-productSchema.index({ 'imeiList.imei': 1 });
-productSchema.index({ createdAt: -1 });
-productSchema.index({ isMainWarehouse: 1 });
 
 module.exports = mongoose.model('Product', productSchema);

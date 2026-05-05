@@ -12,8 +12,36 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="uz" className="dark">
-      <body className="dark bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">{children}</body>
+    <html lang="uz" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  const stored = localStorage.getItem('f-mobile-theme')
+                  let theme = 'light'
+                  if (stored) {
+                    try {
+                      const parsed = JSON.parse(stored)
+                      theme = parsed.state?.theme || 'light'
+                    } catch {}
+                  }
+                  if (theme === 'dark') {
+                    document.documentElement.classList.add('dark')
+                  } else {
+                    document.documentElement.classList.remove('dark')
+                  }
+                } catch (e) {}
+              })()
+            `,
+          }}
+        />
+      </head>
+      <body className="theme-transition bg-[var(--bg-primary)] text-[var(--text-primary)]">
+        {children}
+      </body>
     </html>
   )
 }
+

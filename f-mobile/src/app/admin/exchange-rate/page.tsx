@@ -6,7 +6,7 @@ import AdminLayout from '@/components/layouts/AdminLayout'
 import { DollarSign, Check, X } from 'lucide-react'
 
 interface ExchangeRate {
-  _id: string
+  id: string
   currency: string
   rate: number
   date: string
@@ -36,7 +36,7 @@ export default function ExchangeRatePage() {
     try {
       setLoading(true)
       setError(null)
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
       const token = localStorage.getItem('adminToken')
 
       const currentRes = await fetch(`${apiUrl}/exchange-rate/current`, {
@@ -81,7 +81,7 @@ export default function ExchangeRatePage() {
     setError(null)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
       const token = localStorage.getItem('adminToken')
 
       const response = await fetch(`${apiUrl}/exchange-rate/update`, {
@@ -91,6 +91,7 @@ export default function ExchangeRatePage() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
+          currency: 'USD',
           rate: rateValue,
           notes: ''
         })
@@ -223,3 +224,4 @@ export default function ExchangeRatePage() {
     </AdminLayout>
   )
 }
+

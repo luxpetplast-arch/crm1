@@ -1,4 +1,5 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
@@ -6,35 +7,24 @@ const { auth } = require('../middleware/auth');
 const router = express.Router();
 
 // Login
-router.post('/login', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { username, password } = req.body;
-    console.log(`[AUTH] Login attempt: username=${username}`);
 
     if (!username || !password) {
-      console.log('[AUTH] Missing username or password');
       return res.status(400).json({ success: false, error: 'Username and password required' });
     }
 
-    const user = await User.findOne({ username }).select('+password').populate('branch');
-    console.log(`[AUTH] User found: ${user ? 'yes' : 'no'}`);
-    
+    const user = await User.findOne({ username }).populate('branch');
+
     if (!user) {
-      console.log(`[AUTH] User not found: ${username}`);
       return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
 
-    const passwordMatch = await user.comparePassword(password);
-    console.log(`[AUTH] Password match: ${passwordMatch}`);
-    
-    if (!passwordMatch) {
-      console.log('[AUTH] Password mismatch');
-      return res.status(401).json({ success: false, error: 'Invalid credentials' });
-    }
+    const isPasswordValid = await bcrypt.compare(password, user.password);
 
-    if (!user.active) {
-      console.log('[AUTH] User is inactive');
-      return res.status(403).json({ success: false, error: 'User is inactive' });
+    if (!isPasswordValid) {
+      return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
 
     const token = jwt.sign(
@@ -43,36 +33,40 @@ router.post('/login', async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRE || '7d' }
     );
 
-    console.log(`[AUTH] Login successful for user: ${username}`);
     res.json({
       success: true,
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        role: user.role,
-        branch: user.branch
+      data: {
+        token,
+        user: {
+          id: user._id,
+          username: user.username,
+          name: user.name,
+          role: user.role,
+          branch: user.branch
+        }
       }
     });
   } catch (err) {
-    console.error('[AUTH] Error:', err.message);
+    console.error('Login error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Get Current User
+// Get current user
 router.get('/me', auth, async (req, res) => {
   try {
+    console.log('[AUTH /me] Request from user:', req.user.username);
     const user = await User.findById(req.user.id).populate('branch');
-    res.json({ success: true, user });
+    console.log('[AUTH /me] User found:', { 
+      username: user.username, 
+      role: user.role, 
+      branch: user.branch ? { id: user.branch._id, name: user.branch.name } : 'NO BRANCH' 
+    });
+    res.json({ success: true, data: user });
   } catch (err) {
+    console.error('[AUTH /me] Error:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
-});
-
-// Logout
-router.post('/logout', auth, (req, res) => {
-  res.json({ success: true, message: 'Logged out successfully' });
 });
 
 module.exports = router;

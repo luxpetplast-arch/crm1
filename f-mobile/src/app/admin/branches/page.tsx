@@ -39,8 +39,12 @@ export default function BranchesPage() {
   }
 
   const handleAddBranch = async () => {
-    if (!formData.name || !formData.address) {
-      setError('Barcha maydonlarni to\'ldiring')
+    if (!formData.name.trim()) {
+      setError('Filial nomi talab qilinadi')
+      return
+    }
+    if (!formData.address.trim()) {
+      setError('Manzil talab qilinadi')
       return
     }
 
@@ -128,12 +132,12 @@ export default function BranchesPage() {
         {/* Branches Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {branches.length === 0 ? (
-            <div className="col-span-full bg-slate-800/50 rounded-2xl p-12 text-center border border-slate-700/50">
+            <div key="empty" className="col-span-full bg-slate-800/50 rounded-2xl p-12 text-center border border-slate-700/50">
               <p className="text-gray-400">Filiallar topilmadi</p>
             </div>
           ) : (
-            branches.map((branch) => (
-              <div key={branch._id} className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all hover:shadow-lg hover:shadow-blue-500/20">
+            branches.map((branch, idx) => (
+              <div key={`branch-${branch._id || idx}`} className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all hover:shadow-lg hover:shadow-blue-500/20">
                 {/* Header */}
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -256,3 +260,4 @@ export default function BranchesPage() {
     </AdminLayout>
   )
 }
+

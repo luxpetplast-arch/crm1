@@ -1,42 +1,16 @@
 const mongoose = require('mongoose');
 
 const incomeSchema = new mongoose.Schema({
-  source: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  amount: {
-    type: Number,
-    required: true,
-    min: 0,
-  },
-  currency: {
-    type: String,
-    enum: ['USD', 'UZS'],
-    default: 'USD',
-  },
-  date: {
-    type: Date,
-    default: Date.now,
-  },
-  description: {
-    type: String,
-    default: '',
-  },
-  category: {
-    type: String,
-    enum: ['sales', 'service', 'other'],
-    default: 'sales',
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now,
-  },
+  source: { type: String, required: true },
+  amount: { type: Number, default: 0 },
+  amountUSD: { type: Number, default: 0 },
+  amountUZS: { type: Number, default: 0 },
+  currency: { type: String, default: 'UZS' },
+  description: { type: String, default: '' },
+  category: { type: String, default: 'other' },
+  saleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Sale', default: null },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
 });
 
 module.exports = mongoose.model('Income', incomeSchema);

@@ -7,14 +7,16 @@ import { Plus, Trash2, Search, Package, Check, X, ArrowLeft } from 'lucide-react
 import { getProducts, createSale } from '@/lib/api'
 
 interface Product {
-  _id: string
+  id: string
   name: string
-  buyPrice: number
+  costPrice: number
   sellPrice: number
   stock: number
   imei?: string
   imeiList?: Array<{ imei: string; used: boolean }>
   branch?: string
+  currency?: 'USD' | 'UZS'
+  sellCurrency?: 'USD' | 'UZS'
 }
 
 interface SaleItem {
@@ -22,11 +24,13 @@ interface SaleItem {
   productId: string
   productName: string
   imei: string
-  buyPrice: number
+  costPrice: number
   originalPrice: number
   salePrice: number
   quantity: number
   imeiCount: number
+  currency: 'USD' | 'UZS'
+  originalCurrency: 'USD' | 'UZS'
 }
 
 interface PaymentMethod {
@@ -46,59 +50,120 @@ export default function StreetSalePage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
   const [editingPrice, setEditingPrice] = useState(0)
-  const [currency, setCurrency] = useState<'USD' | 'UZS'>('USD')
-  const [exchangeRate, setExchangeRate] = useState(12500)
-  const [cartQuantities, setCartQuantities] = useState<{ [key: string]: number }>({}) // Default UZS to USD rate
+  const [cartQuantities, setCartQuantities] = useState<{ [key: string]: number }>({})
   const [quantityInputs, setQuantityInputs] = useState<{ [key: string]: string }>({})
+  const [exchangeRate, setExchangeRate] = useState(12500)
+  const [productCurrencies, setProductCurrencies] = useState<{ [key: string]: 'USD' | 'UZS' }>({})
+
+  const convertPrice = (price: number, fromCurrency: 'USD' | 'UZS', toCurrency: 'USD' | 'UZS'): number => {
+    if (fromCurrency === toCurrency) return price
+    if (fromCurrency === 'USD' && toCurrency === 'UZS') {
+      return price * exchangeRate
+    }
+    if (fromCurrency === 'UZS' && toCurrency === 'USD') {
+      return price / exchangeRate
+    }
+    return price
+  }
+
+  const formatPrice = (price?: number, currency?: 'USD' | 'UZS'): string => {
+    if (!price || isNaN(price)) return '0'
+    if (currency === 'USD') {
+      return `$${price.toFixed(2)}`
+    }
+    return `${Math.floor(price).toLocaleString('uz-UZ')} so'm`
+  }
+  
+  const getProductDisplayCurrency = (productId: string, originalCurrency: 'USD' | 'UZS'): 'USD' | 'UZS' => {
+    return productCurrencies[productId] || originalCurrency
+  }
+  
+  const getConvertedPrice = (price: number, fromCurrency: 'USD' | 'UZS', toCurrency: 'USD' | 'UZS'): number => {
+    if (fromCurrency === toCurrency) return price
+    if (fromCurrency === 'USD' && toCurrency === 'UZS') {
+      return price * exchangeRate
+    }
+    if (fromCurrency === 'UZS' && toCurrency === 'USD') {
+      return price / exchangeRate
+    }
+    return price
+  }
 
   const fetchProducts = async () => {
     setError(null)
     try {
-      const branchId = localStorage.getItem('branchId')
-      const params: Record<string, string> = {}
+      // Fetch current user to get their branch
+      const token = localStorage.getItem('cashierToken')
+      if (!token) return
       
-      if (branchId) {
-        params.branch = branchId
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+      
+      let userBranchId = null
+      try {
+        console.log('[STREET SALE] Fetching user data from /auth/me...')
+        const userResponse = await fetch(`${apiUrl}/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        const userData = await userResponse.json()
+        console.log('[STREET SALE] User data response:', userData)
+        
+        if (userData.success && userData.data?.branch) {
+          userBranchId = typeof userData.data.branch === 'string' 
+            ? userData.data.branch 
+            : userData.data.branch._id || userData.data.branch.id
+          console.log('[STREET SALE] ✅ User branch from API:', userBranchId)
+        } else {
+          console.log('[STREET SALE] ⚠️ No branch in user data')
+        }
+      } catch (err) {
+        console.error('[STREET SALE] Error fetching user:', err)
       }
       
-      const response = await getProducts(params)
+      // Fallback to localStorage if API fails
+      if (!userBranchId) {
+        userBranchId = localStorage.getItem('branchId')
+        console.log('[STREET SALE] Using branchId from localStorage:', userBranchId)
+      }
+      
+      console.log('[STREET SALE] Final userBranchId:', userBranchId)
+      
+      const response = await getProducts()
+      console.log('[STREET SALE] All products count:', response.data?.length)
+      
       if (response.success && response.data) {
         const productList = Array.isArray(response.data) ? response.data : []
-        setProducts(productList)
+        
+        // Filter by branch
+        const filteredByBranch = userBranchId 
+          ? productList.filter(p => {
+              const productBranch = (p as any).branch
+              const productBranchId = typeof productBranch === 'string' 
+                ? productBranch 
+                : (productBranch?._id || productBranch?.id || productBranch?.toString())
+              
+              const branchMatch = productBranchId === userBranchId
+              console.log('[STREET SALE] Product:', { 
+                name: p.name, 
+                productBranchId, 
+                userBranchId, 
+                matches: branchMatch 
+              })
+              return branchMatch
+            })
+          : productList
+        
+        console.log('[STREET SALE] ✅ Filtered products for branch:', filteredByBranch.length)
+        setProducts(filteredByBranch)
       } else {
         setError(response.error || 'Mahsulotlarni yuklashda xato')
       }
     } catch (err) {
-      console.error('Fetch error:', err)
+      console.error('[STREET SALE] Fetch error:', err)
       setError('Ma\'lumotlarni yuklashda xato')
     }
-  }
-
-  const fetchExchangeRate = async () => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
-      const response = await fetch(`${apiUrl}/exchange-rate/current`)
-      const data = await response.json()
-      
-      if (data.success && data.data) {
-        setExchangeRate(data.data.rate)
-      }
-    } catch (err) {
-      console.error('Exchange rate fetch error:', err)
-      // Keep default rate if fetch fails
-    }
-  }
-
-  // Helper function to convert price based on currency
-  const convertPrice = (priceInUsd: number): number => {
-    if (currency === 'USD') return priceInUsd
-    return priceInUsd * exchangeRate
-  }
-
-  // Helper function to format price with currency symbol
-  const formatPrice = (price: number): string => {
-    if (currency === 'USD') return `$${price.toFixed(2)}`
-    return `${Math.floor(price).toLocaleString('uz-UZ')} so'm`
   }
 
   useEffect(() => {
@@ -112,41 +177,106 @@ export default function StreetSalePage() {
       }
     }
   }, [router])
+  
+  const fetchExchangeRate = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+      const response = await fetch(`${apiUrl}/exchange-rate/current`)
+      const data = await response.json()
+      
+      if (data.success && data.data) {
+        setExchangeRate(data.data.rate)
+        console.log('[STREET SALE] Exchange rate:', data.data.rate)
+      }
+    } catch (err) {
+      console.error('[STREET SALE] Exchange rate fetch error:', err)
+    }
+  }
 
   const filteredProducts = products.filter(p => {
-    if (!searchTerm.trim()) return false
-    const searchLower = searchTerm.toLowerCase()
+    const searchLower = searchTerm.toLowerCase().trim()
     
-    // Search by name
+    // If no search term, show all products with available IMEI
+    if (!searchLower) {
+      const hasAvailableImei = (p.imeiList && p.imeiList.some((item: any) => !item.used)) || 
+                               (p.imei && p.imei.trim() !== '')
+      return hasAvailableImei
+    }
+    
+    // If search term exists, filter by name or IMEI
     const nameMatch = p.name.toLowerCase().includes(searchLower)
     
-    // Search by IMEI
-    const imeiMatch = p.imeiList && p.imeiList.some((item: any) => 
+    const imeiListMatch = p.imeiList && p.imeiList.some((item: any) => 
       item.imei.toLowerCase().includes(searchLower) && !item.used
     )
     
-    return nameMatch || imeiMatch
+    const imeiStringMatch = p.imei && p.imei.toLowerCase().includes(searchLower)
+    
+    const hasAvailableImei = (p.imeiList && p.imeiList.some((item: any) => !item.used)) || 
+                             (p.imei && p.imei.trim() !== '')
+    
+    return hasAvailableImei && (nameMatch || imeiListMatch || imeiStringMatch)
   })
+  
+  console.log('[STREET SALE] filteredProducts count:', filteredProducts.length)
 
-  const totalAmount = saleItems.reduce((sum, item) => sum + (item.salePrice * item.quantity), 0)
+  // Calculate total in mixed currencies - convert all to UZS for calculation
+  const totalInUZS = saleItems.reduce((sum, item) => {
+    const itemTotal = item.salePrice * item.quantity
+    if (item.currency === 'USD') {
+      return sum + (itemTotal * exchangeRate)
+    }
+    return sum + itemTotal
+  }, 0)
+  
+  // Determine display currency based on cart items
+  const hasUSD = saleItems.some(item => item.currency === 'USD')
+  const hasUZS = saleItems.some(item => item.currency === 'UZS')
+  const displayInUSD = hasUSD && !hasUZS // Show in USD only if all items are USD
+  
+  const totalAmount = displayInUSD ? totalInUZS / exchangeRate : totalInUZS
+  const totalCurrency: 'USD' | 'UZS' = displayInUSD ? 'USD' : 'UZS'
+  
   const totalPaid = paymentMethods.reduce((sum, method) => sum + method.amount, 0)
   const change = totalPaid - totalAmount
   const finalDebt = Math.max(0, totalAmount - totalPaid)
 
   const handleAddToCart = (product: Product, imei?: string, quantity: number = 1) => {
-    if (!imei && (!product.imeiList || product.imeiList.length === 0)) {
-      setError('Bu mahsulotning IMEKasi yo\'q')
-      return
+    // Get available IMEIs from both sources
+    let availableImeis: string[] = []
+    
+    if (product.imeiList && product.imeiList.length > 0) {
+      availableImeis = product.imeiList
+        .filter(item => !item.used)
+        .map(item => item.imei)
+    } else if (product.imei && product.imei.trim() !== '') {
+      availableImeis = product.imei
+        .split(',')
+        .map(i => i.trim())
+        .filter(i => i !== '')
     }
-
-    const availableImei = imei || (product.imeiList?.find(item => !item.used)?.imei)
-    if (!availableImei) {
+    
+    if (availableImeis.length === 0) {
       setError('Bu mahsulotning bo\'sh IMEKasi yo\'q')
       return
     }
 
+    const availableImei = imei || availableImeis[0]
+    if (!availableImei) {
+      setError('Bu mahsulotning IMEKasi yo\'q')
+      return
+    }
+
+    // Get selected currency for this product
+    const originalCurrency = product.sellCurrency || product.currency || 'UZS'
+    const selectedCurrency = getProductDisplayCurrency(product.id, originalCurrency)
+    
+    // Convert prices to selected currency
+    const convertedSellPrice = getConvertedPrice(product.sellPrice, originalCurrency, selectedCurrency)
+    const convertedCostPrice = getConvertedPrice(product.costPrice, originalCurrency, selectedCurrency)
+
     // Check if same product with same IMEI already exists in cart
-    const existingItem = saleItems.find(item => item.productId === product._id && item.imei === availableImei)
+    const existingItem = saleItems.find(item => item.productId === product.id && item.imei === availableImei)
     
     if (existingItem) {
       // Update quantity instead of adding new item
@@ -159,14 +289,16 @@ export default function StreetSalePage() {
       // Add new item
       setSaleItems([...saleItems, {
         id: Math.random().toString(),
-        productId: product._id,
+        productId: product.id,
         productName: product.name,
         imei: availableImei,
-        buyPrice: product.buyPrice,
-        originalPrice: product.sellPrice,
-        salePrice: product.sellPrice,
+        costPrice: convertedCostPrice,
+        originalPrice: convertedSellPrice,
+        salePrice: convertedSellPrice,
         quantity: quantity,
-        imeiCount: quantity
+        imeiCount: quantity,
+        currency: selectedCurrency,
+        originalCurrency: originalCurrency
       }])
     }
     setSearchTerm('')
@@ -181,22 +313,9 @@ export default function StreetSalePage() {
     const item = saleItems.find(i => i.id === itemId)
     if (!item) return
 
-    // Tushib berish narxi olish narxidan kam bo'lmasin
-    // Agar som tanlangan bo'lsa, somga o'tkazib solishtir
-    const minPrice = currency === 'UZS' ? convertPrice(item.buyPrice) : item.buyPrice
-    
-    if (newPrice < minPrice) {
-      const minPriceFormatted = formatPrice(minPrice)
-      setError(`Tushib berish narxi olish narxidan (${minPriceFormatted}) kam bo'lmasin`)
-      return
-    }
-
-    // Agar som tanlangan bo'lsa, dollardan somga o'tkazib saqlash uchun dollarni hisoblaylik
-    const priceInUsd = currency === 'UZS' ? newPrice / exchangeRate : newPrice
-
     setSaleItems(saleItems.map(i =>
       i.id === itemId
-        ? { ...i, salePrice: priceInUsd }
+        ? { ...i, salePrice: newPrice }
         : i
     ))
     setEditingItemId(null)
@@ -222,11 +341,8 @@ export default function StreetSalePage() {
   }
 
   const handleUpdatePaymentAmount = (index: number, amount: number) => {
-    // Agar som tanlangan bo'lsa, somdan dollardan o'tkazib saqlash
-    const amountInUsd = currency === 'UZS' ? amount / exchangeRate : amount
-    
     const updated = [...paymentMethods]
-    updated[index].amount = amountInUsd
+    updated[index].amount = amount
     setPaymentMethods(updated)
   }
 
@@ -259,12 +375,13 @@ export default function StreetSalePage() {
         originalPrice: item.originalPrice,
         salePrice: item.salePrice,
         imei: item.imei,
+        currency: item.currency,
         total: item.salePrice * item.quantity
       })),
       totalAmount,
       paidAmount: totalPaid,
       change: Math.max(0, change),
-      currency: currency,
+      currency: totalCurrency,
       paymentMethods,
       notes: 'Ko\'chaga sotuv'
     }
@@ -303,29 +420,6 @@ export default function StreetSalePage() {
             <div className="flex-1">
               <h1 className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-orange-400 to-red-400">Ko'chaga Sotuv</h1>
               <p className="text-gray-400 mt-1">Noma'lum odamga sotuv</p>
-            </div>
-            {/* Currency Selector */}
-            <div className="flex gap-2 bg-white/10 border border-white/20 rounded-lg p-1">
-              <button
-                onClick={() => setCurrency('USD')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                  currency === 'USD'
-                    ? 'bg-orange-600 text-white shadow-lg shadow-orange-500/50'
-                    : 'text-gray-300 hover:text-white'
-                }`}
-              >
-                $
-              </button>
-              <button
-                onClick={() => setCurrency('UZS')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                  currency === 'UZS'
-                    ? 'bg-orange-600 text-white shadow-lg shadow-orange-500/50'
-                    : 'text-gray-300 hover:text-white'
-                }`}
-              >
-                So'm
-              </button>
             </div>
           </div>
 
@@ -366,24 +460,36 @@ export default function StreetSalePage() {
               </div>
             ) : (
               filteredProducts.flatMap(product => {
-                if (!product.imeiList || product.imeiList.length === 0) {
+                // Handle both imeiList and imei string field
+                let imeiGroups: { [key: string]: number } = {}
+                
+                if (product.imeiList && product.imeiList.length > 0) {
+                  // Use imeiList
+                  const searchLower = searchTerm.toLowerCase()
+                  product.imeiList.forEach(item => {
+                    if (!item.used && (!searchTerm || item.imei.toLowerCase().includes(searchLower))) {
+                      imeiGroups[item.imei] = (imeiGroups[item.imei] || 0) + 1
+                    }
+                  })
+                } else if (product.imei && product.imei.trim() !== '') {
+                  // Use imei string field (comma-separated)
+                  const imeis = product.imei.split(',').map(i => i.trim()).filter(i => i !== '')
+                  const searchLower = searchTerm.toLowerCase()
+                  
+                  imeis.forEach(imei => {
+                    if (!searchTerm || imei.toLowerCase().includes(searchLower)) {
+                      imeiGroups[imei] = (imeiGroups[imei] || 0) + 1
+                    }
+                  })
+                } else {
+                  // No IMEI data
                   return []
                 }
-                
-                const searchLower = searchTerm.toLowerCase()
-                
-                // Group IMEIs by value and count available ones
-                const imeiGroups: { [key: string]: number } = {}
-                product.imeiList.forEach(item => {
-                  if (!item.used && item.imei.toLowerCase().includes(searchLower)) {
-                    imeiGroups[item.imei] = (imeiGroups[item.imei] || 0) + 1
-                  }
-                })
                 
                 // Create one card per unique IMEI
                 return Object.entries(imeiGroups).map(([imei, count]) => (
                   <div
-                    key={`${product._id}-${imei}`}
+                    key={`${product.id}-${imei}`}
                     className="bg-gradient-to-br from-white/10 to-white/5 border border-white/20 rounded-xl p-4 hover:border-orange-500/50 hover:shadow-lg hover:shadow-orange-500/20 transition-all duration-300 group"
                   >
                     <div className="flex justify-between items-start mb-3">
@@ -395,18 +501,65 @@ export default function StreetSalePage() {
                     </div>
 
                     <div className="space-y-2">
-                      <p className="text-2xl font-bold text-orange-300">{formatPrice(convertPrice(product.sellPrice))}</p>
-                      
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="bg-blue-500/20 border border-blue-500/30 rounded p-2">
-                          <p className="text-gray-400">Olish:</p>
-                          <p className="text-blue-300 font-semibold">{formatPrice(convertPrice(product.buyPrice))}</p>
-                        </div>
-                        <div className="bg-green-500/20 border border-green-500/30 rounded p-2">
-                          <p className="text-gray-400">Sotish:</p>
-                          <p className="text-green-300 font-semibold">{formatPrice(convertPrice(product.sellPrice))}</p>
-                        </div>
+                      {/* Currency Selection Buttons */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => setProductCurrencies(prev => ({ ...prev, [product.id]: 'USD' }))}
+                          className={`py-1 px-2 rounded text-xs font-semibold transition ${
+                            getProductDisplayCurrency(product.id, product.sellCurrency || product.currency || 'UZS') === 'USD'
+                              ? 'bg-green-600 text-white border border-green-500'
+                              : 'bg-white/10 text-gray-300 border border-white/20 hover:bg-white/20'
+                          }`}
+                        >
+                          $ Dollar
+                        </button>
+                        <button
+                          onClick={() => setProductCurrencies(prev => ({ ...prev, [product.id]: 'UZS' }))}
+                          className={`py-1 px-2 rounded text-xs font-semibold transition ${
+                            getProductDisplayCurrency(product.id, product.sellCurrency || product.currency || 'UZS') === 'UZS'
+                              ? 'bg-blue-600 text-white border border-blue-500'
+                              : 'bg-white/10 text-gray-300 border border-white/20 hover:bg-white/20'
+                          }`}
+                        >
+                          so'm So'm
+                        </button>
                       </div>
+                      
+                      {(() => {
+                        const originalCurrency = product.sellCurrency || product.currency || 'UZS'
+                        const displayCurrency = getProductDisplayCurrency(product.id, originalCurrency)
+                        const displaySellPrice = getConvertedPrice(product.sellPrice, originalCurrency, displayCurrency)
+                        const displayCostPrice = getConvertedPrice(product.costPrice, originalCurrency, displayCurrency)
+                        
+                        return (
+                          <>
+                            <p className="text-2xl font-bold text-orange-300">
+                              {formatPrice(displaySellPrice, displayCurrency)}
+                            </p>
+                            
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div className="bg-blue-500/20 border border-blue-500/30 rounded p-2">
+                                <p className="text-gray-400">Olish:</p>
+                                <p className="text-blue-300 font-semibold">
+                                  {formatPrice(displayCostPrice, displayCurrency)}
+                                </p>
+                              </div>
+                              <div className="bg-green-500/20 border border-green-500/30 rounded p-2">
+                                <p className="text-gray-400">Sotish:</p>
+                                <p className="text-green-300 font-semibold">
+                                  {formatPrice(displaySellPrice, displayCurrency)}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            {originalCurrency !== displayCurrency && (
+                              <div className="text-xs text-gray-400 text-center bg-purple-500/10 border border-purple-500/20 rounded p-1">
+                                Kurs: 1$ = {exchangeRate.toLocaleString('uz-UZ')} so'm
+                              </div>
+                            )}
+                          </>
+                        )
+                      })()}
                       
                       <div className="bg-white/5 rounded p-2">
                         <p className="text-xs text-gray-400 mb-1">IMEKA:</p>
@@ -426,7 +579,7 @@ export default function StreetSalePage() {
                             min="1"
                             max={count}
                             defaultValue="1"
-                            id={`qty-${product._id}-${imei}`}
+                            id={`qty-${product.id}-${imei}`}
                             className="flex-1 px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                             placeholder="Miqdor"
                             onChange={(e) => {
@@ -448,7 +601,7 @@ export default function StreetSalePage() {
                           />
                           <button
                             onClick={() => {
-                              const qtyInput = document.getElementById(`qty-${product._id}-${imei}`) as HTMLInputElement
+                              const qtyInput = document.getElementById(`qty-${product.id}-${imei}`) as HTMLInputElement
                               const qty = parseInt(qtyInput?.value || '1') || 1
                               if (qty > count) {
                                 setError(`Maksimum ${count} ta mavjud`)
@@ -516,12 +669,28 @@ export default function StreetSalePage() {
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="bg-blue-500/20 border border-blue-500/30 rounded p-2">
                         <p className="text-gray-400">Olish:</p>
-                        <p className="text-blue-300 font-semibold">{formatPrice(convertPrice(item.buyPrice))}</p>
+                        <p className="text-blue-300 font-semibold">{formatPrice(item.costPrice, item.currency)}</p>
                       </div>
                       <div className="bg-green-500/20 border border-green-500/30 rounded p-2">
                         <p className="text-gray-400">Sotish:</p>
-                        <p className="text-green-300 font-semibold">{formatPrice(convertPrice(item.originalPrice))}</p>
+                        <p className="text-green-300 font-semibold">{formatPrice(item.originalPrice, item.currency)}</p>
                       </div>
+                    </div>
+                    
+                    {/* Show currency badge */}
+                    <div className="text-center">
+                      <span className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
+                        item.currency === 'USD' 
+                          ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
+                          : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                      }`}>
+                        {item.currency === 'USD' ? '$ Dollar' : 'so\'m So\'m'}
+                      </span>
+                      {item.originalCurrency !== item.currency && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          Konvertatsiya qilindi
+                        </p>
+                      )}
                     </div>
 
                     {/* Quantity */}
@@ -563,7 +732,6 @@ export default function StreetSalePage() {
                           value={editingPrice}
                           onChange={(e) => {
                             const value = e.target.value
-                            // Faqat raqamlar va nuqta qabul qil
                             if (value === '' || /^\d*\.?\d*$/.test(value)) {
                               setEditingPrice(value === '' ? 0 : parseFloat(value))
                             }
@@ -582,16 +750,16 @@ export default function StreetSalePage() {
                       <button
                         onClick={() => {
                           setEditingItemId(item.id)
-                          setEditingPrice(currency === 'UZS' ? convertPrice(item.salePrice) : item.salePrice)
+                          setEditingPrice(item.salePrice)
                         }}
                         className="w-full text-left px-2 py-1 bg-white/10 hover:bg-white/20 rounded text-orange-300 text-sm transition"
                       >
-                        Tushib berish: {formatPrice(convertPrice(item.salePrice))}
+                        Tushib berish: {formatPrice(item.salePrice, item.currency)}
                       </button>
                     )}
 
                     <div className="text-right">
-                      <p className="font-bold text-orange-300">{formatPrice(convertPrice(item.salePrice * item.quantity))}</p>
+                      <p className="font-bold text-orange-300">{formatPrice(item.salePrice * item.quantity, item.currency)}</p>
                     </div>
                   </div>
                 ))
@@ -606,7 +774,7 @@ export default function StreetSalePage() {
               <div className="space-y-3">
                 <div className="flex justify-between text-gray-300">
                   <span>Jami:</span>
-                  <span className="font-bold text-orange-300">{formatPrice(convertPrice(totalAmount))}</span>
+                  <span className="font-bold text-orange-300">{formatPrice(totalAmount, totalCurrency)}</span>
                 </div>
 
                 <div className="space-y-3 bg-white/5 border border-white/10 rounded-lg p-4">
@@ -645,7 +813,6 @@ export default function StreetSalePage() {
                     <div className="space-y-2">
                       {paymentMethods.map((method, index) => {
                         const typeText = method.type === 'cash' ? 'Naqd' : method.type === 'click' ? 'Click' : 'Terminal'
-                        const displayAmount = currency === 'UZS' ? method.amount * exchangeRate : method.amount
                         return (
                           <div key={index} className="flex gap-2">
                             <label className="flex-1 text-sm text-gray-400 flex items-center">
@@ -654,29 +821,22 @@ export default function StreetSalePage() {
                             <input
                               type="text"
                               inputMode="decimal"
-                              value={displayAmount}
+                              value={method.amount}
                               onChange={(e) => {
                                 const value = e.target.value
-                                // Faqat raqamlar va nuqta qabul qil
                                 if (value === '' || /^\d*\.?\d*$/.test(value)) {
                                   handleUpdatePaymentAmount(index, value === '' ? 0 : parseFloat(value))
                                 }
                               }}
                               className="w-32 bg-white/10 border border-white/20 rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                              placeholder={currency === 'UZS' ? '0' : '0.00'}
+                              placeholder="0.00"
                             />
                           </div>
                         )
                       })}
                     </div>
-                  </div>
 
-                  {/* Change */}
-                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-2 text-center">
-                    <p className="text-gray-400 text-xs">Qaytarish</p>
-                    <p className="font-bold text-green-400">{formatPrice(convertPrice(Math.max(0, change)))}</p>
                   </div>
-
                   {/* Action Buttons */}
                   <button
                     onClick={handleCompleteSale}
@@ -695,3 +855,4 @@ export default function StreetSalePage() {
     </CashierLayout>
   )
 }
+

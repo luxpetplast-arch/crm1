@@ -12,14 +12,18 @@ interface PaymentMethod {
 }
 
 interface Sale {
-  _id: string
+  id?: string
+  _id?: string
   customer?: { name: string }
+  cashier?: { name: string; username: string }
+  branch?: { name: string; id: string }
   totalAmount: number
   paidAmount: number
   paymentMethods?: PaymentMethod[]
-  items: Array<{ product?: { name: string }; quantity: number; imei?: string }>
+  items: Array<{ product?: { name: string }; quantity: number; imei?: string; currency?: 'USD' | 'UZS' }>
   createdAt: string
   notes?: string
+  currency?: 'USD' | 'UZS'
 }
 
 export default function HistoryPage() {
@@ -27,8 +31,20 @@ export default function HistoryPage() {
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [sales, setSales] = useState<Sale[]>([])
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
+
+  const formatPrice = (price?: number, currency?: 'USD' | 'UZS'): string => {
+    if (!price || isNaN(price)) return '0'
+    
+    // Determine currency from sale items if not provided
+    if (currency === 'USD') {
+      return `$${price.toFixed(2)}`
+    } else {
+      // UZS or default
+      return `${Math.floor(price).toLocaleString('uz-UZ')} so'm`
+    }
+  }
 
   const fetchSales = async () => {
     setError(null)
@@ -67,12 +83,22 @@ export default function HistoryPage() {
     const response = await deleteSale(saleId)
 
     if (response.success) {
-      setSales(sales.filter(s => s._id !== saleId))
+      setSales(sales.filter(s => (s._id || s.id) !== saleId))
     } else {
       setError(response.error || 'Savdoni o\'chirishda xato')
     }
 
     setIsDeleting(null)
+  }
+
+  const toggleExpanded = (saleId: string) => {
+    const newExpandedIds = new Set(expandedIds)
+    if (newExpandedIds.has(saleId)) {
+      newExpandedIds.delete(saleId)
+    } else {
+      newExpandedIds.add(saleId)
+    }
+    setExpandedIds(newExpandedIds)
   }
 
   return (
@@ -113,14 +139,17 @@ export default function HistoryPage() {
                 <p className="text-gray-400">Savdolar topilmadi</p>
               </div>
             ) : (
-              filteredSales.map((sale) => (
-                <div key={sale._id} className="bg-white/5 border border-white/10 rounded-lg overflow-hidden">
+              filteredSales.map((sale, index) => {
+                const saleId = sale._id || sale.id || `sale-${index}`;
+                const isExpanded = expandedIds.has(saleId);
+                return (
+                <div key={saleId} className="bg-white/5 border border-white/10 rounded-lg overflow-hidden">
                   {/* Main Row */}
                   <button
-                    onClick={() => setExpandedId(expandedId === sale._id ? null : sale._id)}
+                    onClick={() => toggleExpanded(saleId)}
                     className="w-full px-6 py-4 flex items-center justify-between hover:bg-white/10 transition text-left"
                   >
-                    <div className="flex-1 grid grid-cols-5 gap-4">
+                    <div className="flex-1 grid grid-cols-6 gap-4">
                       <div>
                         <p className="text-xs text-gray-400">Sana va Vaqt</p>
                         <p className="text-white font-semibold">{new Date(sale.createdAt).toLocaleString('uz-UZ')}</p>
@@ -128,8 +157,22 @@ export default function HistoryPage() {
                       <div>
                         <p className="text-xs text-gray-400">Mijoz Ismi</p>
                         <p className="text-white font-semibold">
-                          {sale.customer?.name || (sale as any).notes === 'Ko\'chaga sotuv' ? 'Ko\'chaga sotuv' : 'Noma\'lum'}
+                          {sale.customer?.name 
+                            ? sale.customer.name 
+                            : (sale as any).notes === "Ko'chaga sotuv" || (sale as any).saleType === 'street'
+                              ? "Ko'chaga sotuv"
+                              : "Noma'lum"}
                         </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400">Kassir</p>
+                        <p className="text-white font-semibold">
+                          {sale.cashier?.name || sale.cashier?.username || '-'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400">Filial</p>
+                        <p className="text-white font-semibold">{sale.branch?.name || '-'}</p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-400">Miqdor</p>
@@ -137,32 +180,26 @@ export default function HistoryPage() {
                       </div>
                       <div>
                         <p className="text-xs text-gray-400">Summa</p>
-                        <p className="text-green-400 font-bold">${sale.totalAmount.toFixed(2)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-400">Qarz</p>
-                        <p className={`font-bold ${(sale.totalAmount - (sale.paidAmount || 0)) > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                          ${Math.max(0, sale.totalAmount - (sale.paidAmount || 0)).toFixed(2)}
-                        </p>
+                        <p className="text-green-400 font-bold">{formatPrice(sale.totalAmount, sale.currency)}</p>
                       </div>
                     </div>
                     <ChevronDown
                       size={20}
                       className={`text-teal-400 transition-transform ml-4 flex-shrink-0 ${
-                        expandedId === sale._id ? 'rotate-180' : ''
+                        isExpanded ? 'rotate-180' : ''
                       }`}
                     />
                   </button>
 
                   {/* Expanded Details */}
-                  {expandedId === sale._id && (
+                  {isExpanded && (
                     <div className="bg-white/5 border-t border-white/10 px-6 py-4 space-y-4">
                       {/* Mahsulotlar */}
                       <div>
                         <p className="text-sm font-semibold text-teal-300 mb-2">📦 Mahsulotlar:</p>
                         <div className="space-y-2">
                           {sale.items.map((item, idx) => (
-                            <div key={idx} className="space-y-1 bg-white/5 p-3 rounded">
+                            <div key={`${sale.id}-item-${idx}`} className="space-y-1 bg-white/5 p-3 rounded">
                               <div className="flex justify-between text-sm text-gray-300">
                                 <span className="font-semibold">{item.product?.name || 'Noma\'lum'}</span>
                                 <span>x{item.quantity}</span>
@@ -191,31 +228,31 @@ export default function HistoryPage() {
                                   method.type === 'click' ? '📱 Click' :
                                   '🏧 Terminal'
                                 return (
-                                  <div key={idx} className="flex justify-between text-sm bg-white/5 p-3 rounded">
+                                  <div key={`${sale.id}-payment-${idx}`} className="flex justify-between text-sm bg-white/5 p-3 rounded">
                                     <span className="text-gray-300">{typeText}</span>
-                                    <span className="text-white font-semibold">${method.amount.toFixed(2)}</span>
+                                    <span className="text-white font-semibold">{formatPrice(method.amount, sale.currency)}</span>
                                   </div>
                                 )
                               })}
                               <div className="border-t border-white/10 pt-3 mt-3 space-y-2">
                                 <div className="flex justify-between text-sm">
                                   <span className="text-gray-400">Jami Summa:</span>
-                                  <span className="text-green-400 font-semibold">${sale.totalAmount.toFixed(2)}</span>
+                                  <span className="text-green-400 font-semibold">{formatPrice(sale.totalAmount, sale.currency)}</span>
                                 </div>
                                 <div className="flex justify-between text-sm">
                                   <span className="text-gray-400">To'langan:</span>
-                                  <span className="text-cyan-400 font-semibold">${(sale.paidAmount || 0).toFixed(2)}</span>
+                                  <span className="text-cyan-400 font-semibold">{formatPrice(sale.paidAmount || 0, sale.currency)}</span>
                                 </div>
                                 {sale.totalAmount > (sale.paidAmount || 0) && (
                                   <div className="flex justify-between text-sm">
                                     <span className="text-gray-400">Qarz:</span>
-                                    <span className="text-red-400 font-semibold">${(sale.totalAmount - (sale.paidAmount || 0)).toFixed(2)}</span>
+                                    <span className="text-red-400 font-semibold">{formatPrice(sale.totalAmount - (sale.paidAmount || 0), sale.currency)}</span>
                                   </div>
                                 )}
                                 {/* Summary Line */}
                                 <div className="bg-teal-500/10 border border-teal-500/30 rounded p-3 mt-3">
                                   <p className="text-sm text-teal-300">
-                                    <span className="font-semibold">${sale.totalAmount.toFixed(2)}</span>
+                                    <span className="font-semibold">{formatPrice(sale.totalAmount, sale.currency)}</span>
                                     <span className="text-gray-400"> dan </span>
                                     {sale.paymentMethods.map((method, idx) => {
                                       const typeText = 
@@ -224,8 +261,8 @@ export default function HistoryPage() {
                                         method.type === 'click' ? 'click' :
                                         'terminal'
                                       return (
-                                        <span key={idx}>
-                                          <span className="font-semibold">${method.amount.toFixed(2)}</span>
+                                        <span key={`${sale.id}-summary-${idx}`}>
+                                          <span className="font-semibold">{formatPrice(method.amount, sale.currency)}</span>
                                           <span className="text-gray-400"> {typeText}</span>
                                           {idx < sale.paymentMethods!.length - 1 && <span className="text-gray-400"> va </span>}
                                         </span>
@@ -234,7 +271,7 @@ export default function HistoryPage() {
                                     {sale.totalAmount > (sale.paidAmount || 0) && (
                                       <>
                                         <span className="text-gray-400"> va </span>
-                                        <span className="font-semibold">${(sale.totalAmount - (sale.paidAmount || 0)).toFixed(2)}</span>
+                                        <span className="font-semibold">{formatPrice(sale.totalAmount - (sale.paidAmount || 0), sale.currency)}</span>
                                         <span className="text-gray-400"> qarz</span>
                                       </>
                                     )}
@@ -250,18 +287,19 @@ export default function HistoryPage() {
 
                       <div className="flex gap-2 pt-4 border-t border-white/10">
                         <button
-                          onClick={() => handleDeleteSale(sale._id)}
-                          disabled={isDeleting === sale._id}
+                          onClick={() => handleDeleteSale(saleId)}
+                          disabled={isDeleting === saleId}
                           className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded-lg transition disabled:opacity-50 font-semibold text-sm"
                         >
                           <Trash2 size={16} />
-                          {isDeleting === sale._id ? 'O\'chirilmoqda...' : 'O\'chirish'}
+                          {isDeleting === saleId ? 'O\'chirilmoqda...' : 'O\'chirish'}
                         </button>
                       </div>
                     </div>
                   )}
                 </div>
-              ))
+              );
+              })
             )}
           </div>
         </div>
@@ -269,3 +307,4 @@ export default function HistoryPage() {
     </CashierLayout>
   )
 }
+

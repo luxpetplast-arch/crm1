@@ -4,34 +4,53 @@ const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Get current exchange rate (public)
+// Get current exchange rate
 router.get('/current', async (req, res) => {
   try {
-    let rate = await ExchangeRate.findOne({ currency: 'USD' }).sort({ date: -1 });
+    // Get the latest USD rate from database
+    let rate = await ExchangeRate.findOne({ currency: 'USD' }).sort({ updatedAt: -1 });
     
+    // If no rate exists, create default
     if (!rate) {
-      // Default rate if not set
-      rate = new ExchangeRate({ 
-        currency: 'USD', 
+      rate = await ExchangeRate.create({
+        currency: 'USD',
         rate: 12500,
-        date: new Date(),
         notes: 'Default rate'
       });
-      await rate.save();
     }
-    
-    res.json({ success: true, data: rate });
+
+    res.json({
+      success: true,
+      data: {
+        id: rate._id,
+        currency: rate.currency,
+        rate: rate.rate,
+        updatedAt: rate.updatedAt
+      }
+    });
   } catch (err) {
+    console.error('Error fetching exchange rate:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Get all rates (public)
+// Get all exchange rates
 router.get('/all', async (req, res) => {
   try {
-    const rates = await ExchangeRate.find({ currency: 'USD' }).sort({ date: -1 }).limit(30);
-    res.json({ success: true, data: rates });
+    const rates = await ExchangeRate.find().sort({ updatedAt: -1 }).limit(10);
+    
+    res.json({
+      success: true,
+      data: rates.map(r => ({
+        id: r._id,
+        currency: r.currency,
+        rate: r.rate,
+        updatedAt: r.updatedAt,
+        notes: r.notes
+      }))
+    });
   } catch (err) {
+    console.error('Error fetching exchange rates:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -39,45 +58,39 @@ router.get('/all', async (req, res) => {
 // Update exchange rate (admin only)
 router.put('/update', auth, async (req, res) => {
   try {
-    const { rate, notes } = req.body;
+    const { currency, rate, notes } = req.body;
 
-    if (!rate) {
-      return res.status(400).json({ success: false, error: 'Kurs miqdori talab qilinadi' });
+    console.log('Updating exchange rate:', { currency, rate, notes });
+
+    if (!currency || !rate) {
+      return res.status(400).json({ success: false, error: 'Currency and rate required' });
     }
 
-    if (isNaN(rate) || rate <= 0) {
-      return res.status(400).json({ success: false, error: 'Kurs miqdori noto\'g\'ri' });
+    if (rate <= 0) {
+      return res.status(400).json({ success: false, error: 'Rate must be positive' });
     }
 
-    // Create new rate record
-    const newRate = new ExchangeRate({
-      currency: 'USD',
-      rate: parseFloat(rate),
-      date: new Date(),
-      notes: notes || ''
+    // Create new exchange rate record
+    const newRate = await ExchangeRate.create({
+      currency,
+      rate,
+      notes: notes || '',
+      updatedAt: new Date()
     });
 
-    await newRate.save();
-    res.json({ success: true, data: newRate });
+    console.log('Exchange rate updated:', newRate);
+
+    res.json({
+      success: true,
+      data: {
+        id: newRate._id,
+        currency: newRate.currency,
+        rate: newRate.rate,
+        updatedAt: newRate.updatedAt
+      }
+    });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// Get rate history
-router.get('/history/:days', auth, async (req, res) => {
-  try {
-    const days = parseInt(req.params.days) || 30;
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-
-    const rates = await ExchangeRate.find({
-      currency: 'USD',
-      date: { $gte: startDate }
-    }).sort({ date: -1 });
-
-    res.json({ success: true, data: rates });
-  } catch (err) {
+    console.error('Error updating exchange rate:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });

@@ -1,30 +1,40 @@
 const express = require('express');
 const Branch = require('../models/Branch');
-const { auth, adminOnly } = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Get all branches (public - for dashboard)
+// Get all branches (public)
 router.get('/public/all', async (req, res) => {
   try {
     const branches = await Branch.find();
-    res.json({ success: true, data: branches });
+    // Transform _id to id for frontend compatibility
+    const transformedBranches = branches.map(b => ({
+      ...b.toObject(),
+      id: b._id.toString()
+    }));
+    res.json({ success: true, data: transformedBranches });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Get all branches
+// Get all branches (admin)
 router.get('/', auth, async (req, res) => {
   try {
     const branches = await Branch.find();
-    res.json({ success: true, data: branches });
+    // Transform _id to id for frontend compatibility
+    const transformedBranches = branches.map(b => ({
+      ...b.toObject(),
+      id: b._id.toString()
+    }));
+    res.json({ success: true, data: transformedBranches });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Get single branch
+// Get branch by ID
 router.get('/:id', auth, async (req, res) => {
   try {
     const branch = await Branch.findById(req.params.id);
@@ -38,51 +48,63 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 // Create branch
-router.post('/', auth, adminOnly, async (req, res) => {
+router.post('/', auth, async (req, res) => {
   try {
-    const { name, address } = req.body;
+    const { name, address, phone, manager } = req.body;
 
-    if (!name || !address) {
-      return res.status(400).json({ success: false, error: 'All fields required' });
-    }
+    const branch = new Branch({
+      name: name || 'Yangi Filial',
+      address: address || '',
+      phone: phone || '',
+      manager: manager || ''
+    });
 
-    const branch = new Branch({ name, address });
     await branch.save();
-
-    res.status(201).json({ success: true, data: branch });
+    const transformed = {
+      ...branch.toObject(),
+      id: branch._id.toString()
+    };
+    res.status(201).json({ success: true, data: transformed });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error('Create branch error:', err);
+    res.status(500).json({ success: false, error: err.message || 'Server xatosi' });
   }
 });
 
 // Update branch
-router.put('/:id', auth, adminOnly, async (req, res) => {
+router.put('/:id', auth, async (req, res) => {
   try {
     const branch = await Branch.findByIdAndUpdate(
       req.params.id,
       { ...req.body, updatedAt: Date.now() },
-      { new: true }
+      { new: true, runValidators: true }
     );
-
     if (!branch) {
       return res.status(404).json({ success: false, error: 'Branch not found' });
     }
-
-    res.json({ success: true, data: branch });
+    const transformed = {
+      ...branch.toObject(),
+      id: branch._id.toString()
+    };
+    res.json({ success: true, data: transformed });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Delete branch
-router.delete('/:id', auth, adminOnly, async (req, res) => {
+// Delete branch (admin only)
+router.delete('/:id', auth, async (req, res) => {
   try {
-    const branch = await Branch.findByIdAndDelete(req.params.id);
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      console.log('[AUTH] Access denied - not admin:', { role: req.user.role, username: req.user.username });
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
 
+    const branch = await Branch.findByIdAndDelete(req.params.id);
     if (!branch) {
       return res.status(404).json({ success: false, error: 'Branch not found' });
     }
-
     res.json({ success: true, message: 'Branch deleted' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

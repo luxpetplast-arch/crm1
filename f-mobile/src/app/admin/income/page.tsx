@@ -6,7 +6,7 @@ import AdminLayout from '@/components/layouts/AdminLayout'
 import { Plus, Edit2, Trash2, TrendingUp, X, Calendar } from 'lucide-react'
 
 interface Income {
-  _id: string
+  id: string
   source: string
   amount: number
   currency: string
@@ -48,7 +48,7 @@ export default function IncomePage() {
   const fetchIncomes = async () => {
     try {
       setError(null)
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
       const token = localStorage.getItem('adminToken')
       
       const response = await fetch(`${apiUrl}/income`, {
@@ -77,7 +77,7 @@ export default function IncomePage() {
     setError(null)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
       const token = localStorage.getItem('adminToken')
       
       const method = isEditMode ? 'PUT' : 'POST'
@@ -128,7 +128,7 @@ export default function IncomePage() {
       description: income.description,
       category: income.category,
     })
-    setEditingId(income._id)
+    setEditingId(income.id)
     setIsEditMode(true)
     setShowModal(true)
   }
@@ -137,7 +137,7 @@ export default function IncomePage() {
     if (!confirm('Rostdan ham o\'chirmoqchisiz?')) return
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
       const token = localStorage.getItem('adminToken')
       
       const response = await fetch(`${apiUrl}/income/${id}`, {
@@ -241,7 +241,7 @@ export default function IncomePage() {
                     </tr>
                   ) : (
                     incomes.map((income) => (
-                      <tr key={income._id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                      <tr key={income.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                         <td className="px-3 sm:px-6 py-3 sm:py-4 text-white font-medium text-sm">{income.source}</td>
                         <td className="px-3 sm:px-6 py-3 sm:py-4 text-green-400 font-semibold text-sm">${income.amount.toFixed(2)}</td>
                         <td className="px-3 sm:px-6 py-3 sm:py-4 text-gray-300 text-sm">{income.category}</td>
@@ -255,7 +255,7 @@ export default function IncomePage() {
                             <Edit2 size={16} className="text-blue-400" />
                           </button>
                           <button
-                            onClick={() => handleDelete(income._id)}
+                            onClick={() => handleDelete(income.id)}
                             className="p-1.5 sm:p-2 hover:bg-red-500/20 rounded-lg transition-colors"
                           >
                             <Trash2 size={16} className="text-red-400" />
@@ -274,7 +274,7 @@ export default function IncomePage() {
                 <p className="text-center text-gray-400 py-8">Kirimlar mavjud emas</p>
               ) : (
                 incomes.map((income) => (
-                  <div key={income._id} className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2">
+                  <div key={income.id} className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2">
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="text-white font-semibold text-sm">{income.source}</p>
@@ -293,7 +293,7 @@ export default function IncomePage() {
                         <span className="text-xs text-blue-400">Tahrirlash</span>
                       </button>
                       <button
-                        onClick={() => handleDelete(income._id)}
+                        onClick={() => handleDelete(income.id)}
                         className="flex-1 p-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors flex items-center justify-center gap-1"
                       >
                         <Trash2 size={14} className="text-red-400" />
@@ -414,3 +414,4 @@ export default function IncomePage() {
     </AdminLayout>
   )
 }
+

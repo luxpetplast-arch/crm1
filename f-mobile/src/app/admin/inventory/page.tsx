@@ -3,24 +3,27 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminLayout from '@/components/layouts/AdminLayout'
-import { Plus, Trash2, X, Search, Package, Edit2 } from 'lucide-react'
+import { X, Search, Package } from 'lucide-react'
 import { getProducts, createProduct, deleteProduct, updateProduct, getBranches } from '@/lib/api'
 
 interface Product {
-  _id: string
+  id: string
   name: string
   category: string
-  buyPrice: number
+  costPrice: number
   sellPrice: number
   stock: number
   imei: string
   imeiList?: Array<{ imei: string; used: boolean }>
-  branch: string | { _id: string; name: string }
+  branch: string | { _id?: string; id?: string; name: string }
   isMainWarehouse?: boolean
+  currency?: 'USD' | 'UZS'
+  sellCurrency?: 'USD' | 'UZS'
 }
 
 interface Branch {
-  _id: string
+  _id?: string
+  id?: string
   name: string
 }
 
@@ -44,23 +47,24 @@ export default function InventoryPage() {
   const [originalStock, setOriginalStock] = useState(0)
   const [imeiMode, setImeiMode] = useState<'different' | 'same' | null>(null)
   const [imeiInputs, setImeiInputs] = useState<IMEIInput>({})
-  const [currency, setCurrency] = useState<'USD' | 'UZS'>('USD')
   const [exchangeRate, setExchangeRate] = useState(12500)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [deleteProductId, setDeleteProductId] = useState<string | null>(null)
+  const [showImeiModal, setShowImeiModal] = useState(false)
+  const [selectedImeiProduct, setSelectedImeiProduct] = useState<Product | null>(null)
   const [formData, setFormData] = useState({
     name: '',
     category: '',
-    buyPrice: '',
+    costPrice: '',
     sellPrice: '',
     stock: '',
     imei: '',
     branch: '',
+    currency: 'USD' as 'USD' | 'UZS',
+    sellCurrency: 'USD' as 'USD' | 'UZS',
   })
 
   const fetchExchangeRate = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
       const response = await fetch(`${apiUrl}/exchange-rate/current`)
       const data = await response.json()
       
@@ -72,13 +76,14 @@ export default function InventoryPage() {
     }
   }
 
-  const convertPrice = (priceInUsd: number): number => {
-    if (currency === 'USD') return priceInUsd
-    return priceInUsd * exchangeRate
+  const convertPrice = (price: number, productCurrency?: 'USD' | 'UZS'): number => {
+    // Narx allaqachon to'g'ri valyutada saqlangan, convert qilish kerak emas
+    return price || 0
   }
 
-  const formatPrice = (price: number): string => {
-    if (currency === 'USD') return `$${price.toFixed(2)}`
+  const formatPrice = (price: number, productCurrency?: 'USD' | 'UZS'): string => {
+    const curr = productCurrency || 'USD'
+    if (curr === 'USD') return `$${price.toFixed(2)}`
     return `${Math.floor(price).toLocaleString('uz-UZ')} so'm`
   }
 
@@ -91,7 +96,8 @@ export default function InventoryPage() {
       if (branchesRes.success && branchesRes.data) {
         setBranches(branchesRes.data as Branch[])
         if ((branchesRes.data as Branch[]).length > 0 && !selectedBranch) {
-          setSelectedBranch((branchesRes.data as Branch[])[0]._id)
+          const firstBranch = (branchesRes.data as Branch[])[0]
+          setSelectedBranch(firstBranch._id || firstBranch.id || '')
         }
       }
 
@@ -110,11 +116,11 @@ export default function InventoryPage() {
 
   const isFormValid = () => {
     const hasBasicFields = (
-      formData.name.trim() !== '' &&
-      formData.branch.trim() !== '' &&
-      formData.buyPrice.trim() !== '' &&
-      formData.sellPrice.trim() !== '' &&
-      formData.stock.trim() !== ''
+      formData.name?.trim?.() !== '' &&
+      formData.branch?.trim?.() !== '' &&
+      formData.costPrice?.trim?.() !== '' &&
+      formData.sellPrice?.trim?.() !== '' &&
+      formData.stock?.trim?.() !== ''
     )
 
     if (!hasBasicFields) return false
@@ -133,6 +139,11 @@ export default function InventoryPage() {
 
     // If stock is 0 or empty, IMEI is optional
     if (finalStock === 0 || isNaN(finalStock)) return true
+
+    // Tahrirlashda stock o'zgartirilmasa, IMEI rejimini tekshirmay qil
+    if (editingId && finalStock === originalStock) {
+      return true
+    }
 
     // If stock > 0, check IMEI mode
     if (imeiMode === 'same') {
@@ -205,7 +216,7 @@ export default function InventoryPage() {
       return
     }
 
-    const buyPrice = parseFloat(formData.buyPrice)
+    const costPrice = parseFloat(formData.costPrice)
     const sellPrice = parseFloat(formData.sellPrice)
     
     // Calculate final stock value
@@ -220,7 +231,7 @@ export default function InventoryPage() {
       finalStock = parseInt(formData.stock) || 0
     }
 
-    if (isNaN(buyPrice) || buyPrice < 0) {
+    if (isNaN(costPrice) || costPrice < 0) {
       setError('Olish narxi to\'g\'ri raqam bo\'lishi kerak')
       return
     }
@@ -269,14 +280,24 @@ export default function InventoryPage() {
     }
     console.log('[INVENTORY] Final imeiValue:', { imeiValue, finalStock });
 
+    // Create imeiList array from imeiValue
+    let imeiListArray = [];
+    if (imeiValue && finalStock > 0) {
+      const imeiArray = imeiValue.split(',').map(i => i.trim()).filter(i => i !== '');
+      imeiListArray = imeiArray.map(imei => ({ imei, used: false })); // Store as objects with used flag
+    }
+
     const productData = {
       name: formData.name,
       category: formData.category || 'Boshqa',
-      buyPrice: buyPrice,
+      costPrice: costPrice,
       sellPrice: sellPrice,
       stock: finalStock,
       imei: imeiValue,
+      imeiList: imeiListArray,
       branch: formData.branch,
+      currency: formData.currency,
+      sellCurrency: formData.sellCurrency,
     }
 
     let response
@@ -287,7 +308,7 @@ export default function InventoryPage() {
     }
 
     if (response.success) {
-      setFormData({ name: '', category: '', buyPrice: '', sellPrice: '', stock: '', imei: '', branch: '' })
+      setFormData({ name: '', category: '', costPrice: '', sellPrice: '', stock: '', imei: '', branch: '', currency: 'USD', sellCurrency: 'USD' })
       setShowModal(false)
       setEditingId(null)
       setOriginalStock(0)
@@ -298,26 +319,6 @@ export default function InventoryPage() {
       setError(response.error || (editingId ? 'Mahsulotni tahrirlashda xato' : 'Mahsulot qo\'shishda xato'))
     }
     setIsSubmitting(false)
-  }
-
-  const handleDeleteProduct = async (id: string) => {
-    setDeleteProductId(id)
-    setShowDeleteConfirm(true)
-  }
-
-  const confirmDeleteProduct = async () => {
-    if (!deleteProductId) return
-    
-    setError(null)
-    const response = await deleteProduct(deleteProductId)
-    
-    if (response.success) {
-      await fetchProducts()
-      setShowDeleteConfirm(false)
-      setDeleteProductId(null)
-    } else {
-      setError(response.error || 'Mahsulotni o\'chirishda xato')
-    }
   }
 
   const handleTransferToMainWarehouse = async () => {
@@ -333,7 +334,7 @@ export default function InventoryPage() {
     }
 
     // Agar har xil IMEI bo'lsa, IMEI tanlash kerak
-    const imeiArray = selectedProduct.imei.split(',').map(i => i.trim()).filter(i => i !== '')
+    const imeiArray = (selectedProduct.imei || '').split(',').map(i => i.trim()).filter(i => i !== '')
     if (imeiArray.length > 1 && !transferData.selectedImei) {
       setError('IMEI tanlang')
       return
@@ -348,20 +349,24 @@ export default function InventoryPage() {
       stock: selectedProduct.stock - quantity,
     }
 
-    const response1 = await updateProduct(selectedProduct._id, updatedProduct)
+    const response1 = await updateProduct(selectedProduct.id, updatedProduct)
 
     if (response1.success) {
       // Asosiy omborga yangi mahsulot qo'shish
       // Agar bir xil IMEI bo'lsa, avtomatik o'tsin
       const transferImei = imeiArray.length === 1 ? selectedProduct.imei : transferData.selectedImei
       
+      // Create imeiList for transfer
+      const transferImeiList = transferImei ? [transferImei] : [];
+      
       const newProduct = {
         name: selectedProduct.name,
         category: selectedProduct.category,
-        buyPrice: selectedProduct.buyPrice,
+        costPrice: selectedProduct.costPrice,
         sellPrice: selectedProduct.sellPrice,
         stock: quantity,
         imei: transferImei,
+        imeiList: transferImeiList,
         branch: 'main-warehouse-000',
         isMainWarehouse: true,
       }
@@ -381,52 +386,6 @@ export default function InventoryPage() {
     }
 
     setIsSubmitting(false)
-  }
-
-  const handleEditProduct = (product: Product) => {
-    setEditingId(product._id)
-    setOriginalStock(product.stock)
-    const branchId = typeof product.branch === 'string' ? product.branch : product.branch._id
-    
-    // Parse existing IMEIs if they exist
-    const existingImeis: IMEIInput = {}
-    let detectedMode: 'different' | 'same' | null = null
-    
-    if (product.imei && product.stock > 0) {
-      const imeiArray = product.imei.split(',').map(i => i.trim())
-      
-      // Determine mode based on existing data
-      if (imeiArray.length === 1) {
-        // All same IMEI
-        detectedMode = 'same'
-      } else if (imeiArray.length === product.stock) {
-        // Different IMEIs for each product
-        detectedMode = 'different'
-        imeiArray.forEach((imei, index) => {
-          existingImeis[index] = imei
-        })
-      } else {
-        // Partial IMEIs - treat as different mode
-        detectedMode = 'different'
-        imeiArray.forEach((imei, index) => {
-          existingImeis[index] = imei
-        })
-      }
-    }
-    
-    setFormData({
-      name: product.name,
-      category: product.category,
-      buyPrice: product.buyPrice.toString(),
-      sellPrice: product.sellPrice.toString(),
-      stock: product.stock.toString(),
-      imei: detectedMode === 'same' ? product.imei : '',
-      branch: branchId,
-    })
-    
-    setImeiMode(detectedMode)
-    setImeiInputs(existingImeis)
-    setShowModal(true)
   }
 
   useEffect(() => {
@@ -450,7 +409,7 @@ export default function InventoryPage() {
       
       // If branch selected, filter by branch
       if (selectedBranch) {
-        return typeof p.branch === 'string' ? p.branch === selectedBranch : p.branch?._id === selectedBranch
+        return typeof p.branch === 'string' ? p.branch === selectedBranch : p.branch?.id === selectedBranch
       }
       
       // If no branch selected, show all non-main-warehouse products
@@ -465,18 +424,33 @@ export default function InventoryPage() {
       return p.stock > 0
     })
     .filter(p => 
-      p.imei.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.imeiList && p.imeiList.length > 0 ? 'IMEI' : 'Regular').toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.name.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
-  // Calculate stats for selected branch only
-  const branchProductCount = filteredProducts.length
-  const branchTotalValue = filteredProducts.reduce((sum, p) => {
+  // Calculate stats for selected branch only - separate USD and UZS
+  const branchProductCount = filteredProducts.reduce((sum, p) => {
+    const stock = p.imeiList && p.imeiList.length > 0
+      ? p.imeiList.filter((item: any) => !item.used).length
+      : p.stock
+    return sum + stock
+  }, 0)
+  const branchStats = filteredProducts.reduce((acc, p) => {
     const availableStock = p.imeiList && p.imeiList.length > 0 
       ? p.imeiList.filter((item: any) => !item.used).length 
       : p.stock
-    return sum + (p.sellPrice * availableStock)
-  }, 0)
+    
+    const currency = p.sellCurrency || p.currency || 'USD'
+    const value = p.sellPrice * availableStock
+    
+    if (currency === 'USD') {
+      acc.usd += value
+    } else {
+      acc.uzs += value
+    }
+    
+    return acc
+  }, { usd: 0, uzs: 0 })
 
   return (
     <AdminLayout>
@@ -488,46 +462,6 @@ export default function InventoryPage() {
             <p className="text-gray-300 mt-1">Inventar boshqarish va monitoring</p>
           </div>
           <div className="flex gap-3 items-center">
-            {/* Currency Selector */}
-            <div className="flex gap-2 bg-white/10 border border-white/20 rounded-lg p-1">
-              <button
-                onClick={() => setCurrency('USD')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                  currency === 'USD'
-                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/50'
-                    : 'text-gray-300 hover:text-white'
-                }`}
-              >
-                $
-              </button>
-              <button
-                onClick={() => setCurrency('UZS')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                  currency === 'UZS'
-                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/50'
-                    : 'text-gray-300 hover:text-white'
-                }`}
-              >
-                So'm
-              </button>
-            </div>
-            <button
-              onClick={() => {
-                if (branches.length === 0) {
-                  setError('Avval filial qo\'shish kerak')
-                  return
-                }
-                setFormData({ name: '', category: '', buyPrice: '', sellPrice: '', stock: '', imei: '', branch: selectedBranch })
-                setImeiMode(null)
-                setImeiInputs({})
-                setShowModal(true)
-              }}
-              className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-6 py-3 rounded-lg font-semibold transition-all hover:shadow-lg hover:shadow-purple-500/30 disabled:opacity-50"
-              disabled={branches.length === 0}
-            >
-              <Plus size={20} />
-              Yangi Mahsulot
-            </button>
           </div>
         </div>
 
@@ -538,22 +472,24 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* No Branches Warning */}
-        {branches.length === 0 && (
-          <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-4 text-yellow-300">
-            ⚠️ Mahsulot qo'shish uchun avval <strong>Filiallar</strong> bo'limida filial qo'shish kerak
-          </div>
-        )}
+        {/* Info: Maxsulot faqat asosiy ombordan qo'shiladi */}
+        <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-4 text-blue-300">
+          ℹ️ Maxsulotlar faqat <strong>Asosiy Ombordan</strong> qo'shiladi. Filialga o'tkazish uchun asosiy ombordan maxsulotni tanlang va "Filialga Kochirish" tugmasini bosing.
+        </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-gradient-to-br from-purple-600/20 to-purple-700/20 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/30">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-gradient-to-br from-purple-600/20 to-purple-700/20 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/30 hover:border-purple-500/50 transition-all hover:shadow-lg hover:shadow-purple-500/20">
             <p className="text-sm text-purple-300/70 mb-2">Jami Mahsulotlar</p>
             <p className="text-3xl font-black text-purple-300">{branchProductCount}</p>
           </div>
-          <div className="bg-gradient-to-br from-green-600/20 to-green-700/20 backdrop-blur-sm rounded-2xl p-6 border border-green-500/30">
-            <p className="text-sm text-green-300/70 mb-2">Ombor Qiymati</p>
-            <p className="text-3xl font-black text-green-300">{formatPrice(convertPrice(branchTotalValue))}</p>
+          <div className="bg-gradient-to-br from-amber-600/20 to-amber-700/20 backdrop-blur-sm rounded-2xl p-6 border border-amber-500/30 hover:border-amber-500/50 transition-all hover:shadow-lg hover:shadow-amber-500/20">
+            <p className="text-sm text-amber-300/70 mb-2">Dollar Summa</p>
+            <p className="text-3xl font-black text-amber-300">${branchStats.usd.toFixed(2)}</p>
+          </div>
+          <div className="bg-gradient-to-br from-green-600/20 to-green-700/20 backdrop-blur-sm rounded-2xl p-6 border border-green-500/30 hover:border-green-500/50 transition-all hover:shadow-lg hover:shadow-green-500/20">
+            <p className="text-sm text-green-300/70 mb-2">So'm Summa</p>
+            <p className="text-3xl font-black text-green-300">{formatPrice(branchStats.uzs, 'UZS')}</p>
           </div>
         </div>
 
@@ -576,7 +512,7 @@ export default function InventoryPage() {
           >
             <option value="">Barcha Filiallar</option>
             {branches.map(branch => (
-              <option key={branch._id} value={branch._id}>{branch.name}</option>
+              <option key={branch._id || branch.id} value={branch._id || branch.id || ''}>{branch.name}</option>
             ))}
           </select>
         </div>
@@ -589,9 +525,9 @@ export default function InventoryPage() {
               <p className="text-gray-400">Mahsulotlar topilmadi</p>
             </div>
           ) : (
-            filteredProducts.map((product) => (
+            filteredProducts.map((product, index) => (
               <div
-                key={product._id}
+                key={product.id || index}
                 className="bg-gradient-to-br from-white/10 to-white/5 border border-white/20 rounded-lg p-3 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/20 transition-all duration-300 group backdrop-blur-sm"
               >
                 {/* Product Name */}
@@ -603,11 +539,11 @@ export default function InventoryPage() {
                 <div className="mb-2 pb-2 border-b border-white/10">
                   <div className="flex justify-between items-center text-sm mb-1">
                     <span className="text-gray-400">Olish:</span>
-                    <span className="text-orange-400 font-bold">{formatPrice(convertPrice(product.buyPrice))}</span>
+                    <span className="text-orange-400 font-bold">{formatPrice(convertPrice(product.costPrice, product.currency), product.currency)}</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-400">Sotish:</span>
-                    <span className="text-green-400 font-bold">{formatPrice(convertPrice(product.sellPrice))}</span>
+                    <span className="text-green-400 font-bold">{formatPrice(convertPrice(product.sellPrice, product.currency), product.currency)}</span>
                   </div>
                 </div>
 
@@ -618,38 +554,35 @@ export default function InventoryPage() {
                     : product.stock} ta
                 </div>
 
+                {/* IMEI Button */}
+                {product.imei && (
+                  <button
+                    onClick={() => {
+                      setSelectedImeiProduct(product)
+                      setShowImeiModal(true)
+                    }}
+                    className="w-full mb-3 px-2 py-1.5 bg-blue-500/20 hover:bg-blue-500/40 border border-blue-500/30 hover:border-blue-500/60 rounded text-xs text-blue-300 hover:text-blue-200 transition-all duration-300 font-medium"
+                  >
+                    📱 IMEI ko'rish ({product.stock} ta)
+                  </button>
+                )}
+
                 {/* IMEI Badge */}
                 {product.imeiList && product.imeiList.length > 0 ? (
                   <div className="mb-3 px-2 py-1 bg-blue-500/20 border border-blue-500/30 rounded text-xs text-blue-300 text-center line-clamp-1">
                     {product.imeiList[0]?.imei || 'IMEI yo\'q'}
                   </div>
-                ) : product.imei ? (
+                ) : product.imei && !product.stock ? (
                   <div className="mb-3 px-2 py-1 bg-blue-500/20 border border-blue-500/30 rounded text-xs text-blue-300 text-center line-clamp-1">
                     {product.imei}
                   </div>
                 ) : null}
-
-                {/* Actions */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEditProduct(product)}
-                    className="flex-1 p-1.5 bg-blue-500/20 hover:bg-blue-500/40 rounded transition-all duration-300 border border-blue-500/30 hover:border-blue-500/60 text-blue-400 hover:text-blue-300 text-xs"
-                  >
-                    <Edit2 size={14} className="mx-auto" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteProduct(product._id)}
-                    className="flex-1 p-1.5 bg-red-500/20 hover:bg-red-500/40 rounded transition-all duration-300 border border-red-500/30 hover:border-red-500/60 text-red-400 hover:text-red-300 text-xs"
-                  >
-                    <Trash2 size={14} className="mx-auto" />
-                  </button>
-                </div>
               </div>
             ))
           )}
         </div>
 
-        {/* Modal */}
+        {/* Modal - Mahsulotni tahrirlash */}
         {showModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="bg-slate-800/80 backdrop-blur-xl rounded-lg shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col border border-slate-700/50">
@@ -660,7 +593,7 @@ export default function InventoryPage() {
                   onClick={() => {
                     setShowModal(false)
                     setEditingId(null)
-                    setFormData({ name: '', category: '', buyPrice: '', sellPrice: '', stock: '', imei: '', branch: '' })
+                    setFormData({ name: '', category: '', costPrice: '', sellPrice: '', stock: '', imei: '', branch: '', currency: 'USD', sellCurrency: 'USD' })
                     setImeiMode(null)
                     setImeiInputs({})
                   }}
@@ -682,14 +615,26 @@ export default function InventoryPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Filial</label>
                   <select
-                    value={formData.branch}
+                    value={formData.branch || ''}
                     onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
                     className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                   >
                     <option value="">Filial tanlang</option>
                     {branches.map(branch => (
-                      <option key={branch._id} value={branch._id}>{branch.name}</option>
+                      <option key={branch._id || branch.id} value={branch._id || branch.id || ''}>{branch.name}</option>
                     ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Valyuta</label>
+                  <select
+                    value={formData.currency}
+                    onChange={(e) => setFormData({ ...formData, currency: e.target.value as 'USD' | 'UZS' })}
+                    className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="USD">$ (Dollar)</option>
+                    <option value="UZS">so'm (So'm)</option>
                   </select>
                 </div>
 
@@ -697,7 +642,7 @@ export default function InventoryPage() {
                   <label className="block text-sm font-medium text-gray-300 mb-2">Mahsulot Nomi</label>
                   <input
                     type="text"
-                    value={formData.name}
+                    value={formData.name || ''}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="Mahsulot nomi"
@@ -707,36 +652,56 @@ export default function InventoryPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Olish Narxi</label>
                   <div className="relative">
-                    <span className="absolute left-4 top-2 text-gray-400 text-lg">$</span>
                     <input
-                      type="number"
-                      value={formData.buyPrice}
-                      onChange={(e) => setFormData({ ...formData, buyPrice: e.target.value })}
-                      className="w-full pl-8 pr-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      placeholder="0.00"
+                      type="text"
+                      inputMode="decimal"
+                      value={formData.costPrice || ''}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9.]/g, '')
+                        setFormData({ ...formData, costPrice: val })
+                      }}
+                      className="w-full pl-12 pr-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder={formData.currency === 'USD' ? '0.00 $' : '0.00 so\'m'}
                     />
+                    <span className="absolute right-4 top-2 text-gray-400 text-lg pointer-events-none">{formData.currency === 'USD' ? '$' : 'so\'m'}</span>
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Sotish Narxi</label>
                   <div className="relative">
-                    <span className="absolute left-4 top-2 text-gray-400 text-lg">$</span>
                     <input
-                      type="number"
-                      value={formData.sellPrice}
-                      onChange={(e) => setFormData({ ...formData, sellPrice: e.target.value })}
-                      className="w-full pl-8 pr-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      placeholder="0.00"
+                      type="text"
+                      inputMode="decimal"
+                      value={formData.sellPrice || ''}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9.]/g, '')
+                        setFormData({ ...formData, sellPrice: val })
+                      }}
+                      className="w-full pl-4 pr-12 py-2 bg-slate-700/50 border border-slate-600/50 rounded text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder={formData.sellCurrency === 'USD' ? '0.00 $' : '0.00 so\'m'}
                     />
+                    <span className="absolute right-4 top-2 text-gray-400 text-lg pointer-events-none">{formData.sellCurrency === 'USD' ? '$' : 'so\'m'}</span>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Sotish Narxi Valyutasi</label>
+                  <select
+                    value={formData.sellCurrency}
+                    onChange={(e) => setFormData({ ...formData, sellCurrency: e.target.value as 'USD' | 'UZS' })}
+                    className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="USD">$ (Dollar)</option>
+                    <option value="UZS">so'm (So'm)</option>
+                  </select>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Soni</label>
                   <input
                     type="text"
-                    value={formData.stock}
+                    value={formData.stock || ''}
                     onChange={(e) => handleStockChange(e.target.value)}
                     className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="Masalan: 10 yoki +5 yoki 13+10"
@@ -846,7 +811,7 @@ export default function InventoryPage() {
                   onClick={() => {
                     setShowModal(false)
                     setEditingId(null)
-                    setFormData({ name: '', category: '', buyPrice: '', sellPrice: '', stock: '', imei: '', branch: '' })
+                    setFormData({ name: '', category: '', costPrice: '', sellPrice: '', stock: '', imei: '', branch: '', currency: 'USD', sellCurrency: 'USD' })
                     setImeiMode(null)
                     setImeiInputs({})
                   }}
@@ -952,31 +917,89 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* O'chirish tasdiqlash dialogi */}
-        {showDeleteConfirm && (
+        {/* IMEI ko'rish modal */}
+        {showImeiModal && selectedImeiProduct && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-slate-800/80 backdrop-blur-xl rounded-lg shadow-2xl max-w-sm w-full border border-slate-700/50">
+            <div className="bg-slate-800/80 backdrop-blur-xl rounded-lg shadow-2xl max-w-md w-full border border-slate-700/50">
+              <div className="flex justify-between items-center p-6 border-b border-slate-700/50">
+                <h2 className="text-2xl font-bold text-white">📱 IMEI Raqamlari</h2>
+                <button
+                  onClick={() => {
+                    setShowImeiModal(false)
+                    setSelectedImeiProduct(null)
+                  }}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
               <div className="p-6">
-                <h2 className="text-2xl font-bold text-white mb-2">Mahsulotni o'chirish</h2>
-                <p className="text-gray-300 mb-6">Siz ushbu mahsulotni o'chirishni tasdiqlaysizmi? Bu amalni qaytarib bo'lmaydi.</p>
-                
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      setShowDeleteConfirm(false)
-                      setDeleteProductId(null)
-                    }}
-                    className="flex-1 px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded text-white font-semibold transition"
-                  >
-                    Bekor
-                  </button>
-                  <button
-                    onClick={confirmDeleteProduct}
-                    className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded text-white font-semibold transition"
-                  >
-                    O'chirish
-                  </button>
+                <div className="mb-4">
+                  <p className="text-sm text-gray-300 mb-2">Mahsulot: <span className="font-bold text-white">{selectedImeiProduct.name}</span></p>
+                  <p className="text-sm text-gray-300">Mavjud: <span className="font-bold text-cyan-300">
+                    {selectedImeiProduct.imeiList && selectedImeiProduct.imeiList.length > 0
+                      ? selectedImeiProduct.imeiList.filter((item: any) => !item.used).length
+                      : selectedImeiProduct.stock} ta
+                  </span></p>
                 </div>
+
+                <div className="bg-slate-700/30 border border-slate-600/50 rounded-lg p-4 space-y-2 max-h-96 overflow-y-auto">
+                  {selectedImeiProduct.imeiList && selectedImeiProduct.imeiList.length > 0 ? (
+                    // Show imeiList array
+                    selectedImeiProduct.imeiList.map((item: any, index: number) => (
+                      <div key={index} className={`flex items-center gap-3 p-2 rounded ${item.used ? 'bg-red-700/30 opacity-50' : 'bg-slate-700/50'}`}>
+                        <span className={`font-bold min-w-8 ${item.used ? 'text-red-400' : 'text-blue-400'}`}>{index + 1}.</span>
+                        <span className={`font-mono text-sm flex-1 break-all ${item.used ? 'text-red-300 line-through' : 'text-gray-200'}`}>
+                          {item.imei || item}
+                        </span>
+                        {item.used && <span className="text-xs text-red-300 font-semibold">SOTILDI</span>}
+                        {!item.used && (
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(item.imei || item)
+                            }}
+                            className="px-2 py-1 bg-blue-500/20 hover:bg-blue-500/40 border border-blue-500/30 rounded text-xs text-blue-300 hover:text-blue-200 transition"
+                            title="Nusxalash"
+                          >
+                            📋
+                          </button>
+                        )}
+                      </div>
+                    ))
+                  ) : selectedImeiProduct.imei ? (
+                    // Fallback to imei string if imeiList is not available
+                    selectedImeiProduct.imei.split(',').map((imei: string, index: number) => (
+                      <div key={index} className="flex items-center gap-3 p-2 bg-slate-700/50 rounded">
+                        <span className="text-blue-400 font-bold min-w-8">{index + 1}.</span>
+                        <span className="text-gray-200 font-mono text-sm flex-1 break-all">{imei.trim()}</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(imei.trim())
+                          }}
+                          className="px-2 py-1 bg-blue-500/20 hover:bg-blue-500/40 border border-blue-500/30 rounded text-xs text-blue-300 hover:text-blue-200 transition"
+                          title="Nusxalash"
+                        >
+                          📋
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-400 text-sm">IMEI raqamlari yo'q</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-slate-700/50">
+                <button
+                  onClick={() => {
+                    setShowImeiModal(false)
+                    setSelectedImeiProduct(null)
+                  }}
+                  className="w-full px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded text-white font-semibold transition"
+                >
+                  Yopish
+                </button>
               </div>
             </div>
           </div>
@@ -985,3 +1008,4 @@ export default function InventoryPage() {
     </AdminLayout>
   )
 }
+

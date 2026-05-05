@@ -1,33 +1,34 @@
-const mongoose = require('mongoose');
+const sequelize = require('./config/database');
 const bcrypt = require('bcryptjs');
-const dns = require('dns');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-// Fix DNS resolution
-dns.setServers(['8.8.8.8', '8.8.4.4']);
-
-const User = require('./models/User');
-const Branch = require('./models/Branch');
-const Product = require('./models/Product');
-const Customer = require('./models/Customer');
-const Sale = require('./models/Sale');
+const User = require('./models-sequelize/User');
+const Branch = require('./models-sequelize/Branch');
+const Product = require('./models-sequelize/Product');
+const Customer = require('./models-sequelize/Customer');
+const Sale = require('./models-sequelize/Sale');
+const Income = require('./models-sequelize/Income');
+const Expense = require('./models-sequelize/Expense');
 
 const seedDB = async () => {
   try {
-    const mongoUri = process.env.MONGODB_URI;
-    console.log('📊 MongoDB URI:', mongoUri ? mongoUri.substring(0, 50) + '...' : 'undefined');
+    console.log('📊 Connecting to PostgreSQL...');
     
-    if (!mongoUri) {
-      throw new Error('MONGODB_URI environment variable is not set');
-    }
-    
-    await mongoose.connect(mongoUri);
-    console.log('✓ Connected to MongoDB');
+    await sequelize.authenticate();
+    console.log('✓ Connected to PostgreSQL');
+
+    // Sync models
+    await sequelize.sync({ alter: false });
+    console.log('✓ Database models synced');
+
+    // Clear existing data
+    await sequelize.truncate({ cascade: true });
+    console.log('✓ Database cleared');
 
     // Check if data already exists
-    const existingBranches = await Branch.countDocuments();
-    const existingUsers = await User.countDocuments();
+    const existingBranches = await Branch.count();
+    const existingUsers = await User.count();
     
     if (existingBranches > 0 || existingUsers > 0) {
       console.log('✓ Database already has data. Skipping seed to prevent data loss.');
@@ -39,24 +40,7 @@ const seedDB = async () => {
 
     console.log('📝 Seeding database with initial data...');
 
-    // Create users (admin and cashier)
-    const adminUser = await User.create({
-      username: 'admin',
-      password: '101110',
-      role: 'admin',
-      email: 'admin@fmobile.com'
-    });
-
-    const cashierUser = await User.create({
-      username: 'cashier',
-      password: 'cashier123',
-      role: 'cashier',
-      email: 'cashier@fmobile.com'
-    });
-
-    console.log('✓ Created users');
-
-    // Create branches
+    // Create branches first
     const branch1 = await Branch.create({
       name: 'Toshkent',
       address: 'Toshkent shahar, Mirzo Ulugbek tumani',
@@ -71,12 +55,29 @@ const seedDB = async () => {
 
     console.log('✓ Created branches');
 
+    // Create users (admin and cashier)
+    const adminUser = await User.create({
+      username: 'admin',
+      name: 'Administrator',
+      password: '101110',
+      role: 'admin'
+    });
+
+    const cashierUser = await User.create({
+      username: 'cashier',
+      name: 'Kassir',
+      password: 'cashier123',
+      role: 'cashier',
+      branch: branch1.id
+    });
+
+    console.log('✓ Created users');
+
     // Create customers
     const customer1 = await Customer.create({
       name: 'Azizbek',
       phone: '+998901234567',
       address: 'Toshkent shahar',
-      branches: [branch1._id],
       debt: 0,
       totalPurchase: 0
     });
@@ -85,7 +86,6 @@ const seedDB = async () => {
       name: 'Karim',
       phone: '+998902345678',
       address: 'Gijduvon tumani',
-      branches: [branch2._id],
       debt: 0,
       totalPurchase: 0
     });
@@ -94,7 +94,6 @@ const seedDB = async () => {
       name: 'Fatima',
       phone: '+998903456789',
       address: 'Toshkent shahar',
-      branches: [branch1._id],
       debt: 0,
       totalPurchase: 0
     });
@@ -105,63 +104,41 @@ const seedDB = async () => {
     const product1 = await Product.create({
       name: 'A07',
       category: 'Telefon',
-      buyPrice: 130,
+      costPrice: 130,
       sellPrice: 1045,
       stock: 3,
-      imei: '123,321,233',
-      imeiList: [
-        { imei: '123', used: false },
-        { imei: '321', used: false },
-        { imei: '233', used: false }
-      ],
-      branch: branch1._id
+      imei: '123456789012345,234567890123456,345678901234567',
+      branchId: branch1.id
     });
 
     const product2 = await Product.create({
       name: 'iPhone 13',
       category: 'Telefon',
-      buyPrice: 500,
+      costPrice: 500,
       sellPrice: 899,
       stock: 2,
-      imei: '456,789',
-      imeiList: [
-        { imei: '456', used: false },
-        { imei: '789', used: false }
-      ],
-      branch: branch1._id
+      imei: '456789012345678,567890123456789',
+      branchId: branch1.id
     });
 
     const product3 = await Product.create({
       name: 'Samsung S21',
       category: 'Telefon',
-      buyPrice: 400,
+      costPrice: 400,
       sellPrice: 799,
       stock: 5,
-      imei: '111,222,333,444,555',
-      imeiList: [
-        { imei: '111', used: false },
-        { imei: '222', used: false },
-        { imei: '333', used: false },
-        { imei: '444', used: false },
-        { imei: '555', used: false }
-      ],
-      branch: branch2._id
+      imei: '678901234567890,789012345678901,890123456789012,901234567890123,012345678901234',
+      branchId: branch2.id
     });
 
     const product4 = await Product.create({
       name: 'Xiaomi 12',
       category: 'Telefon',
-      buyPrice: 250,
+      costPrice: 250,
       sellPrice: 599,
       stock: 4,
-      imei: '666,777,888,999',
-      imeiList: [
-        { imei: '666', used: false },
-        { imei: '777', used: false },
-        { imei: '888', used: false },
-        { imei: '999', used: false }
-      ],
-      branch: branch2._id
+      imei: '111111111111111,222222222222222,333333333333333,444444444444444',
+      branchId: branch2.id
     });
 
     console.log('✓ Created products');

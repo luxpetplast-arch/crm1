@@ -10,14 +10,17 @@ import { PhoneInput } from '@/components/common/PhoneInput'
 import { validateUzbekPhoneNumber } from '@/lib/phoneValidator'
 
 interface Customer {
-  _id: string
+  id?: string
+  _id?: string
   name: string
   phone: string
   email?: string
   address?: string
   totalPurchase?: number
-  debt?: number
-  branches?: Array<{ _id: string; name: string }>
+  debt?: number // Deprecated
+  debtUSD?: number // Debt in USD
+  debtUZS?: number // Debt in UZS (so'm)
+  branches?: Array<{ id: string; name: string }>
   createdAt?: string
 }
 
@@ -92,7 +95,11 @@ export default function CustomersPage() {
     setIsSubmitting(false)
   }
 
-  const handleDeleteCustomer = async (id: string) => {
+  const handleDeleteCustomer = async (id: string | undefined) => {
+    if (!id) {
+      setError('Mijoz ID topilmadi')
+      return
+    }
     if (!confirm('Ushbu mijozni o\'chirishni tasdiqlaysizmi?')) return
     
     setError(null)
@@ -106,7 +113,7 @@ export default function CustomersPage() {
   }
 
   const handleEditCustomer = (customer: Customer) => {
-    setEditingId(customer._id)
+    setEditingId(customer.id)
     setFormData({
       name: customer.name,
       phone: customer.phone,
@@ -194,16 +201,21 @@ export default function CustomersPage() {
                           Jami: <span className="font-semibold text-green-400">${customer.totalPurchase}</span>
                         </span>
                       )}
-                      {customer.debt && customer.debt > 0 && (
+                      {customer.debtUSD && customer.debtUSD > 0 && (
                         <span className="text-gray-400">
-                          Qarz: <span className="font-semibold text-red-400">${customer.debt}</span>
+                          Qarz ($): <span className="font-semibold text-red-400">${customer.debtUSD.toFixed(2)}</span>
+                        </span>
+                      )}
+                      {customer.debtUZS && customer.debtUZS > 0 && (
+                        <span className="text-gray-400">
+                          Qarz (so'm): <span className="font-semibold text-red-400">{Math.floor(customer.debtUZS).toLocaleString('uz-UZ')} so'm</span>
                         </span>
                       )}
                     </div>
                   </div>
                   <div className="flex gap-2">
                     <Link
-                      href={`/cashier/customers/${customer._id}`}
+                      href={`/cashier/customers/${customer.id}`}
                       className="p-2 bg-teal-500/20 hover:bg-teal-500/40 rounded-lg transition-all duration-300 border border-teal-500/30 hover:border-teal-500/60"
                     >
                       <Eye size={20} className="text-teal-400" />
@@ -215,7 +227,7 @@ export default function CustomersPage() {
                       <Edit size={20} className="text-blue-400" />
                     </button>
                     <button
-                      onClick={() => handleDeleteCustomer(customer._id)}
+                      onClick={() => handleDeleteCustomer(customer._id || customer.id)}
                       className="p-2 bg-red-500/20 hover:bg-red-500/40 rounded-lg transition-all duration-300 border border-red-500/30 hover:border-red-500/60"
                     >
                       <Trash2 size={20} className="text-red-400" />
@@ -323,3 +335,4 @@ export default function CustomersPage() {
     </CashierLayout>
   )
 }
+

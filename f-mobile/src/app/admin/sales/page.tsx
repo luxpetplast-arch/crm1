@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminLayout from '@/components/layouts/AdminLayout'
 import { DollarSign, Users, ShoppingCart } from 'lucide-react'
 
 interface SaleItem {
-  product?: { name: string; _id: string }
+  product?: { name: string; id: string }
   quantity: number
   originalPrice: number
   salePrice: number
@@ -15,20 +15,22 @@ interface SaleItem {
 }
 
 interface Sale {
-  _id: string
+  id: string
+  _id?: string
   customer?: { name: string; phone?: string }
-  branch?: { name: string; _id: string }
-  cashier?: { username: string }
+  branch?: { name: string; id: string; _id?: string }
+  cashier?: { username: string; name: string }
   totalAmount: number
   paidAmount: number
   change: number
+  currency?: 'USD' | 'UZS'
   items: SaleItem[]
   createdAt: string
   status: string
 }
 
 interface Branch {
-  _id: string
+  id: string
   name: string
 }
 
@@ -41,8 +43,12 @@ export default function SalesPage() {
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedBranch, setSelectedBranch] = useState('all')
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null)
-  const [currency, setCurrency] = useState<'USD' | 'UZS'>('USD')
-  const [exchangeRate, setExchangeRate] = useState(12500)
+
+  const formatPrice = (price?: number, currency?: 'USD' | 'UZS'): string => {
+    if (!price || isNaN(price)) return '0'
+    if (currency === 'USD') return `$${price.toFixed(2)}`
+    return `${Math.floor(price).toLocaleString('uz-UZ')} so'm`
+  }
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0]
@@ -55,36 +61,11 @@ export default function SalesPage() {
     }
 
     loadData()
-    fetchExchangeRate()
   }, [router])
-
-  const fetchExchangeRate = async () => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
-      const response = await fetch(`${apiUrl}/exchange-rate/current`)
-      const data = await response.json()
-      
-      if (data.success && data.data) {
-        setExchangeRate(data.data.rate)
-      }
-    } catch (err) {
-      console.error('Exchange rate fetch error:', err)
-    }
-  }
-
-  const convertPrice = (priceInUsd: number): number => {
-    if (currency === 'USD') return priceInUsd
-    return priceInUsd * exchangeRate
-  }
-
-  const formatPrice = (price: number): string => {
-    if (currency === 'USD') return `$${price.toFixed(2)}`
-    return `${Math.floor(price).toLocaleString('uz-UZ')} so'm`
-  }
 
   const loadData = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
       const token = localStorage.getItem('adminToken')
 
       const [salesRes, branchesRes] = await Promise.all([
@@ -124,6 +105,9 @@ export default function SalesPage() {
   const totalCount = filteredSales.length
   const totalItems = filteredSales.reduce((sum, s) => sum + (s.items?.length || 0), 0)
 
+  const totalUSD = filteredSales.filter(s => s.currency === 'USD').reduce((sum, s) => sum + s.totalAmount, 0)
+  const totalUZS = filteredSales.filter(s => s.currency !== 'USD').reduce((sum, s) => sum + s.totalAmount, 0)
+
   if (loading) {
     return (
       <AdminLayout>
@@ -146,29 +130,6 @@ export default function SalesPage() {
             <h1 className="text-3xl font-bold text-white">Savdolar</h1>
             <p className="text-gray-400 mt-1">Kunlik savdo qilish ma'lumotlari</p>
           </div>
-          {/* Currency Selector */}
-          <div className="flex gap-2 bg-white/10 border border-white/20 rounded-lg p-1">
-            <button
-              onClick={() => setCurrency('USD')}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                currency === 'USD'
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/50'
-                  : 'text-gray-300 hover:text-white'
-              }`}
-            >
-              $
-            </button>
-            <button
-              onClick={() => setCurrency('UZS')}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                currency === 'UZS'
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/50'
-                  : 'text-gray-300 hover:text-white'
-              }`}
-            >
-              So'm
-            </button>
-          </div>
         </div>
 
         {/* Stats Cards */}
@@ -176,8 +137,8 @@ export default function SalesPage() {
           <div className="bg-gradient-to-br from-blue-500/20 to-cyan-600/20 border border-blue-500/30 rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm">Jami Savdolar</p>
-                <p className="text-3xl font-bold text-blue-400 mt-2">{formatPrice(convertPrice(totalAmount))}</p>
+                <p className="text-gray-400 text-sm">Jami Savdo ($)</p>
+                <p className="text-3xl font-bold text-blue-400 mt-2">${totalUSD.toFixed(2)}</p>
               </div>
               <DollarSign size={32} className="text-blue-500 opacity-50" />
             </div>
@@ -185,8 +146,8 @@ export default function SalesPage() {
           <div className="bg-gradient-to-br from-green-500/20 to-emerald-600/20 border border-green-500/30 rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm">Tranzaksiyalar</p>
-                <p className="text-3xl font-bold text-green-400 mt-2">{totalCount}</p>
+                <p className="text-gray-400 text-sm">Jami Savdo (so'm)</p>
+                <p className="text-3xl font-bold text-green-400 mt-2">{Math.floor(totalUZS).toLocaleString('uz-UZ')} so'm</p>
               </div>
               <ShoppingCart size={32} className="text-green-500 opacity-50" />
             </div>
@@ -194,8 +155,8 @@ export default function SalesPage() {
           <div className="bg-gradient-to-br from-purple-500/20 to-pink-600/20 border border-purple-500/30 rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm">Mahsulotlar</p>
-                <p className="text-3xl font-bold text-purple-400 mt-2">{totalItems}</p>
+                <p className="text-gray-400 text-sm">Mahsulotlar Soni</p>
+                <p className="text-3xl font-bold text-purple-400 mt-2">{totalItems} ta</p>
               </div>
               <Users size={32} className="text-purple-500 opacity-50" />
             </div>
@@ -257,18 +218,18 @@ export default function SalesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredSales.map(sale => (
-                    <>
-                      <tr key={sale._id} className="border-b border-white/5 hover:bg-white/5 transition cursor-pointer" onClick={() => setExpandedSaleId(expandedSaleId === sale._id ? null : sale._id)}>
+                  {filteredSales.map((sale, index) => (
+                    <React.Fragment key={sale.id || sale._id || index}>
+                  <tr className="border-b border-white/5 hover:bg-white/5 transition cursor-pointer" onClick={() => setExpandedSaleId(expandedSaleId === sale.id ? null : sale.id)}>
                         <td className="px-6 py-4 text-sm text-white">{sale.customer?.name || 'Noma\'lum'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-300">{sale.cashier?.username || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-gray-300">{sale.cashier?.name || sale.cashier?.username || '-'}</td>
                         <td className="px-6 py-4 text-sm text-gray-300">{sale.branch?.name || '-'}</td>
                         <td className="px-6 py-4 text-sm text-gray-300">{sale.items?.length || 0} ta</td>
-                        <td className="px-6 py-4 text-sm text-right text-green-400 font-semibold">{formatPrice(convertPrice(sale.totalAmount))}</td>
-                        <td className="px-6 py-4 text-sm text-right text-cyan-400 font-semibold">{formatPrice(convertPrice(sale.paidAmount))}</td>
+                        <td className="px-6 py-4 text-sm text-right text-green-400 font-semibold">{formatPrice(sale.totalAmount, sale.currency)}</td>
+                        <td className="px-6 py-4 text-sm text-right text-cyan-400 font-semibold">{formatPrice(sale.paidAmount, sale.currency)}</td>
                         <td className="px-6 py-4 text-sm text-right text-gray-400">{new Date(sale.createdAt).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}</td>
                       </tr>
-                      {expandedSaleId === sale._id && (
+                      {expandedSaleId === sale.id && (
                         <tr className="bg-slate-900/30 border-b border-white/5">
                           <td colSpan={7} className="px-6 py-4">
                             <div className="space-y-2">
@@ -288,15 +249,15 @@ export default function SalesPage() {
                                   <div className="grid grid-cols-3 gap-4 text-xs">
                                     <div>
                                       <span className="text-gray-400">Katalog narxi:</span>
-                                      <p className="text-cyan-400 font-semibold">{formatPrice(convertPrice(item.originalPrice || 0))}</p>
+                                      <p className="text-cyan-400 font-semibold">{formatPrice(item.originalPrice || 0, item.currency || sale.currency)}</p>
                                     </div>
                                     <div>
                                       <span className="text-gray-400">Sotilgan narxi:</span>
-                                      <p className="text-green-400 font-semibold">{formatPrice(convertPrice(item.salePrice || 0))}</p>
+                                      <p className="text-green-400 font-semibold">{formatPrice(item.salePrice || 0, item.currency || sale.currency)}</p>
                                     </div>
                                     <div>
                                       <span className="text-gray-400">Jami:</span>
-                                      <p className="text-teal-400 font-semibold">{formatPrice(convertPrice(item.total || 0))}</p>
+                                      <p className="text-teal-400 font-semibold">{formatPrice(item.total || 0, item.currency || sale.currency)}</p>
                                     </div>
                                   </div>
                                 </div>
@@ -305,7 +266,7 @@ export default function SalesPage() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>
@@ -316,3 +277,4 @@ export default function SalesPage() {
     </AdminLayout>
   )
 }
+

@@ -60,7 +60,7 @@ export default function AdminCustomersPage() {
   }
 
   const handleEditBranch = (customer: Customer) => {
-    setEditingId(customer._id)
+    setEditingId(customer.id)
     // Get first branch ID if branches array exists
     const branchId = customer.branches && customer.branches.length > 0
       ? (typeof customer.branches[0] === 'string' ? customer.branches[0] : customer.branches[0]._id)
@@ -84,7 +84,11 @@ export default function AdminCustomersPage() {
     }
   }
 
-  const handleDeleteCustomer = async (id: string) => {
+  const handleDeleteCustomer = async (id: string | undefined) => {
+    if (!id) {
+      setError('Mijoz ID topilmadi')
+      return
+    }
     if (!confirm('Ushbu mijozni o\'chirishni tasdiqlaysizmi?')) return
 
     setError(null)
@@ -113,7 +117,7 @@ export default function AdminCustomersPage() {
       c.phone.toLowerCase().includes(searchTerm.toLowerCase())
     
     const matchesBranch = !selectedBranch || 
-      (c.branches && c.branches.some(b => (typeof b === 'string' ? b : b._id) === selectedBranch))
+      (c.branches && c.branches.some(b => (typeof b === 'string' ? b : b.id) === selectedBranch))
     
     return matchesSearch && matchesBranch
   })
@@ -188,13 +192,13 @@ export default function AdminCustomersPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredCustomers.map((customer) => {
+                {filteredCustomers.map((customer, index) => {
                   return (
-                    <tr key={customer._id} className="border-b border-white/10 hover:bg-white/5 transition">
+                    <tr key={customer._id || customer.id || index} className="border-b border-white/10 hover:bg-white/5 transition">
                       <td className="px-6 py-4 text-white font-medium">{customer.name}</td>
                       <td className="px-6 py-4 text-gray-400">{customer.phone}</td>
                       <td className="px-6 py-4">
-                        {editingId === customer._id ? (
+                        {editingId === customer.id ? (
                           <select
                             value={formData.branch}
                             onChange={(e) => setFormData({ branch: e.target.value })}
@@ -225,11 +229,11 @@ export default function AdminCustomersPage() {
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-green-400 font-semibold">${(customer.totalPurchase || 0).toFixed(2)}</td>
-                      <td className="px-6 py-4 text-red-400 font-semibold">${(customer.debt || 0).toFixed(2)}</td>
+                      <td className="px-6 py-4 text-green-400 font-semibold">${(parseFloat(customer.totalPurchase as any) || 0).toFixed(2)}</td>
+                      <td className="px-6 py-4 text-red-400 font-semibold">${(parseFloat(customer.debt as any) || 0).toFixed(2)}</td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
-                          {editingId === customer._id ? (
+                          {editingId === customer.id ? (
                             <>
                               <button
                                 onClick={handleSaveBranch}
@@ -253,7 +257,7 @@ export default function AdminCustomersPage() {
                                 <Edit size={16} className="text-blue-400" />
                               </button>
                               <button
-                                onClick={() => handleDeleteCustomer(customer._id)}
+                                onClick={() => handleDeleteCustomer(customer._id || customer.id)}
                                 className="p-2 bg-red-500/20 hover:bg-red-500/40 rounded-lg transition border border-red-500/30 hover:border-red-500/60"
                               >
                                 <Trash2 size={16} className="text-red-400" />
@@ -280,3 +284,4 @@ export default function AdminCustomersPage() {
     </AdminLayout>
   )
 }
+

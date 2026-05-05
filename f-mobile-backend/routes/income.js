@@ -4,84 +4,40 @@ const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Get all income records (admin only)
+// Get all income
 router.get('/', auth, async (req, res) => {
   try {
-    const incomes = await Income.find().sort({ date: -1 });
-    res.json({ success: true, data: incomes });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// Get single income record
-router.get('/:id', auth, async (req, res) => {
-  try {
-    const income = await Income.findById(req.params.id);
-    if (!income) {
-      return res.status(404).json({ success: false, error: 'Kirim topilmadi' });
-    }
+    const income = await Income.find().sort({ createdAt: -1 });
+    console.log('GET /income - Found', income.length, 'records');
     res.json({ success: true, data: income });
   } catch (err) {
+    console.error('Error fetching income:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Create new income record
+// Create income
 router.post('/', auth, async (req, res) => {
   try {
-    const { source, amount, currency, date, description, category } = req.body;
-
-    if (!source || !amount) {
-      return res.status(400).json({ success: false, error: 'Manba va miqdor talab qilinadi' });
-    }
+    const { source, amount, currency, description, category, amountUSD, amountUZS } = req.body;
+    
+    console.log('Creating income with data:', { source, amountUSD, amountUZS, description, category });
 
     const income = new Income({
       source,
-      amount,
-      currency: currency || 'USD',
-      date: date || new Date(),
+      amount: amount || 0, // Deprecated field for backward compatibility
+      amountUSD: amountUSD || 0,
+      amountUZS: amountUZS || 0,
+      currency: currency || 'UZS', // Deprecated field
       description: description || '',
-      category: category || 'sales',
+      category: category || 'other'
     });
 
     await income.save();
-    res.json({ success: true, data: income });
+    console.log('Income saved:', income);
+    res.status(201).json({ success: true, data: income });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// Update income record
-router.put('/:id', auth, async (req, res) => {
-  try {
-    const income = await Income.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-
-    if (!income) {
-      return res.status(404).json({ success: false, error: 'Kirim topilmadi' });
-    }
-
-    res.json({ success: true, data: income });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// Delete income record
-router.delete('/:id', auth, async (req, res) => {
-  try {
-    const income = await Income.findByIdAndDelete(req.params.id);
-
-    if (!income) {
-      return res.status(404).json({ success: false, error: 'Kirim topilmadi' });
-    }
-
-    res.json({ success: true, message: 'Kirim o\'chirildi' });
-  } catch (err) {
+    console.error('Error creating income:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });

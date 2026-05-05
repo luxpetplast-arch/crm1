@@ -22,14 +22,13 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({
     totalBranches: 0,
     totalCashiers: 0,
-    totalInventoryValue: 0,
+    totalInventoryValueUSD: 0,
+    totalInventoryValueUZS: 0,
     totalCustomers: 0,
   })
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
-  const [currency, setCurrency] = useState<'USD' | 'UZS'>('USD')
-  const [exchangeRate, setExchangeRate] = useState(12500)
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -38,39 +37,18 @@ export default function AdminDashboard() {
         router.push('/')
       } else {
         fetchDashboardData()
-        fetchExchangeRate()
       }
     }
   }, [router, selectedDate])
 
-  const fetchExchangeRate = async () => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
-      const response = await fetch(`${apiUrl}/exchange-rate/current`)
-      const data = await response.json()
-      
-      if (data.success && data.data) {
-        setExchangeRate(data.data.rate)
-      }
-    } catch (err) {
-      console.error('Exchange rate fetch error:', err)
-    }
-  }
-
-  const convertPrice = (priceInUsd: number): number => {
-    if (currency === 'USD') return priceInUsd
-    return priceInUsd * exchangeRate
-  }
-
   const formatPrice = (price: number): string => {
-    if (currency === 'USD') return `$${price.toFixed(2)}`
     return `${Math.floor(price).toLocaleString('uz-UZ')} so'm`
   }
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
       const token = localStorage.getItem('adminToken')
       
       // Fetch all data using public endpoints
@@ -96,21 +74,33 @@ export default function AdminDashboard() {
       const productsData = productsJson.data || productsJson || []
       const customersData = customersJson.data || customersJson || []
 
-      // Calculate total inventory value - only count available stock (not used IMEIs)
-      const totalInventoryValue = Array.isArray(productsData) 
-        ? productsData.reduce((sum, product) => {
-            let availableStock = product.stock || 0
-            if (product.imeiList && product.imeiList.length > 0) {
-              availableStock = product.imeiList.filter((item: any) => !item.used).length
-            }
-            return sum + (product.sellPrice * availableStock)
-          }, 0)
-        : 0
+      // Calculate total inventory value - separate USD and UZS
+      let totalInventoryValueUSD = 0
+      let totalInventoryValueUZS = 0
+      
+      if (Array.isArray(productsData)) {
+        productsData.forEach((product) => {
+          let availableStock = product.stock || 0
+          if (product.imeiList && product.imeiList.length > 0) {
+            availableStock = product.imeiList.filter((item: any) => !item.used).length
+          }
+          
+          const sellPrice = product.sellPrice || 0
+          const currency = product.sellCurrency || product.currency || 'USD'
+          
+          if (currency === 'USD') {
+            totalInventoryValueUSD += sellPrice * availableStock
+          } else {
+            totalInventoryValueUZS += sellPrice * availableStock
+          }
+        })
+      }
 
       setStats({
         totalBranches: Array.isArray(branchesData) ? branchesData.length : 0,
         totalCashiers: Array.isArray(cashiersData) ? cashiersData.length : 0,
-        totalInventoryValue: totalInventoryValue,
+        totalInventoryValueUSD: totalInventoryValueUSD,
+        totalInventoryValueUZS: totalInventoryValueUZS,
         totalCustomers: Array.isArray(customersData) ? customersData.length : 0,
       })
 
@@ -129,10 +119,10 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-400">Ma'lumotlar yuklanimoqda...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--accent-primary)] mx-auto mb-4"></div>
+            <p className="text-[var(--text-muted)]">Ma'lumotlar yuklanimoqda...</p>
           </div>
         </div>
       </AdminLayout>
@@ -143,72 +133,58 @@ export default function AdminDashboard() {
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600/20 to-cyan-600/20 backdrop-blur-sm rounded-2xl p-8 border border-white/10 flex items-center justify-between">
+        <div className="backdrop-blur-sm rounded-2xl p-8 border border-[var(--border-primary)]" style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(6, 182, 212, 0.1))' }}>
           <div>
             <h1 className="text-4xl font-black bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent mb-2">Dashboard</h1>
-            <p className="text-gray-300">Xush kelibsiz, Admin! Tizimning umumiy ko'rinishi</p>
-          </div>
-          {/* Currency Selector */}
-          <div className="flex gap-2 bg-white/10 border border-white/20 rounded-lg p-1">
-            <button
-              onClick={() => setCurrency('USD')}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                currency === 'USD'
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/50'
-                  : 'text-gray-300 hover:text-white'
-              }`}
-            >
-              $
-            </button>
-            <button
-              onClick={() => setCurrency('UZS')}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                currency === 'UZS'
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/50'
-                  : 'text-gray-300 hover:text-white'
-              }`}
-            >
-              So'm
-            </button>
+            <p className="text-[var(--text-secondary)]">Xush kelibsiz, Admin! Tizimning umumiy ko'rinishi</p>
           </div>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-gradient-to-br from-blue-600/20 to-blue-700/20 backdrop-blur-sm rounded-2xl p-6 border border-blue-500/30 hover:border-blue-500/50 transition-all hover:shadow-lg hover:shadow-blue-500/20">
+          <div className="card-glass rounded-2xl p-6 border-l-4 border-l-[var(--accent-primary)]">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-gray-300">Jami Filiallar</h3>
-              <Store className="w-5 h-5 text-blue-400" />
+              <h3 className="text-sm font-semibold text-[var(--text-secondary)]">Jami Filiallar</h3>
+              <Store className="w-5 h-5 text-[var(--accent-primary)]" />
             </div>
-            <p className="text-3xl font-black text-blue-300 mb-2">{stats.totalBranches}</p>
-            <p className="text-xs text-blue-300/70">Faol filiallar</p>
+            <p className="text-3xl font-black text-[var(--accent-primary)] mb-2">{stats.totalBranches}</p>
+            <p className="text-xs text-[var(--text-muted)]">Faol filiallar</p>
           </div>
 
-          <div className="bg-gradient-to-br from-green-600/20 to-green-700/20 backdrop-blur-sm rounded-2xl p-6 border border-green-500/30 hover:border-green-500/50 transition-all hover:shadow-lg hover:shadow-green-500/20">
+          <div className="card-glass rounded-2xl p-6 border-l-4 border-l-[var(--accent-success)]">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-gray-300">Jami Kassirlar</h3>
-              <Users className="w-5 h-5 text-green-400" />
+              <h3 className="text-sm font-semibold text-[var(--text-secondary)]">Jami Kassirlar</h3>
+              <Users className="w-5 h-5 text-[var(--accent-success)]" />
             </div>
-            <p className="text-3xl font-black text-green-300 mb-2">{stats.totalCashiers}</p>
-            <p className="text-xs text-green-300/70">Faol kassirlar</p>
+            <p className="text-3xl font-black text-[var(--accent-success)] mb-2">{stats.totalCashiers}</p>
+            <p className="text-xs text-[var(--text-muted)]">Faol kassirlar</p>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-600/20 to-purple-700/20 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/30 hover:border-purple-500/50 transition-all hover:shadow-lg hover:shadow-purple-500/20">
+          <div className="card-glass rounded-2xl p-6 border-l-4 border-l-[var(--accent-warning)]">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-gray-300">Jami Summa</h3>
-              <DollarSign className="w-5 h-5 text-purple-400" />
+              <h3 className="text-sm font-semibold text-[var(--text-secondary)]">Dollar Summa</h3>
+              <DollarSign className="w-5 h-5 text-[var(--accent-warning)]" />
             </div>
-            <p className="text-3xl font-black text-purple-300 mb-2">{formatPrice(convertPrice(stats.totalInventoryValue))}</p>
-            <p className="text-xs text-purple-300/70">Barcha mahsulotlar narxi</p>
+            <p className="text-3xl font-black text-[var(--accent-warning)] mb-2">${stats.totalInventoryValueUSD.toFixed(2)}</p>
+            <p className="text-xs text-[var(--text-muted)]">Barcha mahsulotlar</p>
           </div>
 
-          <div className="bg-gradient-to-br from-red-600/20 to-red-700/20 backdrop-blur-sm rounded-2xl p-6 border border-red-500/30 hover:border-red-500/50 transition-all hover:shadow-lg hover:shadow-red-500/20">
+          <div className="card-glass rounded-2xl p-6 border-l-4 border-l-purple-500">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-gray-300">Jami Mijozlar</h3>
-              <Users className="w-5 h-5 text-red-400" />
+              <h3 className="text-sm font-semibold text-[var(--text-secondary)]">So'm Summa</h3>
+              <DollarSign className="w-5 h-5 text-purple-500" />
             </div>
-            <p className="text-3xl font-black text-red-300 mb-2">{stats.totalCustomers}</p>
-            <p className="text-xs text-red-300/70">Ro'yxatda</p>
+            <p className="text-3xl font-black text-purple-500 mb-2">{formatPrice(stats.totalInventoryValueUZS)}</p>
+            <p className="text-xs text-[var(--text-muted)]">Barcha mahsulotlar</p>
+          </div>
+
+          <div className="card-glass rounded-2xl p-6 border-l-4 border-l-red-500">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-[var(--text-secondary)]">Jami Mijozlar</h3>
+              <Users className="w-5 h-5 text-red-500" />
+            </div>
+            <p className="text-3xl font-black text-red-500 mb-2">{stats.totalCustomers}</p>
+            <p className="text-xs text-[var(--text-muted)]">Ro'yxatda</p>
           </div>
         </div>
 
@@ -218,50 +194,50 @@ export default function AdminDashboard() {
             {/* Charts Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Sales by Day */}
-              <div className="bg-slate-800/50 border border-white/10 rounded-lg p-6">
-                <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-                  <TrendingUp size={18} className="text-blue-400" />
+              <div className="card-glass rounded-lg p-6">
+                <h3 className="text-[var(--text-primary)] font-semibold mb-4 flex items-center gap-2">
+                  <TrendingUp size={18} className="text-[var(--accent-primary)]" />
                   Savdolar (Oxirgi 7 kun)
                 </h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={analytics.salesByDay}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff20" />
-                    <XAxis dataKey="date" stroke="#9ca3af" />
-                    <YAxis stroke="#9ca3af" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
+                    <XAxis dataKey="date" stroke="var(--text-muted)" />
+                    <YAxis stroke="var(--text-muted)" />
                     <Tooltip 
-                      contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #4b5563' }}
-                      labelStyle={{ color: '#fff' }}
+                      contentStyle={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}
+                      labelStyle={{ color: 'var(--text-primary)' }}
                     />
                     <Legend />
-                    <Line type="monotone" dataKey="sales" stroke="#3b82f6" strokeWidth={2} dot={{ fill: '#3b82f6' }} />
+                    <Line type="monotone" dataKey="sales" stroke="var(--accent-primary)" strokeWidth={2} dot={{ fill: 'var(--accent-primary)' }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
 
               {/* Top Products */}
-              <div className="bg-slate-800/50 border border-white/10 rounded-lg p-6">
-                <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-                  <TrendingUp size={18} className="text-green-400" />
+              <div className="card-glass rounded-lg p-6">
+                <h3 className="text-[var(--text-primary)] font-semibold mb-4 flex items-center gap-2">
+                  <TrendingUp size={18} className="text-[var(--accent-success)]" />
                   Top Mahsulotlar
                 </h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={analytics.topProducts}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff20" />
-                    <XAxis dataKey="name" stroke="#9ca3af" angle={-45} textAnchor="end" height={80} />
-                    <YAxis stroke="#9ca3af" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
+                    <XAxis dataKey="name" stroke="var(--text-muted)" angle={-45} textAnchor="end" height={80} />
+                    <YAxis stroke="var(--text-muted)" />
                     <Tooltip 
-                      contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #4b5563' }}
-                      labelStyle={{ color: '#fff' }}
+                      contentStyle={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}
+                      labelStyle={{ color: 'var(--text-primary)' }}
                     />
-                    <Bar dataKey="revenue" fill="#10b981" />
+                    <Bar dataKey="revenue" fill="var(--accent-success)" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
               {/* Sales by Branch */}
-              <div className="bg-slate-800/50 border border-white/10 rounded-lg p-6">
-                <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-                  <Store size={18} className="text-orange-400" />
+              <div className="card-glass rounded-lg p-6">
+                <h3 className="text-[var(--text-primary)] font-semibold mb-4 flex items-center gap-2">
+                  <Store size={18} className="text-[var(--accent-warning)]" />
                   Filiallar bo'yicha Savdolar
                 </h3>
                 <ResponsiveContainer width="100%" height={300}>
@@ -273,36 +249,36 @@ export default function AdminDashboard() {
                       cx="50%"
                       cy="50%"
                       outerRadius={100}
-                      label
+                      label={{ fill: 'var(--text-primary)' }}
                     >
                       {analytics.salesByBranch.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip 
-                      contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #4b5563' }}
-                      labelStyle={{ color: '#fff' }}
+                      contentStyle={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}
+                      labelStyle={{ color: 'var(--text-primary)' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
 
               {/* Sales by Cashier */}
-              <div className="bg-slate-800/50 border border-white/10 rounded-lg p-6">
-                <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-                  <Users size={18} className="text-pink-400" />
+              <div className="card-glass rounded-lg p-6">
+                <h3 className="text-[var(--text-primary)] font-semibold mb-4 flex items-center gap-2">
+                  <Users size={18} className="text-pink-500" />
                   Kassirlar bo'yicha Savdolar
                 </h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={analytics.salesByCashier} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff20" />
-                    <XAxis type="number" stroke="#9ca3af" />
-                    <YAxis dataKey="name" type="category" stroke="#9ca3af" width={100} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
+                    <XAxis type="number" stroke="var(--text-muted)" />
+                    <YAxis dataKey="name" type="category" stroke="var(--text-muted)" width={100} />
                     <Tooltip 
-                      contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #4b5563' }}
-                      labelStyle={{ color: '#fff' }}
+                      contentStyle={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}
+                      labelStyle={{ color: 'var(--text-primary)' }}
                     />
-                    <Bar dataKey="sales" fill="#f59e0b" />
+                    <Bar dataKey="sales" fill="var(--accent-warning)" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -313,3 +289,4 @@ export default function AdminDashboard() {
     </AdminLayout>
   )
 }
+

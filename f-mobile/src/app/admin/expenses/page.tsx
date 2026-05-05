@@ -6,7 +6,7 @@ import AdminLayout from '@/components/layouts/AdminLayout'
 import { Plus, Edit2, Trash2, TrendingDown, X } from 'lucide-react'
 
 interface Expense {
-  _id: string
+  id: string
   category: string
   amount: number
   currency: string
@@ -25,8 +25,6 @@ export default function ExpensesPage() {
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [totalExpenses, setTotalExpenses] = useState(0)
-  const [currency, setCurrency] = useState<'USD' | 'UZS'>('USD')
-  const [exchangeRate, setExchangeRate] = useState(12500)
   const [formData, setFormData] = useState({
     category: 'supplies',
     amount: '',
@@ -36,6 +34,10 @@ export default function ExpensesPage() {
     vendor: '',
   })
 
+  const formatPrice = (price: number): string => {
+    return `${Math.floor(price).toLocaleString('uz-UZ')} so'm`
+  }
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('adminToken')
@@ -43,39 +45,14 @@ export default function ExpensesPage() {
         router.push('/')
       } else {
         fetchExpenses()
-        fetchExchangeRate()
       }
     }
   }, [router])
 
-  const fetchExchangeRate = async () => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
-      const response = await fetch(`${apiUrl}/exchange-rate/current`)
-      const data = await response.json()
-      
-      if (data.success && data.data) {
-        setExchangeRate(data.data.rate)
-      }
-    } catch (err) {
-      console.error('Exchange rate fetch error:', err)
-    }
-  }
-
-  const convertPrice = (priceInUsd: number): number => {
-    if (currency === 'USD') return priceInUsd
-    return priceInUsd * exchangeRate
-  }
-
-  const formatPrice = (price: number): string => {
-    if (currency === 'USD') return `$${price.toFixed(2)}`
-    return `${Math.floor(price).toLocaleString('uz-UZ')} so'm`
-  }
-
   const fetchExpenses = async () => {
     try {
       setError(null)
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
       const token = localStorage.getItem('adminToken')
       
       const response = await fetch(`${apiUrl}/expenses`, {
@@ -104,7 +81,7 @@ export default function ExpensesPage() {
     setError(null)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
       const token = localStorage.getItem('adminToken')
       
       const method = isEditMode ? 'PUT' : 'POST'
@@ -155,7 +132,7 @@ export default function ExpensesPage() {
       description: expense.description,
       vendor: expense.vendor || '',
     })
-    setEditingId(expense._id)
+    setEditingId(expense.id)
     setIsEditMode(true)
     setShowModal(true)
   }
@@ -164,7 +141,7 @@ export default function ExpensesPage() {
     if (!confirm('Rostdan ham o\'chirmoqchisiz?')) return
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
       const token = localStorage.getItem('adminToken')
       
       const response = await fetch(`${apiUrl}/expenses/${id}`, {
@@ -206,39 +183,14 @@ export default function ExpensesPage() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <div>
               <h1 className="text-2xl sm:text-4xl font-bold text-white mb-2">Xarajatlar</h1>
-              <p className="text-sm sm:text-base text-gray-400">Jami xarajat: {formatPrice(convertPrice(totalExpenses))}</p>
+              <p className="text-sm sm:text-base text-gray-400">Jami xarajat: {formatPrice(totalExpenses)}</p>
             </div>
-            <div className="flex gap-3 items-center w-full sm:w-auto">
-              {/* Currency Selector */}
-              <div className="flex gap-2 bg-white/10 border border-white/20 rounded-lg p-1">
-                <button
-                  onClick={() => setCurrency('USD')}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                    currency === 'USD'
-                      ? 'bg-red-600 text-white shadow-lg shadow-red-500/50'
-                      : 'text-gray-300 hover:text-white'
-                  }`}
-                >
-                  $
-                </button>
-                <button
-                  onClick={() => setCurrency('UZS')}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                    currency === 'UZS'
-                      ? 'bg-red-600 text-white shadow-lg shadow-red-500/50'
-                      : 'text-gray-300 hover:text-white'
-                  }`}
-                >
-                  So'm
-                </button>
-              </div>
-              <button
-                onClick={() => setShowModal(true)}
-                className="flex items-center gap-2 bg-gradient-to-r from-red-500 to-orange-600 hover:from-red-600 hover:to-orange-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold transition-all text-sm sm:text-base w-full sm:w-auto justify-center sm:justify-start"
-              >
-                <Plus size={18} /> Yangi Xarajat
-              </button>
-            </div>
+            <button
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 bg-gradient-to-r from-red-500 to-orange-600 hover:from-red-600 hover:to-orange-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold transition-all text-sm sm:text-base w-full sm:w-auto justify-center sm:justify-start"
+            >
+              <Plus size={18} /> Yangi Xarajat
+            </button>
           </div>
 
           {/* Stats */}
@@ -247,7 +199,7 @@ export default function ExpensesPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-400 text-xs sm:text-sm">Jami Xarajat</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-red-400">{formatPrice(convertPrice(totalExpenses))}</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-red-400">{formatPrice(totalExpenses)}</p>
                 </div>
                 <TrendingDown size={32} className="text-red-500 opacity-50 hidden sm:block" />
               </div>
@@ -258,7 +210,7 @@ export default function ExpensesPage() {
             </div>
             <div className="bg-gradient-to-br from-purple-500/20 to-pink-600/20 border border-purple-500/30 rounded-lg p-4 sm:p-6">
               <p className="text-gray-400 text-xs sm:text-sm">O'rtacha Xarajat</p>
-              <p className="text-2xl sm:text-3xl font-bold text-purple-400">{formatPrice(convertPrice(expenses.length > 0 ? totalExpenses / expenses.length : 0))}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-purple-400">{formatPrice(expenses.length > 0 ? totalExpenses / expenses.length : 0)}</p>
             </div>
           </div>
 
@@ -293,9 +245,9 @@ export default function ExpensesPage() {
                     </tr>
                   ) : (
                     expenses.map((expense) => (
-                      <tr key={expense._id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                      <tr key={expense.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                         <td className="px-3 sm:px-6 py-3 sm:py-4 text-white font-medium text-sm">{expense.category}</td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4 text-red-400 font-semibold text-sm">{formatPrice(convertPrice(expense.amount))}</td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 text-red-400 font-semibold text-sm">{formatPrice(expense.amount)}</td>
                         <td className="px-3 sm:px-6 py-3 sm:py-4 text-gray-300 text-sm">{expense.vendor || '-'}</td>
                         <td className="px-3 sm:px-6 py-3 sm:py-4 text-gray-400 text-sm">{new Date(expense.date).toLocaleDateString('uz-UZ')}</td>
                         <td className="px-3 sm:px-6 py-3 sm:py-4 text-gray-400 truncate text-sm">{expense.description}</td>
@@ -307,7 +259,7 @@ export default function ExpensesPage() {
                             <Edit2 size={16} className="text-blue-400" />
                           </button>
                           <button
-                            onClick={() => handleDelete(expense._id)}
+                            onClick={() => handleDelete(expense.id)}
                             className="p-1.5 sm:p-2 hover:bg-red-500/20 rounded-lg transition-colors"
                           >
                             <Trash2 size={16} className="text-red-400" />
@@ -326,13 +278,13 @@ export default function ExpensesPage() {
                 <p className="text-center text-gray-400 py-8">Xarajatlar mavjud emas</p>
               ) : (
                 expenses.map((expense) => (
-                  <div key={expense._id} className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2">
+                  <div key={expense.id} className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2">
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="text-white font-semibold text-sm">{expense.category}</p>
                         <p className="text-gray-400 text-xs">{expense.vendor || 'Sotuvchi yo\'q'}</p>
                       </div>
-                      <p className="text-red-400 font-bold text-sm">{formatPrice(convertPrice(expense.amount))}</p>
+                      <p className="text-red-400 font-bold text-sm">{formatPrice(expense.amount)}</p>
                     </div>
                     <p className="text-gray-400 text-xs">{new Date(expense.date).toLocaleDateString('uz-UZ')}</p>
                     {expense.description && <p className="text-gray-400 text-xs">{expense.description}</p>}
@@ -345,7 +297,7 @@ export default function ExpensesPage() {
                         <span className="text-xs text-blue-400">Tahrirlash</span>
                       </button>
                       <button
-                        onClick={() => handleDelete(expense._id)}
+                        onClick={() => handleDelete(expense.id)}
                         className="flex-1 p-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors flex items-center justify-center gap-1"
                       >
                         <Trash2 size={14} className="text-red-400" />
@@ -469,3 +421,4 @@ export default function ExpensesPage() {
     </AdminLayout>
   )
 }
+

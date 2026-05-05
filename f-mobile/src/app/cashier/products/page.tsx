@@ -7,11 +7,11 @@ import { Search, Package, TrendingUp, AlertCircle } from 'lucide-react'
 import { getProducts } from '@/lib/api'
 
 interface Product {
-  _id: string
+  id: string
   name: string
   category: string
   sellPrice: number
-  buyPrice: number
+  costPrice: number
   stock: number
   barcode?: string
   imei?: string
@@ -145,7 +145,7 @@ export default function ProductsPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {filteredProducts.map(product => (
               <div
-                key={product._id}
+                key={product.id}
                 className="bg-gradient-to-br from-white/10 to-white/5 border border-white/20 rounded-lg p-3 hover:border-teal-500/50 hover:shadow-lg hover:shadow-teal-500/20 transition-all duration-300 group flex flex-col"
               >
                 {/* Nomi */}
@@ -185,3 +185,4 @@ export default function ProductsPage() {
     </CashierLayout>
   )
 }
+

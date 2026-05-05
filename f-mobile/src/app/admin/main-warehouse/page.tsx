@@ -7,19 +7,22 @@ import { Plus, Trash2, X, Search, Package, Edit2, ArrowRight } from 'lucide-reac
 import { getProducts, createProduct, deleteProduct, updateProduct, getBranches } from '@/lib/api'
 
 interface Product {
-  _id: string
+  id: string
   name: string
   category: string
-  buyPrice: number
+  costPrice: number
   sellPrice: number
   stock: number
   imei: string
-  branch: string | { _id: string; name: string }
+  branch: string | { _id?: string; id?: string; name: string }
   isMainWarehouse?: boolean
+  currency?: 'USD' | 'UZS'
+  sellCurrency?: 'USD' | 'UZS'
 }
 
 interface Branch {
-  _id: string
+  _id?: string
+  id?: string
   name: string
 }
 
@@ -33,30 +36,36 @@ export default function MainWarehousePage() {
   const [showModal, setShowModal] = useState(false)
   const [showTransferModal, setShowTransferModal] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-  const [transferData, setTransferData] = useState({ quantity: '', targetBranch: '', selectedImei: '' })
+  const [transferData, setTransferData] = useState({ quantity: '', targetBranch: '', selectedImei: '', selectedImeis: [] as string[] })
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [currency, setCurrency] = useState<'USD' | 'UZS'>('USD')
   const [exchangeRate, setExchangeRate] = useState(12500)
   const [imeiMode, setImeiMode] = useState<'different' | 'same' | null>(null)
   const [imeiInputs, setImeiInputs] = useState<{ [key: number]: string }>({})
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteProductId, setDeleteProductId] = useState<string | null>(null)
+  const [showImeiModal, setShowImeiModal] = useState(false)
+  const [selectedImeiProduct, setSelectedImeiProduct] = useState<Product | null>(null)
   const [formData, setFormData] = useState({
     name: '',
     category: '',
-    buyPrice: '',
+    costPrice: '',
     sellPrice: '',
     stock: '',
     imei: '',
+    currency: 'USD' as 'USD' | 'UZS',
+    sellCurrency: 'USD' as 'USD' | 'UZS',
   })
 
-  const convertPrice = (priceInUsd: number): number => {
-    if (currency === 'USD') return priceInUsd
-    return priceInUsd * exchangeRate
+  const convertPrice = (price?: number, productCurrency?: 'USD' | 'UZS'): number => {
+    if (!price || isNaN(price)) return 0
+    // Narxlar database da saqlangan valyutada bo'ladi, o'tkazish kerak emas
+    return price
   }
 
-  const formatPrice = (price: number): string => {
-    if (currency === 'USD') return `${price.toFixed(2)}`
+  const formatPrice = (price?: number, productCurrency?: 'USD' | 'UZS'): string => {
+    if (!price || isNaN(price)) return '0'
+    const curr = productCurrency || 'USD'
+    if (curr === 'USD') return `${price.toFixed(2)}`
     return `${Math.floor(price).toLocaleString('uz-UZ')} so'm`
   }
 
@@ -64,7 +73,9 @@ export default function MainWarehousePage() {
     setError(null)
     try {
       const branchesRes = await getBranches()
+      console.log('[MAIN-WAREHOUSE] Branches response:', branchesRes)
       if (branchesRes.success && branchesRes.data) {
+        console.log('[MAIN-WAREHOUSE] Branches loaded:', branchesRes.data)
         setBranches(branchesRes.data as Branch[])
       }
 
@@ -74,6 +85,13 @@ export default function MainWarehousePage() {
         const mainWarehouseProducts = (response.data as Product[]).filter(p => 
           p.branch === 'main-warehouse-000' || p.isMainWarehouse === true
         )
+        console.log('[MAIN-WAREHOUSE] Fetched products from API:', mainWarehouseProducts.map(p => ({ 
+          name: p.name, 
+          currency: p.currency, 
+          sellCurrency: p.sellCurrency,
+          costPrice: p.costPrice,
+          sellPrice: p.sellPrice
+        })))
         setProducts(mainWarehouseProducts)
       } else {
         setError(response.error || 'Mahsulotlarni yuklashda xato')
@@ -86,7 +104,7 @@ export default function MainWarehousePage() {
 
   const fetchExchangeRate = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
       const response = await fetch(`${apiUrl}/exchange-rate/current`)
       const data = await response.json()
       
@@ -100,13 +118,16 @@ export default function MainWarehousePage() {
   }
 
   const handleAddProduct = async () => {
-    if (!formData.name.trim() || !formData.buyPrice || !formData.sellPrice || !formData.stock) {
+    if (!formData.name.trim() || !formData.costPrice || !formData.sellPrice || !formData.stock) {
       setError('Barcha maydonlarni to\'ldirish talab qilinadi')
       return
     }
 
     const stock = parseInt(formData.stock)
-    if (stock > 0 && !imeiMode) {
+    // Tahrirlashda stock o'zgartirilmasa, IMEI rejimini tekshirmay qil
+    const isEditingWithoutStockChange = editingId && stock === (products.find(p => p.id === editingId)?.stock || 0)
+    
+    if (stock > 0 && !imeiMode && !isEditingWithoutStockChange) {
       setError('IMEI rejimini tanlang')
       return
     }
@@ -137,16 +158,21 @@ export default function MainWarehousePage() {
       }
     }
 
+    // Use formData.currency directly - it's updated by onChange handler
     const productData = {
       name: formData.name,
       category: formData.category || 'Boshqa',
-      buyPrice: parseFloat(formData.buyPrice),
+      costPrice: parseFloat(formData.costPrice),
       sellPrice: parseFloat(formData.sellPrice),
       stock: stock,
       imei: imeiValue,
       branch: 'main-warehouse-000',
       isMainWarehouse: true,
+      currency: formData.currency,
+      sellCurrency: formData.sellCurrency,
     }
+
+    console.log('[MAIN-WAREHOUSE] Product data being sent:', { name: productData.name, currency: productData.currency, sellCurrency: productData.sellCurrency, costPrice: productData.costPrice, sellPrice: productData.sellPrice })
 
     let response
     if (editingId) {
@@ -155,8 +181,17 @@ export default function MainWarehousePage() {
       response = await createProduct(productData)
     }
 
+    console.log('[MAIN-WAREHOUSE] API response:', response)
+    if (response.data) {
+      console.log('[MAIN-WAREHOUSE] Created product:', { 
+        name: response.data.name, 
+        currency: response.data.currency, 
+        sellCurrency: response.data.sellCurrency 
+      })
+    }
+
     if (response.success) {
-      setFormData({ name: '', category: '', buyPrice: '', sellPrice: '', stock: '', imei: '' })
+      setFormData({ name: '', category: '', costPrice: '', sellPrice: '', stock: '', imei: '', currency: 'USD', sellCurrency: 'USD' })
       setShowModal(false)
       setEditingId(null)
       setImeiMode(null)
@@ -189,7 +224,7 @@ export default function MainWarehousePage() {
   }
 
   const handleEditProduct = (product: Product) => {
-    setEditingId(product._id)
+    setEditingId(product.id)
     
     let detectedMode: 'different' | 'same' | null = null
     const existingImeis: { [key: number]: string } = {}
@@ -218,10 +253,12 @@ export default function MainWarehousePage() {
     setFormData({
       name: product.name,
       category: product.category,
-      buyPrice: product.buyPrice.toString(),
+      costPrice: product.costPrice.toString(),
       sellPrice: product.sellPrice.toString(),
       stock: product.stock.toString(),
       imei: detectedMode === 'same' ? product.imei : '',
+      currency: product.currency || 'USD',
+      sellCurrency: product.currency || 'USD',
     })
     
     setImeiMode(detectedMode)
@@ -242,10 +279,18 @@ export default function MainWarehousePage() {
     }
 
     // Agar har xil IMEI bo'lsa, IMEI tanlash kerak
-    const imeiArray = selectedProduct.imei.split(',').map(i => i.trim()).filter(i => i !== '')
-    if (imeiArray.length > 1 && !transferData.selectedImei) {
-      setError('IMEI tanlang')
-      return
+    const imeiArray = (selectedProduct.imei || '').split(',').map(i => i.trim()).filter(i => i !== '')
+    
+    // Agar har xil IMEI bo'lsa va quantity > 1 bo'lsa, multiple IMEI tanlash kerak
+    if (imeiArray.length > 1 && quantity > 1) {
+      if (transferData.selectedImeis.length === 0) {
+        setError(`${quantity} ta IMEI tanlang`)
+        return
+      }
+      if (transferData.selectedImeis.length !== quantity) {
+        setError(`${quantity} ta IMEI tanlang (hozir ${transferData.selectedImeis.length} ta tanlangan)`)
+        return
+      }
     }
 
     setIsSubmitting(true)
@@ -253,40 +298,56 @@ export default function MainWarehousePage() {
 
     const newStock = selectedProduct.stock - quantity
 
+    // IMEI-larni yangilash
+    let updatedImeiArray = [...imeiArray]
+    let transferImeis: string[] = []
+
+    if (imeiArray.length === 1) {
+      // Bir xil IMEI - quantity ta o'chirish
+      transferImeis = Array(quantity).fill(imeiArray[0])
+      updatedImeiArray = []
+    } else {
+      // Har xil IMEI - tanlangan IMEI-larni o'chirish
+      transferImeis = transferData.selectedImeis
+      updatedImeiArray = imeiArray.filter(imei => !transferData.selectedImeis.includes(imei))
+    }
+
     // Agar soni 0 bo'lsa, mahsulotni o'chirish, aks holda yangilash
     let response1
     if (newStock === 0) {
-      response1 = await deleteProduct(selectedProduct._id)
+      response1 = await deleteProduct(selectedProduct.id)
     } else {
       const updatedProduct = {
         ...selectedProduct,
         stock: newStock,
+        imei: updatedImeiArray.join(', '),
         branch: 'main-warehouse-000',
       }
-      response1 = await updateProduct(selectedProduct._id, updatedProduct)
+      response1 = await updateProduct(selectedProduct.id, updatedProduct)
     }
 
     if (response1.success) {
       // Filialga yangi mahsulot qo'shish
-      // Agar bir xil IMEI bo'lsa, avtomatik o'tsin
-      const transferImei = imeiArray.length === 1 ? selectedProduct.imei : transferData.selectedImei
-      
       const newProduct = {
         name: selectedProduct.name,
         category: selectedProduct.category,
-        buyPrice: selectedProduct.buyPrice,
+        costPrice: selectedProduct.costPrice,
         sellPrice: selectedProduct.sellPrice,
         stock: quantity,
-        imei: transferImei,
+        imei: transferImeis.join(','),
         branch: transferData.targetBranch,
+        currency: selectedProduct.currency || 'USD',
+        sellCurrency: selectedProduct.sellCurrency || selectedProduct.currency || 'USD',
       }
+
+      console.log('[TRANSFER] Creating product with currency:', { currency: newProduct.currency, sellCurrency: newProduct.sellCurrency })
 
       const response2 = await createProduct(newProduct)
 
       if (response2.success) {
         setShowTransferModal(false)
         setSelectedProduct(null)
-        setTransferData({ quantity: '', targetBranch: '', selectedImei: '' })
+        setTransferData({ quantity: '', targetBranch: '', selectedImei: '', selectedImeis: [] })
         await fetchProducts()
       } else {
         setError('Filialga qo\'shishda xato')
@@ -311,11 +372,22 @@ export default function MainWarehousePage() {
   }, [router])
 
   const filteredProducts = products.filter(p => 
-    p.imei.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (p.imei || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const totalValue = products.reduce((sum, p) => sum + (p.sellPrice * p.stock), 0)
+  const totalStats = products.reduce((acc, p) => {
+    const currency = p.sellCurrency || p.currency || 'USD'
+    const value = p.sellPrice * p.stock
+    
+    if (currency === 'USD') {
+      acc.usd += value
+    } else {
+      acc.uzs += value
+    }
+    
+    return acc
+  }, { usd: 0, uzs: 0 })
 
   return (
     <AdminLayout>
@@ -326,31 +398,9 @@ export default function MainWarehousePage() {
             <p className="text-gray-300 mt-1">Mahsulot qo'shish va kochirish</p>
           </div>
           <div className="flex gap-3 items-center">
-            <div className="flex gap-2 bg-white/10 border border-white/20 rounded-lg p-1">
-              <button
-                onClick={() => setCurrency('USD')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                  currency === 'USD'
-                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/50'
-                    : 'text-gray-300 hover:text-white'
-                }`}
-              >
-                $
-              </button>
-              <button
-                onClick={() => setCurrency('UZS')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                  currency === 'UZS'
-                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/50'
-                    : 'text-gray-300 hover:text-white'
-                }`}
-              >
-                So'm
-              </button>
-            </div>
             <button
               onClick={() => {
-                setFormData({ name: '', category: '', buyPrice: '', sellPrice: '', stock: '', imei: '' })
+                setFormData({ name: '', category: '', costPrice: '', sellPrice: '', stock: '', imei: '', currency: 'USD', sellCurrency: 'USD' })
                 setEditingId(null)
                 setImeiMode(null)
                 setImeiInputs({})
@@ -370,14 +420,23 @@ export default function MainWarehousePage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-gradient-to-br from-purple-600/20 to-purple-700/20 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/30">
             <p className="text-sm text-purple-300/70 mb-2">Jami Mahsulotlar</p>
-            <p className="text-3xl font-black text-purple-300">{products.length}</p>
+            <p className="text-3xl font-black text-purple-300">{products.reduce((sum, p) => {
+              const stock = (p as any).imeiList && (p as any).imeiList.length > 0
+                ? (p as any).imeiList.filter((item: any) => !item.used).length
+                : (p as any).stock || 0
+              return sum + stock
+            }, 0)}</p>
+          </div>
+          <div className="bg-gradient-to-br from-blue-600/20 to-blue-700/20 backdrop-blur-sm rounded-2xl p-6 border border-blue-500/30">
+            <p className="text-sm text-blue-300/70 mb-2">Dollar Qiymati</p>
+            <p className="text-3xl font-black text-blue-300">${totalStats.usd.toFixed(2)}</p>
           </div>
           <div className="bg-gradient-to-br from-green-600/20 to-green-700/20 backdrop-blur-sm rounded-2xl p-6 border border-green-500/30">
-            <p className="text-sm text-green-300/70 mb-2">Ombor Qiymati</p>
-            <p className="text-3xl font-black text-green-300">{formatPrice(convertPrice(totalValue))}</p>
+            <p className="text-sm text-green-300/70 mb-2">So'm Qiymati</p>
+            <p className="text-3xl font-black text-green-300">{formatPrice(totalStats.uzs, 'UZS')}</p>
           </div>
         </div>
 
@@ -401,9 +460,10 @@ export default function MainWarehousePage() {
               <p className="text-gray-400">Mahsulotlar topilmadi</p>
             </div>
           ) : (
-            filteredProducts.map((product) => (
+            filteredProducts.map((product) => {
+              return (
               <div
-                key={product._id}
+                key={product.id}
                 className="bg-gradient-to-br from-white/10 to-white/5 border border-white/20 rounded-lg p-3 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/20 transition-all duration-300 group backdrop-blur-sm"
               >
                 <h3 className="font-semibold text-white text-sm group-hover:text-purple-300 transition-colors line-clamp-2 mb-2">
@@ -413,11 +473,11 @@ export default function MainWarehousePage() {
                 <div className="mb-2 pb-2 border-b border-white/10">
                   <div className="flex justify-between items-center text-sm mb-1">
                     <span className="text-gray-400">Olish:</span>
-                    <span className="text-orange-400 font-bold">{formatPrice(convertPrice(product.buyPrice))}</span>
+                    <span className="text-orange-400 font-bold">{formatPrice(convertPrice(product.costPrice, product.currency), product.currency)}</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-400">Sotish:</span>
-                    <span className="text-green-400 font-bold">{formatPrice(convertPrice(product.sellPrice))}</span>
+                    <span className="text-green-400 font-bold">{formatPrice(convertPrice(product.sellPrice, product.currency), product.currency)}</span>
                   </div>
                 </div>
 
@@ -426,16 +486,22 @@ export default function MainWarehousePage() {
                 </div>
 
                 {product.imei && (
-                  <div className="mb-3 px-2 py-1 bg-blue-500/20 border border-blue-500/30 rounded text-xs text-blue-300 text-center line-clamp-1">
-                    {product.imei}
-                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedImeiProduct(product)
+                      setShowImeiModal(true)
+                    }}
+                    className="w-full mb-3 px-2 py-1.5 bg-blue-500/20 hover:bg-blue-500/40 border border-blue-500/30 hover:border-blue-500/60 rounded text-xs text-blue-300 hover:text-blue-200 transition-all duration-300 font-medium"
+                  >
+                    📱 IMEI ko'rish ({product.stock} ta)
+                  </button>
                 )}
 
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
                       setSelectedProduct(product)
-                      setTransferData({ quantity: '', targetBranch: '', selectedImei: '' })
+                      setTransferData({ quantity: '', targetBranch: '', selectedImei: '', selectedImeis: [] })
                       setShowTransferModal(true)
                     }}
                     className="flex-1 p-1.5 bg-green-500/20 hover:bg-green-500/40 rounded transition-all duration-300 border border-green-500/30 hover:border-green-500/60 text-green-400 hover:text-green-300 text-xs"
@@ -450,14 +516,15 @@ export default function MainWarehousePage() {
                     <Edit2 size={14} className="mx-auto" />
                   </button>
                   <button
-                    onClick={() => handleDeleteProduct(product._id)}
+                    onClick={() => handleDeleteProduct(product.id)}
                     className="flex-1 p-1.5 bg-red-500/20 hover:bg-red-500/40 rounded transition-all duration-300 border border-red-500/30 hover:border-red-500/60 text-red-400 hover:text-red-300 text-xs"
                   >
                     <Trash2 size={14} className="mx-auto" />
                   </button>
                 </div>
               </div>
-            ))
+            )
+            })
           )}
         </div>
 
@@ -471,7 +538,7 @@ export default function MainWarehousePage() {
                   onClick={() => {
                     setShowModal(false)
                     setEditingId(null)
-                    setFormData({ name: '', category: '', buyPrice: '', sellPrice: '', stock: '', imei: '' })
+                    setFormData({ name: '', category: '', costPrice: '', sellPrice: '', stock: '', imei: '', currency: 'USD', sellCurrency: 'USD' })
                     setImeiMode(null)
                     setImeiInputs({})
                   }}
@@ -486,7 +553,7 @@ export default function MainWarehousePage() {
                   <label className="block text-sm font-medium text-gray-300 mb-2">Mahsulot Nomi</label>
                   <input
                     type="text"
-                    value={formData.name}
+                    value={formData.name || ''}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="Mahsulot nomi"
@@ -494,32 +561,63 @@ export default function MainWarehousePage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Olish Narxi ($)</label>
-                  <input
-                    type="number"
-                    value={formData.buyPrice}
-                    onChange={(e) => setFormData({ ...formData, buyPrice: e.target.value })}
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Valyuta</label>
+                  <select
+                    value={formData.currency}
+                    onChange={(e) => {
+                      const newCurrency = e.target.value as 'USD' | 'UZS'
+                      console.log('[SELECT CHANGE] Tanlangan valyuta:', newCurrency)
+                      setFormData(prev => ({ ...prev, currency: newCurrency, sellCurrency: newCurrency }))
+                    }}
                     className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="0.00"
-                  />
+                  >
+                    <option value="USD">$ (Dollar)</option>
+                    <option value="UZS">so'm (So'm)</option>
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">Tanlangan: {formData.currency}</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Sotish Narxi ($)</label>
-                  <input
-                    type="number"
-                    value={formData.sellPrice}
-                    onChange={(e) => setFormData({ ...formData, sellPrice: e.target.value })}
-                    className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="0.00"
-                  />
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Olish Narxi</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={formData.costPrice || ''}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9.]/g, '')
+                        setFormData({ ...formData, costPrice: val })
+                      }}
+                      className="w-full pl-4 pr-12 py-2 bg-slate-700/50 border border-slate-600/50 rounded text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder={formData.currency === 'USD' ? '0.00 $' : '0.00 so\'m'}
+                    />
+                    <span className="absolute right-4 top-2 text-gray-400 text-lg pointer-events-none">{formData.currency === 'USD' ? '$' : 'so\'m'}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Sotish Narxi</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={formData.sellPrice || ''}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9.]/g, '')
+                        setFormData({ ...formData, sellPrice: val })
+                      }}
+                      className="w-full pl-4 pr-12 py-2 bg-slate-700/50 border border-slate-600/50 rounded text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder={formData.currency === 'USD' ? '0.00 $' : '0.00 so\'m'}
+                    />
+                    <span className="absolute right-4 top-2 text-gray-400 text-lg pointer-events-none">{formData.currency === 'USD' ? '$' : 'so\'m'}</span>
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Soni</label>
                   <input
                     type="number"
-                    value={formData.stock}
+                    value={formData.stock || ''}
                     onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
                     className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="0"
@@ -617,7 +715,7 @@ export default function MainWarehousePage() {
                   onClick={() => {
                     setShowModal(false)
                     setEditingId(null)
-                    setFormData({ name: '', category: '', buyPrice: '', sellPrice: '', stock: '', imei: '' })
+                    setFormData({ name: '', category: '', costPrice: '', sellPrice: '', stock: '', imei: '', currency: 'USD', sellCurrency: 'USD' })
                     setImeiMode(null)
                     setImeiInputs({})
                   }}
@@ -647,7 +745,7 @@ export default function MainWarehousePage() {
                   onClick={() => {
                     setShowTransferModal(false)
                     setSelectedProduct(null)
-                    setTransferData({ quantity: '', targetBranch: '', selectedImei: '' })
+                    setTransferData({ quantity: '', targetBranch: '', selectedImei: '', selectedImeis: [] })
                   }}
                   className="text-gray-400 hover:text-white"
                 >
@@ -676,18 +774,37 @@ export default function MainWarehousePage() {
                 {/* IMEI Selection - only for different IMEIs */}
                 {selectedProduct.imei && selectedProduct.imei.split(',').filter(i => i.trim()).length > 1 && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">IMEI Tanlang</label>
-                    <select
-                      value={transferData.selectedImei}
-                      onChange={(e) => setTransferData({ ...transferData, selectedImei: e.target.value })}
-                      className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600/50 rounded text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">IMEI tanlang</option>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      IMEI Tanlang ({transferData.selectedImeis.length}/{parseInt(transferData.quantity) || 0})
+                    </label>
+                    <div className="bg-slate-700/30 border border-slate-600/50 rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
                       {selectedProduct.imei.split(',').map((imei, idx) => (
-                        <option key={idx} value={imei.trim()}>{imei.trim()}</option>
+                        <label key={idx} className="flex items-center gap-3 p-2 hover:bg-slate-700/50 rounded cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={transferData.selectedImeis.includes(imei.trim())}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setTransferData({
+                                  ...transferData,
+                                  selectedImeis: [...transferData.selectedImeis, imei.trim()]
+                                })
+                              } else {
+                                setTransferData({
+                                  ...transferData,
+                                  selectedImeis: transferData.selectedImeis.filter(i => i !== imei.trim())
+                                })
+                              }
+                            }}
+                            className="w-4 h-4 rounded border-gray-400 text-blue-500 focus:ring-2 focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-300 font-mono flex-1">{imei.trim()}</span>
+                        </label>
                       ))}
-                    </select>
-                    <p className="text-xs text-gray-400 mt-1">Har xil IMEI uchun IMEI tanlang</p>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">
+                      {transferData.quantity ? `${parseInt(transferData.quantity)} ta IMEI tanlang` : 'Miqdor kiriting'}
+                    </p>
                   </div>
                 )}
 
@@ -719,7 +836,7 @@ export default function MainWarehousePage() {
                   onClick={() => {
                     setShowTransferModal(false)
                     setSelectedProduct(null)
-                    setTransferData({ quantity: '', targetBranch: '', selectedImei: '' })
+                    setTransferData({ quantity: '', targetBranch: '', selectedImei: '', selectedImeis: [] })
                   }}
                   className="flex-1 px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded text-white font-semibold transition"
                 >
@@ -766,7 +883,65 @@ export default function MainWarehousePage() {
             </div>
           </div>
         )}
+
+        {/* IMEI ko'rish modal */}
+        {showImeiModal && selectedImeiProduct && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-slate-800/80 backdrop-blur-xl rounded-lg shadow-2xl max-w-md w-full border border-slate-700/50">
+              <div className="flex justify-between items-center p-6 border-b border-slate-700/50">
+                <h2 className="text-2xl font-bold text-white">📱 IMEI Raqamlari</h2>
+                <button
+                  onClick={() => {
+                    setShowImeiModal(false)
+                    setSelectedImeiProduct(null)
+                  }}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="p-6">
+                <div className="mb-4">
+                  <p className="text-sm text-gray-300 mb-2">Mahsulot: <span className="font-bold text-white">{selectedImeiProduct.name}</span></p>
+                  <p className="text-sm text-gray-300">Jami: <span className="font-bold text-cyan-300">{selectedImeiProduct.stock} ta</span></p>
+                </div>
+
+                <div className="bg-slate-700/30 border border-slate-600/50 rounded-lg p-4 space-y-2 max-h-96 overflow-y-auto">
+                  {selectedImeiProduct.imei && selectedImeiProduct.imei.split(',').map((imei, index) => (
+                    <div key={index} className="flex items-center gap-3 p-2 bg-slate-700/50 rounded">
+                      <span className="text-blue-400 font-bold min-w-8">{index + 1}.</span>
+                      <span className="text-gray-200 font-mono text-sm flex-1 break-all">{imei.trim()}</span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(imei.trim())
+                        }}
+                        className="px-2 py-1 bg-blue-500/20 hover:bg-blue-500/40 border border-blue-500/30 rounded text-xs text-blue-300 hover:text-blue-200 transition"
+                        title="Nusxalash"
+                      >
+                        📋
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-slate-700/50">
+                <button
+                  onClick={() => {
+                    setShowImeiModal(false)
+                    setSelectedImeiProduct(null)
+                  }}
+                  className="w-full px-4 py-2 bg-slate-700/50 hover:bg-slate-700 rounded text-white font-semibold transition"
+                >
+                  Yopish
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AdminLayout>
   )
 }
+

@@ -6,24 +6,26 @@ import AdminLayout from '@/components/layouts/AdminLayout'
 import { DollarSign, Phone, TrendingUp, Search, ChevronDown } from 'lucide-react'
 
 interface DebtItem {
-  product?: { name: string; _id: string }
+  product?: { name: string; id: string }
   quantity: number
   salePrice: number
   total: number
+  currency?: 'USD' | 'UZS'
 }
 
 interface Debt {
-  _id: string
+  id: string
   customer?: { name: string; phone?: string }
-  branch?: { name: string; _id: string }
+  branch?: { name: string; id: string }
   totalDebt: number
+  currency?: 'USD' | 'UZS'
   items: DebtItem[]
   createdAt: string
   dueDate?: string
 }
 
 interface Branch {
-  _id: string
+  id: string
   name: string
 }
 
@@ -36,8 +38,12 @@ export default function DebtorsPage() {
   const [selectedBranch, setSelectedBranch] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [expandedDebtId, setExpandedDebtId] = useState<string | null>(null)
-  const [currency, setCurrency] = useState<'USD' | 'UZS'>('USD')
-  const [exchangeRate, setExchangeRate] = useState(12500)
+
+  const formatPrice = (price?: number, currency?: 'USD' | 'UZS'): string => {
+    if (!price || isNaN(price)) return '0'
+    if (currency === 'USD') return `$${price.toFixed(2)}`
+    return `${Math.floor(price).toLocaleString('uz-UZ')} so'm`
+  }
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -46,40 +52,15 @@ export default function DebtorsPage() {
         router.push('/')
       } else {
         fetchData()
-        fetchExchangeRate()
       }
     }
   }, [router])
-
-  const fetchExchangeRate = async () => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
-      const response = await fetch(`${apiUrl}/exchange-rate/current`)
-      const data = await response.json()
-      
-      if (data.success && data.data) {
-        setExchangeRate(data.data.rate)
-      }
-    } catch (err) {
-      console.error('Exchange rate fetch error:', err)
-    }
-  }
-
-  const convertPrice = (priceInUsd: number): number => {
-    if (currency === 'USD') return priceInUsd
-    return priceInUsd * exchangeRate
-  }
-
-  const formatPrice = (price: number): string => {
-    if (currency === 'USD') return `$${price.toFixed(2)}`
-    return `${Math.floor(price).toLocaleString('uz-UZ')} so'm`
-  }
 
   const fetchData = async () => {
     try {
       setLoading(true)
       setError(null)
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
       const token = localStorage.getItem('adminToken')
 
       const [salesRes, branchesRes] = await Promise.all([
@@ -109,13 +90,13 @@ export default function DebtorsPage() {
         // Group by customer and sum debts
         const debtMap = new Map<string, Debt>()
         debtSales.forEach((sale: any) => {
-          const customerId = sale.customer?._id || 'unknown'
+          const customerId = sale.customer?.id || 'unknown'
           const debtAmount = sale.paymentMethods?.find((m: any) => m.type === 'debt')?.amount || 0
 
           if (debtAmount > 0) {
             if (!debtMap.has(customerId)) {
               debtMap.set(customerId, {
-                _id: customerId,
+                id: customerId,
                 customer: sale.customer,
                 branch: sale.branch,
                 totalDebt: 0,
@@ -141,7 +122,7 @@ export default function DebtorsPage() {
   }
 
   const filteredDebts = debts.filter(debt => {
-    const branchMatch = selectedBranch === 'all' || debt.branch?._id === selectedBranch
+    const branchMatch = selectedBranch === 'all' || debt.branch?.id === selectedBranch
     const searchMatch = 
       debt.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       debt.customer?.phone?.includes(searchTerm)
@@ -173,29 +154,6 @@ export default function DebtorsPage() {
             <h1 className="text-3xl font-bold text-white">Qarzdorlar</h1>
             <p className="text-gray-400 mt-1">Qarz bilan sotilgan mahsulotlar</p>
           </div>
-          {/* Currency Selector */}
-          <div className="flex gap-2 bg-white/10 border border-white/20 rounded-lg p-1">
-            <button
-              onClick={() => setCurrency('USD')}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                currency === 'USD'
-                  ? 'bg-red-600 text-white shadow-lg shadow-red-500/50'
-                  : 'text-gray-300 hover:text-white'
-              }`}
-            >
-              $
-            </button>
-            <button
-              onClick={() => setCurrency('UZS')}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                currency === 'UZS'
-                  ? 'bg-red-600 text-white shadow-lg shadow-red-500/50'
-                  : 'text-gray-300 hover:text-white'
-              }`}
-            >
-              So'm
-            </button>
-          </div>
         </div>
 
         {error && (
@@ -210,7 +168,7 @@ export default function DebtorsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-400 text-sm">Jami Qarz</p>
-                <p className="text-3xl font-bold text-red-400 mt-2">{formatPrice(convertPrice(totalDebt))}</p>
+                <p className="text-3xl font-bold text-red-400 mt-2">{formatPrice(totalDebt)}</p>
               </div>
               <DollarSign size={32} className="text-red-500 opacity-50" />
             </div>
@@ -248,11 +206,11 @@ export default function DebtorsPage() {
               <select
                 value={selectedBranch}
                 onChange={(e) => setSelectedBranch(e.target.value)}
-                className="w-full bg-slate-700/50 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-red-500"
+                className="w-full bg-slate-700 border border-red-500/50 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:border-red-500"
               >
                 <option value="all">Barcha Filiallar</option>
                 {branches.map(b => (
-                  <option key={b._id} value={b._id}>{b.name}</option>
+                  <option key={b._id || b.id} value={b._id || b.id}>{b.name}</option>
                 ))}
               </select>
             </div>
@@ -268,10 +226,10 @@ export default function DebtorsPage() {
           ) : (
             <div className="divide-y divide-white/10">
               {filteredDebts.map(debt => (
-                <div key={debt._id} className="p-4 hover:bg-white/5 transition">
+                <div key={debt.id} className="p-4 hover:bg-white/5 transition">
                   <div
                     className="flex items-center justify-between cursor-pointer"
-                    onClick={() => setExpandedDebtId(expandedDebtId === debt._id ? null : debt._id)}
+                    onClick={() => setExpandedDebtId(expandedDebtId === debt.id ? null : debt.id)}
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
@@ -285,16 +243,16 @@ export default function DebtorsPage() {
                       </p>
                     </div>
                     <div className="text-right mr-4">
-                      <p className="text-red-400 font-bold">{formatPrice(convertPrice(debt.totalDebt))}</p>
+                      <p className="text-red-400 font-bold">{formatPrice(debt.totalDebt, debt.currency)}</p>
                       <p className="text-gray-400 text-sm">{debt.items?.length || 0} mahsulot</p>
                     </div>
                     <ChevronDown
                       size={20}
-                      className={`text-gray-400 transition-transform ${expandedDebtId === debt._id ? 'rotate-180' : ''}`}
+                      className={`text-gray-400 transition-transform ${expandedDebtId === debt.id ? 'rotate-180' : ''}`}
                     />
                   </div>
 
-                  {expandedDebtId === debt._id && (
+                  {expandedDebtId === debt.id && (
                     <div className="mt-4 pt-4 border-t border-white/10 space-y-3">
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
@@ -325,10 +283,10 @@ export default function DebtorsPage() {
                               <div key={idx} className="bg-white/5 p-2 rounded text-sm">
                                 <div className="flex justify-between mb-1">
                                   <span className="text-gray-300">{item.product?.name || 'Unknown'} x{item.quantity}</span>
-                                  <span className="text-red-400 font-semibold">{formatPrice(convertPrice(item.total))}</span>
+                                  <span className="text-red-400 font-semibold">{formatPrice(item.total, item.currency || debt.currency)}</span>
                                 </div>
                                 <div className="flex justify-between text-xs text-gray-400">
-                                  <span>Narx: {formatPrice(convertPrice(item.salePrice || 0))}</span>
+                                  <span>Narx: {formatPrice(item.salePrice || 0, item.currency || debt.currency)}</span>
                                 </div>
                               </div>
                             ))}
@@ -339,7 +297,7 @@ export default function DebtorsPage() {
                       <div className="pt-3 border-t border-white/10 bg-white/5 p-3 rounded">
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-400">Jami Qarz</span>
-                          <span className="text-red-400 font-bold">{formatPrice(convertPrice(debt.totalDebt))}</span>
+                          <span className="text-red-400 font-bold">{formatPrice(debt.totalDebt, debt.currency)}</span>
                         </div>
                       </div>
                     </div>
@@ -353,3 +311,4 @@ export default function DebtorsPage() {
     </AdminLayout>
   )
 }
+

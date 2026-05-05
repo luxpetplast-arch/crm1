@@ -45,7 +45,7 @@ export default function ReportsPage() {
     try {
       setLoading(true)
       setError(null)
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
       const token = localStorage.getItem('adminToken')
       
       const response = await fetch(
@@ -398,3 +398,4 @@ export default function ReportsPage() {
     </AdminLayout>
   )
 }
+

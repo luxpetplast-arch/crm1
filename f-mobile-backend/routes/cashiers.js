@@ -1,10 +1,11 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
-const { auth, adminOnly } = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Get all cashiers (public - for dashboard)
+// Get all cashiers (public)
 router.get('/public/all', async (req, res) => {
   try {
     const cashiers = await User.find({ role: 'cashier' }).populate('branch', 'name address');
@@ -14,8 +15,8 @@ router.get('/public/all', async (req, res) => {
   }
 });
 
-// Get all cashiers
-router.get('/', auth, adminOnly, async (req, res) => {
+// Get all cashiers (admin)
+router.get('/', auth, async (req, res) => {
   try {
     const cashiers = await User.find({ role: 'cashier' }).populate('branch', 'name address');
     res.json({ success: true, data: cashiers });
@@ -24,12 +25,12 @@ router.get('/', auth, adminOnly, async (req, res) => {
   }
 });
 
-// Get cashier by ID
-router.get('/:id', auth, adminOnly, async (req, res) => {
+// Get single cashier
+router.get('/:id', auth, async (req, res) => {
   try {
     const cashier = await User.findById(req.params.id).populate('branch');
     if (!cashier) {
-      return res.status(404).json({ success: false, error: 'Cashier not found' });
+      return res.status(404).json({ success: false, error: 'Kassir topilmadi' });
     }
     res.json({ success: true, data: cashier });
   } catch (err) {
@@ -38,71 +39,29 @@ router.get('/:id', auth, adminOnly, async (req, res) => {
 });
 
 // Create cashier
-router.post('/', auth, adminOnly, async (req, res) => {
+router.post('/', auth, async (req, res) => {
   try {
-    const { username, password, email, branch } = req.body;
+    const { username, password, name, branch } = req.body;
 
     if (!username || !password) {
-      return res.status(400).json({ success: false, error: 'Username and password required' });
+      return res.status(400).json({ success: false, error: 'Username va parol kerak' });
     }
 
     const existingUser = await User.findOne({ username });
     if (existingUser) {
-      return res.status(400).json({ success: false, error: 'Username already exists' });
+      return res.status(400).json({ success: false, error: 'Bu username allaqachon mavjud' });
     }
 
-    let branchId = null;
-    if (branch) {
-      const Branch = require('../models/Branch');
-      const branchDoc = await Branch.findOne({ name: branch });
-      if (branchDoc) {
-        branchId = branchDoc._id;
-      }
-    }
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    const cashier = new User({
+    const cashier = await User.create({
       username,
-      password,
-      email,
+      password: hashedPassword,
+      name: name || username,
       role: 'cashier',
-      branch: branchId
+      branch: branch || null
     });
-
-    await cashier.save();
-    res.status(201).json({ success: true, data: cashier });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// Update cashier
-router.put('/:id', auth, adminOnly, async (req, res) => {
-  try {
-    const { branch, password, ...otherData } = req.body;
-    
-    const cashier = await User.findById(req.params.id);
-    if (!cashier) {
-      return res.status(404).json({ success: false, error: 'Cashier not found' });
-    }
-    
-    // Update fields
-    Object.assign(cashier, otherData);
-    
-    // If password is provided, it will be hashed by pre-save hook
-    if (password) {
-      cashier.password = password;
-    }
-    
-    if (branch) {
-      const Branch = require('../models/Branch');
-      const branchDoc = await Branch.findOne({ name: branch });
-      if (branchDoc) {
-        cashier.branch = branchDoc._id;
-      }
-    }
-
-    await cashier.save();
-    await cashier.populate('branch', 'name address');
 
     res.json({ success: true, data: cashier });
   } catch (err) {
@@ -110,16 +69,48 @@ router.put('/:id', auth, adminOnly, async (req, res) => {
   }
 });
 
-// Delete cashier
-router.delete('/:id', auth, adminOnly, async (req, res) => {
+// Update cashier
+router.put('/:id', auth, async (req, res) => {
   try {
-    const cashier = await User.findByIdAndDelete(req.params.id);
+    const { username, password, name, branch } = req.body;
+    const cashier = await User.findById(req.params.id);
 
     if (!cashier) {
-      return res.status(404).json({ success: false, error: 'Cashier not found' });
+      return res.status(404).json({ success: false, error: 'Kassir topilmadi' });
     }
 
-    res.json({ success: true, message: 'Cashier deleted' });
+    // Check if username is being changed and if it already exists
+    if (username && username !== cashier.username) {
+      const existingUser = await User.findOne({ username });
+      if (existingUser) {
+        return res.status(400).json({ success: false, error: 'Bu username allaqachon mavjud' });
+      }
+      cashier.username = username;
+    }
+
+    if (password) {
+      // Hash password if provided
+      cashier.password = await bcrypt.hash(password, 10);
+    }
+    if (name) cashier.name = name;
+    if (branch !== undefined) cashier.branch = branch;
+    cashier.updatedAt = Date.now();
+
+    await cashier.save();
+    res.json({ success: true, data: cashier });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Delete cashier
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const cashier = await User.findByIdAndDelete(req.params.id);
+    if (!cashier) {
+      return res.status(404).json({ success: false, error: 'Kassir topilmadi' });
+    }
+    res.json({ success: true, message: 'Kassir o\'chirildi' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

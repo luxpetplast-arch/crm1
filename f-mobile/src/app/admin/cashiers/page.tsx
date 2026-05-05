@@ -51,7 +51,11 @@ export default function CashiersPage() {
     
     const branchResponse = await getBranches()
     if (branchResponse.success && branchResponse.data) {
+      console.log('✅ Branches loaded:', branchResponse.data)
       setBranches(branchResponse.data as Branch[])
+    } else {
+      console.error('❌ Branches error:', branchResponse.error)
+      setError(branchResponse.error || 'Filiallarni yuklashda xato')
     }
   }
 
@@ -64,6 +68,12 @@ export default function CashiersPage() {
     // Yangi kassir qo'shishda parol talab
     if (!isEditMode && !formData.password) {
       setError('Parol talab qilinadi')
+      return
+    }
+
+    // Filial talab
+    if (!formData.branch) {
+      setError('Filial talab qilinadi')
       return
     }
 
@@ -119,7 +129,7 @@ export default function CashiersPage() {
     setFormData({
       username: cashier.username,
       password: '',
-      branch: cashier.branch?.name || '',
+      branch: cashier.branch?._id || '',
     })
     setShowModal(true)
   }
@@ -274,9 +284,9 @@ export default function CashiersPage() {
                     }
                     className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
                   >
-                    <option value="" className="bg-slate-900">Filial tanlang</option>
-                    {branches.map((branch) => (
-                      <option key={branch._id} value={branch.name} className="bg-slate-900">
+                    <option value="">Filial tanlang</option>
+                    {branches && branches.length > 0 && branches.map((branch) => (
+                      <option key={`branch-${branch._id}`} value={branch._id}>
                         {branch.name}
                       </option>
                     ))}
@@ -311,3 +321,4 @@ export default function CashiersPage() {
     </AdminLayout>
   )
 }
+

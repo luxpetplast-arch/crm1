@@ -1,18 +1,50 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const helmet = require('helmet');
-const dns = require('dns');
 require('dotenv').config();
 
-// Fix DNS resolution for MongoDB Atlas
-dns.setServers(['8.8.8.8', '8.8.4.4']);
+const express = require('express');
+const mongoose = require('./config/database');
+const cors = require('cors');
+const helmet = require('helmet');
+const cron = require('node-cron');
+const Sale = require('./models/Sale');
 
 const app = express();
 
 // Middleware
-app.use(helmet());
-app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:3000' }));
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginResourceSharing: true,
+}));
+app.use(cors({ 
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Allow localhost and network IPs
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}:3000$/,
+      /^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}:3000$/
+    ];
+    
+    const isAllowed = allowedOrigins.some(pattern => {
+      if (typeof pattern === 'string') {
+        return pattern === origin;
+      }
+      return pattern.test(origin);
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.warn('⚠️  CORS blocked origin:', origin);
+      callback(null, true); // Allow anyway for development
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -28,68 +60,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Database Connection
-const connectDB = async () => {
-  const maxRetries = 3;
-  let retries = 0;
-  
-  const attemptConnection = async () => {
-    try {
-      console.log(`Connecting to MongoDB (attempt ${retries + 1}/${maxRetries})...`);
-      await mongoose.connect(process.env.MONGODB_URI, {
-        serverSelectionTimeoutMS: 20000,
-        connectTimeoutMS: 20000,
-        socketTimeoutMS: 45000,
-        family: 4, // Use IPv4
-      });
-      console.log('✓ MongoDB connected successfully');
-      
-      // Run migration after successful connection
-      runMigrations();
-    } catch (err) {
-      retries++;
-      if (retries < maxRetries) {
-        console.warn(`⚠ Connection attempt ${retries} failed, retrying in 3 seconds...`);
-        console.warn('  Error:', err.message);
-        setTimeout(attemptConnection, 3000);
-      } else {
-        console.warn('⚠ MongoDB connection failed after retries - running in demo mode');
-        console.warn('  Error:', err.message);
-      }
-    }
-  };
-  
-  attemptConnection();
-};
-
-// Migration function
-const runMigrations = async () => {
-  try {
-    const Customer = require('./models/Customer');
-    
-    // Migrate old branch field to branches array
-    const customersWithOldBranch = await Customer.find({ branch: { $exists: true, $ne: null } });
-    
-    if (customersWithOldBranch.length > 0) {
-      console.log(`[MIGRATION] Found ${customersWithOldBranch.length} customers with old branch field`);
-      
-      for (const customer of customersWithOldBranch) {
-        if (!customer.branches || customer.branches.length === 0) {
-          customer.branches = [customer.branch];
-          await customer.save();
-          console.log(`[MIGRATION] Updated ${customer.name}: branch=${customer.branch} -> branches=[${customer.branch}]`);
-        }
-      }
-      
-      console.log(`[MIGRATION] Migration complete`);
-    }
-  } catch (err) {
-    console.error('[MIGRATION] Error:', err.message);
-  }
-};
-
-connectDB();
-
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/branches', require('./routes/branches'));
@@ -100,51 +70,20 @@ app.use('/api/customers', require('./routes/customers'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/exchange-rate', require('./routes/exchangeRate'));
 app.use('/api/income', require('./routes/income'));
+app.use('/api/database', require('./routes/database'));
 app.use('/api/expenses', require('./routes/expenses'));
 app.use('/api/imei', require('./routes/imei'));
 app.use('/api/analytics', require('./routes/analytics'));
+app.use('/api/stripe', require('./routes/stripe'));
+app.use('/api/debug', require('./routes/debug'));
 
 // Health Check
 app.get('/api/health', (req, res) => {
-  const dbConnected = mongoose.connection.readyState === 1;
   res.json({ 
     status: 'OK', 
     timestamp: new Date(),
-    database: dbConnected ? 'Connected' : 'Disconnected'
+    database: 'MongoDB'
   });
-});
-
-// Database Info
-app.get('/api/db-info', async (req, res) => {
-  try {
-    const dbConnected = mongoose.connection.readyState === 1;
-    if (!dbConnected) {
-      return res.json({ 
-        status: 'Disconnected',
-        message: 'MongoDB not connected'
-      });
-    }
-    
-    const db = mongoose.connection.db;
-    const collections = await db.listCollections().toArray();
-    const collectionNames = collections.map(c => c.name);
-    
-    const stats = {};
-    for (const collName of collectionNames) {
-      const coll = db.collection(collName);
-      const count = await coll.countDocuments();
-      stats[collName] = count;
-    }
-    
-    res.json({ 
-      status: 'Connected',
-      database: mongoose.connection.name,
-      collections: collectionNames,
-      documentCounts: stats
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 });
 
 // Error Handler
@@ -165,4 +104,25 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`✓ Server running on port ${PORT}`);
   console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`✓ Database: MongoDB`);
+  
+  // Schedule automatic cleanup of old sales (runs daily at 2:00 AM)
+  cron.schedule('0 2 * * *', async () => {
+    try {
+      const twentyDaysAgo = new Date();
+      twentyDaysAgo.setDate(twentyDaysAgo.getDate() - 20);
+      
+      console.log('[AUTO CLEANUP] Starting cleanup of sales older than:', twentyDaysAgo);
+      
+      const result = await Sale.deleteMany({
+        createdAt: { $lt: twentyDaysAgo }
+      });
+      
+      console.log(`[AUTO CLEANUP] ✓ Deleted ${result.deletedCount} old sales`);
+    } catch (err) {
+      console.error('[AUTO CLEANUP] ✗ Error:', err.message);
+    }
+  });
+  
+  console.log('✓ Automatic cleanup scheduled (daily at 2:00 AM)');
 });

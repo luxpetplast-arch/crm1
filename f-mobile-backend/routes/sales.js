@@ -1,51 +1,66 @@
 const express = require('express');
 const Sale = require('../models/Sale');
-const Product = require('../models/Product');
 const Customer = require('../models/Customer');
+const Product = require('../models/Product');
 const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Get all sales (public - bot uchun) - MUST be before /:id
+// Get all sales (public)
 router.get('/public/all', async (req, res) => {
   try {
-    console.log('📋 Public all sales endpoint called');
-    const sales = await Sale.find({})
-      .populate('cashier', 'username')
+    const sales = await Sale.find()
+      .populate('cashier', 'name username')
       .populate('branch', 'name')
       .populate('customer', 'name phone')
-      .populate('items.product', 'name')
       .sort({ createdAt: -1 });
 
-    console.log(`✅ Found ${sales.length} sales`);
-    res.json({ success: true, data: sales });
+    const Product = require('../models/Product');
+    const salesWithProducts = await Promise.all(sales.map(async (sale) => {
+      const saleObj = sale.toObject();
+      saleObj.items = await Promise.all((saleObj.items || []).map(async (item) => {
+        if (item.product && typeof item.product === 'string') {
+          try {
+            const product = await Product.findById(item.product).select('name');
+            return { ...item, product: product ? { id: product._id, name: product.name } : { name: 'Noma\'lum' } };
+          } catch { return { ...item, product: { name: 'Noma\'lum' } }; }
+        }
+        return item;
+      }));
+      return saleObj;
+    }));
+
+    res.json({ success: true, data: salesWithProducts });
   } catch (err) {
-    console.error('❌ Error fetching sales:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Get all sales
+// Get all sales (admin)
 router.get('/', auth, async (req, res) => {
   try {
-    const { branch, startDate, endDate } = req.query;
-    let query = {};
-
-    if (branch) query.branch = branch;
-    if (startDate || endDate) {
-      query.createdAt = {};
-      if (startDate) query.createdAt.$gte = new Date(startDate);
-      if (endDate) query.createdAt.$lte = new Date(endDate);
-    }
-
-    const sales = await Sale.find(query)
-      .populate('cashier', 'username')
+    const sales = await Sale.find()
+      .populate('cashier', 'name username')
       .populate('branch', 'name')
       .populate('customer', 'name phone')
-      .populate('items.product', 'name')
       .sort({ createdAt: -1 });
 
-    res.json({ success: true, data: sales });
+    const Product = require('../models/Product');
+    const salesWithProducts = await Promise.all(sales.map(async (sale) => {
+      const saleObj = sale.toObject();
+      saleObj.items = await Promise.all((saleObj.items || []).map(async (item) => {
+        if (item.product && typeof item.product === 'string') {
+          try {
+            const product = await Product.findById(item.product).select('name');
+            return { ...item, product: product ? { id: product._id, name: product.name } : { name: 'Noma\'lum' } };
+          } catch { return { ...item, product: { name: 'Noma\'lum' } }; }
+        }
+        return item;
+      }));
+      return saleObj;
+    }));
+
+    res.json({ success: true, data: salesWithProducts });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -60,86 +75,103 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid sale data' });
     }
 
-    if (!paymentMethods || paymentMethods.length === 0) {
-      return res.status(400).json({ success: false, error: 'Payment methods required' });
-    }
+    console.log('[CREATE SALE] Processing sale with items:', items.length);
 
-    // Calculate total paid and debt
-    const totalPaid = paymentMethods.reduce((sum, method) => sum + method.amount, 0);
-    const debt = Math.max(0, totalAmount - totalPaid);
-
-    // Update product stock and mark IMEIs as used
+    // Update product stock and IMEI for each item
     for (const item of items) {
-      // If IMEI is provided, mark it as used (don't decrement stock separately)
-      if (item.imei) {
-        try {
-          // Get the FRESH product data each time to avoid stale data
-          const product = await Product.findById(item.product);
-          if (product && product.imeiList && Array.isArray(product.imeiList)) {
-            console.log(`[SALES] Product: ${product.name}, Total IMEIs: ${product.imeiList.length}, Looking for IMEI: "${item.imei}", Quantity to mark: ${item.quantity}`);
-            
-            // Find exactly 'quantity' number of unused IMEIs with this value
-            const imeiIndicesToUpdate = [];
-            for (let i = 0; i < product.imeiList.length && imeiIndicesToUpdate.length < item.quantity; i++) {
-              if (product.imeiList[i] && product.imeiList[i].imei === item.imei && !product.imeiList[i].used) {
-                imeiIndicesToUpdate.push(i);
-              }
-            }
-            
-            console.log(`[SALES] Found ${imeiIndicesToUpdate.length} unused IMEIs matching "${item.imei}", need to mark ${item.quantity}`);
-            
-            if (imeiIndicesToUpdate.length > 0) {
-              // Update each IMEI individually to ensure proper updates
-              for (const index of imeiIndicesToUpdate) {
-                const updateResult = await Product.updateOne(
-                  { _id: item.product },
-                  { $set: { [`imeiList.${index}.used`]: true } }
-                );
-                console.log(`[SALES] Updated IMEI at index ${index}: ${updateResult.modifiedCount} document(s) modified`);
-              }
-              console.log(`[SALES] ✅ Successfully marked ${imeiIndicesToUpdate.length} IMEIs as used (out of ${item.quantity} requested)`);
-              
-              if (imeiIndicesToUpdate.length < item.quantity) {
-                console.warn(`[SALES] ⚠️ Warning: Only marked ${imeiIndicesToUpdate.length} IMEIs but ${item.quantity} were requested`);
-              }
-            } else {
-              console.warn(`[SALES] ⚠️ No unused IMEIs found matching "${item.imei}" for product ${item.product}`);
-            }
-          } else {
-            console.log(`[SALES] No imeiList found for product ${item.product}`);
-          }
-        } catch (err) {
-          console.error(`[SALES] Error updating IMEI for product ${item.product}:`, err.message);
-          throw err;
-        }
-      } else {
-        // If no IMEI, just decrement stock
-        await Product.findByIdAndUpdate(
-          item.product,
-          { $inc: { stock: -item.quantity } }
-        );
+      const product = await Product.findById(item.product);
+      if (!product) {
+        console.log('[CREATE SALE] Product not found:', item.product);
+        continue;
       }
-    }
 
-    // Get customer info for Telegram notification
-    let customerData = null;
-    if (customer) {
-      customerData = await Customer.findById(customer);
-      console.log('[SALES] Customer data:', customerData);
-    }
+      console.log('[CREATE SALE] Updating product:', { 
+        name: product.name, 
+        currentStock: product.stock, 
+        soldQuantity: item.quantity,
+        imei: item.imei,
+        imeiListLength: product.imeiList?.length || 0
+      });
 
-    // Update customer debt if exists
-    if (customer && debt > 0) {
-      await Customer.findByIdAndUpdate(
-        customer,
-        { $inc: { debt: debt, totalPurchase: totalAmount } }
-      );
-    } else if (customer) {
-      // Even if no debt, update totalPurchase
-      await Customer.findByIdAndUpdate(
-        customer,
-        { $inc: { totalPurchase: totalAmount } }
-      );
+      // Calculate new stock
+      const newStock = product.stock - item.quantity;
+
+      if (newStock < 0) {
+        return res.status(400).json({ 
+          success: false, 
+          error: `Mahsulot yetarli emas: ${product.name}` 
+        });
+      }
+
+      // Update IMEI list - remove sold IMEIs
+      let updatedImei = product.imei;
+      let updatedImeiList = product.imeiList || [];
+      
+      if (item.imei) {
+        // item.imei is a single IMEI string, not comma-separated
+        const soldImei = item.imei.trim();
+        
+        console.log('[CREATE SALE] Processing IMEI:', {
+          soldImei,
+          currentImei: product.imei,
+          currentImeiListLength: product.imeiList?.length || 0
+        });
+        
+        // Remove from comma-separated string
+        if (product.imei) {
+          const imeiArray = product.imei.split(',').map(i => i.trim()).filter(i => i !== '');
+          const remainingImeis = imeiArray.filter(imei => imei !== soldImei);
+          updatedImei = remainingImeis.join(',');
+          
+          console.log('[CREATE SALE] String IMEI update:', {
+            before: imeiArray.length,
+            after: remainingImeis.length,
+            removed: soldImei
+          });
+        }
+        
+        // Remove from imeiList array
+        if (product.imeiList && product.imeiList.length > 0) {
+          updatedImeiList = product.imeiList.filter(imeiItem => {
+            const imeiValue = typeof imeiItem === 'string' ? imeiItem : imeiItem.imei;
+            const shouldKeep = imeiValue !== soldImei;
+            if (!shouldKeep) {
+              console.log('[CREATE SALE] Removing IMEI from list:', imeiValue);
+            }
+            return shouldKeep;
+          });
+          
+          console.log('[CREATE SALE] Array IMEI update:', {
+            before: product.imeiList.length,
+            after: updatedImeiList.length
+          });
+        }
+      }
+
+      // Update or delete product
+      if (newStock === 0) {
+        await Product.findByIdAndDelete(item.product);
+        console.log('[CREATE SALE] Product deleted (stock = 0):', product.name);
+      } else {
+        const updateData = {
+          stock: newStock,
+          imei: updatedImei,
+          updatedAt: Date.now()
+        };
+        
+        // Only update imeiList if it exists
+        if (product.imeiList && product.imeiList.length > 0) {
+          updateData.imeiList = updatedImeiList;
+        }
+        
+        await Product.findByIdAndUpdate(item.product, updateData);
+        console.log('[CREATE SALE] Product updated:', { 
+          name: product.name, 
+          newStock, 
+          imeiListLength: updatedImeiList.length,
+          imei: updatedImei 
+        });
+      }
     }
 
     const sale = new Sale({
@@ -148,146 +180,166 @@ router.post('/', auth, async (req, res) => {
       customer,
       items,
       totalAmount,
-      paidAmount: totalPaid,
-      change: Math.max(0, change || 0),
-      currency,
-      paymentMethods,
-      notes
+      paidAmount: paidAmount || 0,
+      change: change || 0,
+      currency: currency || 'UZS',
+      paymentMethods: paymentMethods || [],
+      notes: notes || ''
     });
 
     await sale.save();
+    console.log('[CREATE SALE] Sale saved successfully');
 
-    // Send Telegram notification via webhook
-    if (customer) {
-      try {
-        const itemsForWebhook = items.map(item => ({
-          product_name: item.product?.name || 'Mahsulot',
-          quantity: item.quantity,
-          price: item.price,
-          total: item.total
-        }));
-
-        const webhookData = {
-          customer_id: customer,
-          customer_name: customerData?.name || 'Noma\'lum',
-          items: itemsForWebhook,
-          total_amount: totalAmount,
-          paid_amount: totalPaid
-        };
-
-        console.log('[WEBHOOK] Sending to bot:', webhookData);
-        
-        // Send to bot webhook
-        await fetch('http://localhost:5002/webhook/sale', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(webhookData)
-        }).catch(err => console.log('[WEBHOOK] Error:', err.message));
-      } catch (err) {
-        console.log('[WEBHOOK] Error sending:', err.message);
+    // Create income record for cash payments (so kassa doesn't depend on sales history)
+    const Income = require('../models/Income');
+    const cashPayments = (paymentMethods || []).filter(m => m.type === 'cash');
+    if (cashPayments.length > 0) {
+      const cashAmount = cashPayments.reduce((sum, m) => sum + m.amount, 0);
+      const incomeData = {
+        source: `Savdo #${sale._id}`,
+        description: `Savdo tushumlari (sale_id:${sale._id})`,
+        category: 'sale',
+        saleId: sale._id
+      };
+      if (currency === 'USD') {
+        incomeData.amountUSD = cashAmount;
+        incomeData.amountUZS = 0;
+      } else {
+        incomeData.amountUZS = cashAmount;
+        incomeData.amountUSD = 0;
       }
+      await Income.create(incomeData);
+      console.log('[CREATE SALE] Income record created for cash payment:', cashAmount, currency);
     }
 
-    // Send Telegram notification if customer has telegramUserId
-    if (customerData && customerData.telegramUserId) {
-      console.log('[SALES] Sending Telegram notification to:', customerData.telegramUserId);
-      try {
-        const itemsText = items.map(item => `${item.quantity}x ${item.product}`).join(', ');
-        const paymentMethodsText = paymentMethods.map(m => {
-          const typeText = m.type === 'cash' ? 'Naqd' : m.type === 'debt' ? 'Qarz' : m.type === 'click' ? 'Click' : 'Terminal';
-          return `${typeText}: ${m.amount.toFixed(2)}`;
-        }).join(', ');
+    // Update customer debt if exists
+    if (customer) {
+      const cust = await Customer.findById(customer);
+      if (cust) {
+        // Calculate debt based on payment methods
+        let debt = 0;
         
-        const message = `
-📦 YANGI SAVDO
-${'='*40}
-
-👤 Mijoz: ${customerData.name}
-📱 Telefon: ${customerData.phone}
-
-🛍️ Mahsulotlar: ${itemsText}
-
-💰 SUMMA
-${'='*40}
-Jami: ${totalAmount.toFixed(2)}
-To'lov Turlari: ${paymentMethodsText}
-Qarz: ${debt.toFixed(2)}
-
-✅ Savdo muvaffaqiyatli yakunlandi!
-`;
-
-        // Send to Telegram bot API
-        const botToken = process.env.telegram_bot_token;
-        console.log('[SALES] Bot token exists:', !!botToken);
+        console.log('[CREATE SALE] Payment methods received:', {
+          paymentMethods,
+          paymentMethodsLength: paymentMethods?.length || 0,
+          totalAmount,
+          paidAmount
+        });
         
-        if (botToken) {
-          const telegramResponse = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: customerData.telegramUserId,
-              text: message,
-              parse_mode: 'HTML'
-            })
-          });
-          
-          const telegramData = await telegramResponse.json();
-          console.log('[SALES] Telegram response:', telegramData);
-          
-          if (!telegramData.ok) {
-            console.error('[SALES] Telegram error:', telegramData.description);
-          } else {
-            console.log('[SALES] ✅ Telegram notification sent successfully');
-          }
+        // If there's no payment methods, all amount is debt (qarz savdo)
+        if (!paymentMethods || paymentMethods.length === 0) {
+          debt = totalAmount;
+          console.log('[CREATE SALE] Debt (no payment methods - qarz savdo):', debt);
         } else {
-          console.log('[SALES] ⚠️ Bot token not found in environment');
+          // If there's cash payment, debt = totalAmount - paidAmount
+          const hasCashPayment = paymentMethods.some(m => m.type === 'cash');
+          
+          console.log('[CREATE SALE] Has cash payment:', hasCashPayment);
+          
+          if (hasCashPayment) {
+            // If cash payment exists, debt = totalAmount - paidAmount
+            debt = Math.max(0, totalAmount - paidAmount);
+            console.log('[CREATE SALE] Debt (cash payment):', debt);
+          } else {
+            // If only Click/Terminal, all amount is debt
+            debt = totalAmount;
+            console.log('[CREATE SALE] Debt (click/terminal):', debt);
+          }
         }
-      } catch (err) {
-        console.error('[SALES] Error sending Telegram notification:', err.message);
+        
+        // Update debt based on currency
+        const updates = {
+          totalPurchase: (cust.totalPurchase || 0) + totalAmount,
+          updatedAt: Date.now()
+        };
+        
+        if (currency === 'USD') {
+          updates.debtUSD = (cust.debtUSD || 0) + debt;
+          console.log('[CREATE SALE] Updated debtUSD:', {
+            old: cust.debtUSD || 0,
+            debt: debt,
+            new: updates.debtUSD
+          });
+        } else {
+          updates.debtUZS = (cust.debtUZS || 0) + debt;
+          console.log('[CREATE SALE] Updated debtUZS:', {
+            old: cust.debtUZS || 0,
+            debt: debt,
+            new: updates.debtUZS
+          });
+        }
+        
+        console.log('[CREATE SALE] Final updates object:', updates);
+        console.log('[CREATE SALE] Updating customer debt:', { 
+          customerId: customer, 
+          currency, 
+          totalAmount,
+          paidAmount,
+          hasCashPayment: paymentMethods && paymentMethods.some(m => m.type === 'cash'),
+          debt, 
+          updates
+        });
+        
+        const updateResult = await Customer.findByIdAndUpdate(customer, updates, { new: true });
+        console.log('[CREATE SALE] Customer after update:', {
+          debtUSD: updateResult?.debtUSD,
+          debtUZS: updateResult?.debtUZS
+        });
       }
-    } else {
-      console.log('[SALES] ⚠️ No customer data or telegramUserId:', {
-        hasCustomerData: !!customerData,
-        telegramUserId: customerData?.telegramUserId
-      });
     }
 
     res.status(201).json({ success: true, data: sale });
   } catch (err) {
+    console.error('[CREATE SALE] Error:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Get sale by ID
-router.get('/:id', auth, async (req, res) => {
-  try {
-    const sale = await Sale.findById(req.params.id)
-      .populate('cashier')
-      .populate('branch')
-      .populate('customer')
-      .populate('items.product');
-
-    if (!sale) {
-      return res.status(404).json({ success: false, error: 'Sale not found' });
-    }
-
-    res.json({ success: true, data: sale });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// Delete sale
+// Delete sale (only deletes history, doesn't affect cash register)
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const sale = await Sale.findByIdAndDelete(req.params.id);
-
+    console.log('[DELETE SALE] Deleting sale:', req.params.id);
+    
+    // Try findByIdAndDelete first, then findOneAndDelete as fallback
+    let sale = await Sale.findByIdAndDelete(req.params.id);
     if (!sale) {
-      return res.status(404).json({ success: false, error: 'Sale not found' });
+      // Try with string _id match
+      sale = await Sale.findOneAndDelete({ _id: req.params.id });
     }
-
+    if (!sale) {
+      // Already deleted - return success anyway so frontend can clean up
+      console.log('[DELETE SALE] Sale not found (may already be deleted), returning success');
+      return res.json({ success: true, message: 'Sale deleted' });
+    }
+    console.log('[DELETE SALE] Sale deleted. Income record kept - cash register not affected.');
     res.json({ success: true, message: 'Sale deleted' });
   } catch (err) {
+    console.error('[DELETE SALE] Error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Delete old sales (older than 20 days)
+router.delete('/cleanup/old', auth, async (req, res) => {
+  try {
+    // Calculate date 20 days ago
+    const twentyDaysAgo = new Date();
+    twentyDaysAgo.setDate(twentyDaysAgo.getDate() - 20);
+    
+    console.log('[CLEANUP] Deleting sales older than:', twentyDaysAgo);
+    
+    const result = await Sale.deleteMany({
+      createdAt: { $lt: twentyDaysAgo }
+    });
+    
+    console.log('[CLEANUP] Deleted', result.deletedCount, 'old sales');
+    res.json({ 
+      success: true, 
+      message: `${result.deletedCount} old sales deleted`,
+      deletedCount: result.deletedCount
+    });
+  } catch (err) {
+    console.error('[CLEANUP] Error:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
